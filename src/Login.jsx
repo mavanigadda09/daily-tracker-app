@@ -18,24 +18,18 @@ export default function Login({ onLogin }) {
 
     try {
       if (isRegister) {
-        // 📝 REGISTER
         await createUserWithEmailAndPassword(auth, email, password);
       } else {
-        // 🔐 LOGIN
         await signInWithEmailAndPassword(auth, email, password);
       }
-
       onLogin();
     } catch (err) {
-      console.log(err);
-
-      // 🔥 SMART ERROR MESSAGES
       if (err.code === "auth/email-already-in-use") {
-        setError("⚠️ Email already registered. Please login.");
+        setError("Email already registered.");
       } else if (err.code === "auth/user-not-found") {
-        setError("❌ No account found. Please register.");
+        setError("No account found.");
       } else if (err.code === "auth/wrong-password") {
-        setError("❌ Incorrect password.");
+        setError("Incorrect password.");
       } else {
         setError(err.message);
       }
@@ -44,90 +38,171 @@ export default function Login({ onLogin }) {
 
   return (
     <div style={styles.container}>
-      <div style={styles.card}>
+      
+      {/* LEFT PANEL */}
+      <div style={styles.left}>
+        <div>
+          <h1 style={styles.logo}>🔥 Ignira OS</h1>
+          <h2 style={styles.welcome}>Welcome Back!</h2>
+          <p style={styles.desc}>
+            Build discipline, track your life, and stay consistent.
+          </p>
 
-        <h2 style={{ color: "#fff" }}>
-          {isRegister ? "📝 Register" : "🔐 Login"}
-        </h2>
+          <button style={styles.ghostBtn}>
+            {isRegister ? "Create Account" : "Sign In"}
+          </button>
+        </div>
+      </div>
 
-        <input
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={styles.input}
-        />
+      {/* RIGHT PANEL */}
+      <div style={styles.right}>
+        <div style={styles.card}>
+          <h2 style={styles.title}>
+            {isRegister ? "Create Account" : "Login"}
+          </h2>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={styles.input}
-        />
+          <p style={styles.subtitle}>
+            Login to continue your journey
+          </p>
 
-        {/* ❗ ERROR MESSAGE */}
-        {error && (
-          <p style={{ color: "#f87171", fontSize: 13 }}>{error}</p>
-        )}
+          <input
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={styles.input}
+          />
 
-        <button style={styles.button} onClick={handleSubmit}>
-          {isRegister ? "Create Account" : "Login"}
-        </button>
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={styles.input}
+          />
 
-        <p
-          style={styles.switch}
-          onClick={() => {
-            setIsRegister(!isRegister);
-            setError("");
-          }}
-        >
-          {isRegister
-            ? "Already have an account? Login"
-            : "New user? Register"}
-        </p>
+          {error && <p style={styles.error}>{error}</p>}
 
+          <button style={styles.button} onClick={handleSubmit}>
+            {isRegister ? "Create Account" : "Login"}
+          </button>
+
+          <p
+            style={styles.switch}
+            onClick={() => {
+              setIsRegister(!isRegister);
+              setError("");
+            }}
+          >
+            {isRegister
+              ? "Already have an account? Login"
+              : "Don't have an account? Sign up"}
+          </p>
+        </div>
       </div>
     </div>
   );
 }
 
+/* 🎨 STYLES */
 const styles = {
   container: {
-    height: "100vh",
     display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "#020617"
+    height: "100vh",
+    fontFamily: "sans-serif"
   },
+
+  /* LEFT */
+  left: {
+    flex: 1,
+    background: "linear-gradient(135deg, #065f46, #10b981)",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 40
+  },
+
+  logo: {
+    fontSize: 28,
+    marginBottom: 10
+  },
+
+  welcome: {
+    fontSize: 32,
+    marginBottom: 10
+  },
+
+  desc: {
+    opacity: 0.8,
+    marginBottom: 30
+  },
+
+  ghostBtn: {
+    padding: "10px 20px",
+    borderRadius: 25,
+    border: "1px solid #fff",
+    background: "transparent",
+    color: "#fff",
+    cursor: "pointer"
+  },
+
+  /* RIGHT */
+  right: {
+    flex: 1,
+    background: "#f8fafc",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+
   card: {
-    padding: 30,
-    borderRadius: 16,
-    background: "#0f172a",
-    border: "1px solid #1e293b",
+    width: 320,
     textAlign: "center"
   },
+
+  title: {
+    fontSize: 26,
+    marginBottom: 5,
+    color: "#065f46"
+  },
+
+  subtitle: {
+    fontSize: 13,
+    color: "#64748b",
+    marginBottom: 20
+  },
+
   input: {
-    width: 250,
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 8,
-    border: "1px solid #334155",
-    background: "#020617",
-    color: "#fff"
-  },
-  button: {
-    padding: "10px 16px",
-    borderRadius: 8,
-    background: "#6366f1",
+    width: "100%",
+    padding: 12,
+    marginBottom: 12,
+    borderRadius: 25,
     border: "none",
-    color: "#fff",
-    cursor: "pointer",
-    width: "100%"
+    background: "#d1fae5",
+    outline: "none"
   },
-  switch: {
-    marginTop: 10,
-    color: "#94a3b8",
+
+  button: {
+    width: "100%",
+    padding: 12,
+    borderRadius: 25,
+    border: "none",
+    background: "#10b981",
+    color: "#fff",
+    fontWeight: "bold",
     cursor: "pointer",
-    fontSize: 14
+    marginTop: 10
+  },
+
+  error: {
+    color: "#ef4444",
+    fontSize: 12
+  },
+
+  switch: {
+    marginTop: 15,
+    fontSize: 13,
+    color: "#065f46",
+    cursor: "pointer"
   }
 };
