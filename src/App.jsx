@@ -36,7 +36,7 @@ export default function App() {
   const handleLogout = async () => {
     await signOut(auth);
     localStorage.clear();
-    window.location.reload(); // 🔥 important
+    window.location.reload();
   };
 
   // ================= LOCAL STATE =================
@@ -161,8 +161,9 @@ export default function App() {
     return <div style={{ color: "white", padding: 40 }}>Loading...</div>;
   }
 
+  // 🔥 FIXED: force re-render login properly
   if (!firebaseUser) {
-    return <Login onLogin={() => {}} />;
+    return <Login key="login" onLogin={() => window.location.reload()} />;
   }
 
   if (!user) {
@@ -187,7 +188,7 @@ export default function App() {
         {/* SIDEBAR */}
         <div style={styles.sidebar}>
           <h2 style={styles.logo}>
-            🚀 Ignira OS {user?.name ? `- ${user.name}` : ""}
+            Ignira OS {user?.name ? `- ${user.name}` : ""}
           </h2>
 
           <NavLink to="/" style={nav}>Dashboard</NavLink>
@@ -200,7 +201,7 @@ export default function App() {
           <NavLink to="/activities" style={nav}>Activities</NavLink>
 
           <button onClick={handleLogout} style={styles.logout}>
-            🚪 Logout
+            Logout
           </button>
         </div>
 
@@ -271,7 +272,7 @@ const nav = ({ isActive }) => ({
   textDecoration: "none",
   color: isActive ? "#fff" : "#94a3b8",
   background: isActive
-    ? "linear-gradient(90deg, #6366f1, #4f46e5)"
+    ? "linear-gradient(90deg, #16a34a, #15803d)"
     : "transparent"
 });
 
