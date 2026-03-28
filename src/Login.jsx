@@ -40,31 +40,27 @@ export default function Login({ onLogin }) {
   return (
     <div style={styles.container}>
       
-      {/* LEFT SIDE */}
+      {/* LEFT PANEL */}
       <div style={styles.left}>
         <div>
-          <h1 style={styles.brand}>🔥 Ignira OS</h1>
-          <h2 style={styles.welcome}>Welcome Back!</h2>
-          <p style={styles.desc}>
-            Build discipline, track your life, and stay consistent.
-          </p>
+          <div style={styles.logoCircle}>🌿</div>
+          <h2 style={styles.brand}>Ignira OS</h2>
 
-          <button style={styles.ghostBtn}>
-            {isRegister ? "Create Account" : "Sign In"}
-          </button>
+          <h1 style={styles.welcome}>Welcome Back!</h1>
+
+          <p style={styles.desc}>
+            To stay connected with us please login with your personal info
+          </p>
         </div>
       </div>
 
-      {/* RIGHT SIDE */}
+      {/* RIGHT PANEL */}
       <div style={styles.right}>
         <div style={styles.formCard}>
 
-          <h2 style={styles.title}>
-            {isRegister ? "Create Account" : "Login"}
-          </h2>
-
+          <h2 style={styles.title}>welcome</h2>
           <p style={styles.subtitle}>
-            Login to continue your journey
+            Login to your account to continue
           </p>
 
           <input
@@ -82,10 +78,12 @@ export default function Login({ onLogin }) {
             style={styles.input}
           />
 
+          <p style={styles.forgot}>Forgot your password?</p>
+
           {error && <p style={styles.error}>{error}</p>}
 
           <button style={styles.button} onClick={handleSubmit}>
-            {isRegister ? "Create Account" : "Login"}
+            {isRegister ? "Create Account" : "LOG IN"}
           </button>
 
           <p
@@ -97,7 +95,7 @@ export default function Login({ onLogin }) {
           >
             {isRegister
               ? "Already have an account? Login"
-              : "Don’t have an account? Sign up"}
+              : "Don't have an account? sign up"}
           </p>
 
         </div>
@@ -112,25 +110,37 @@ export default function Login({ onLogin }) {
 const styles = {
   container: {
     display: "flex",
-    width: "100vw",
     height: "100vh",
-    overflow: "hidden"
+    width: "100vw"
   },
 
-  // LEFT PANEL
+  // LEFT SIDE
   left: {
     flex: 1,
-    background: "linear-gradient(135deg,#0f766e,#059669)",
+    background: "linear-gradient(135deg,#166534,#15803d)",
     color: "#fff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: 60
+    borderTopRightRadius: 60,
+    borderBottomRightRadius: 60
+  },
+
+  logoCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: "50%",
+    background: "#fff",
+    color: "#15803d",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 24,
+    marginBottom: 10
   },
 
   brand: {
-    fontSize: 24,
-    marginBottom: 10
+    marginBottom: 20
   },
 
   welcome: {
@@ -139,39 +149,30 @@ const styles = {
   },
 
   desc: {
-    color: "#d1fae5",
-    maxWidth: 300,
-    marginBottom: 30
+    maxWidth: 260,
+    color: "#d1fae5"
   },
 
-  ghostBtn: {
-    padding: "10px 20px",
-    borderRadius: 30,
-    border: "1px solid #d1fae5",
-    background: "transparent",
-    color: "#fff",
-    cursor: "pointer"
-  },
-
-  // RIGHT PANEL
+  // RIGHT SIDE
   right: {
     flex: 1,
-    background: "#f8fafc",
+    background: "#f1f5f9",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    borderTopLeftRadius: 60,
+    borderBottomLeftRadius: 60
   },
 
   formCard: {
-    width: "100%",
-    maxWidth: 380,
-    padding: 40
+    width: 320,
+    textAlign: "center"
   },
 
   title: {
     fontSize: 28,
-    marginBottom: 5,
-    color: "#065f46"
+    color: "#166534",
+    marginBottom: 5
   },
 
   subtitle: {
@@ -186,7 +187,13 @@ const styles = {
     marginBottom: 12,
     borderRadius: 30,
     border: "none",
-    background: "#d1fae5"
+    background: "#bbf7d0"
+  },
+
+  forgot: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginBottom: 10
   },
 
   button: {
@@ -194,9 +201,16 @@ const styles = {
     padding: 14,
     borderRadius: 30,
     border: "none",
-    background: "#10b981",
+    background: "#16a34a",
     color: "#fff",
     fontWeight: "bold",
+    cursor: "pointer",
+    marginBottom: 10
+  },
+
+  switch: {
+    fontSize: 13,
+    color: "#166534",
     cursor: "pointer"
   },
 
@@ -204,13 +218,5 @@ const styles = {
     color: "#ef4444",
     fontSize: 13,
     marginBottom: 10
-  },
-
-  switch: {
-    marginTop: 15,
-    fontSize: 13,
-    color: "#065f46",
-    cursor: "pointer",
-    textAlign: "center"
   }
 };
