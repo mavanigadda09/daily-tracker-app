@@ -25,38 +25,29 @@ export default function Login({ onLogin }) {
 
       onLogin();
     } catch (err) {
-      if (err.code === "auth/email-already-in-use") {
-        setError("Email already registered. Please login.");
-      } else if (err.code === "auth/user-not-found") {
-        setError("No account found. Please register.");
-      } else if (err.code === "auth/wrong-password") {
-        setError("Incorrect password.");
-      } else {
-        setError(err.message);
-      }
+      setError(err.message);
     }
   };
 
   return (
     <div style={styles.container}>
       
-      {/* LEFT PANEL */}
+      {/* LEFT */}
       <div style={styles.left}>
         <div>
-          <div style={styles.logoCircle}>🌿</div>
+          <div style={styles.logo}>🌿</div>
           <h2 style={styles.brand}>Ignira OS</h2>
 
           <h1 style={styles.welcome}>Welcome Back!</h1>
-
           <p style={styles.desc}>
             To stay connected with us please login with your personal info
           </p>
         </div>
       </div>
 
-      {/* RIGHT PANEL */}
+      {/* RIGHT */}
       <div style={styles.right}>
-        <div style={styles.formCard}>
+        <div style={styles.card}>
 
           <h2 style={styles.title}>welcome</h2>
           <p style={styles.subtitle}>
@@ -77,8 +68,6 @@ export default function Login({ onLogin }) {
             onChange={(e) => setPassword(e.target.value)}
             style={styles.input}
           />
-
-          <p style={styles.forgot}>Forgot your password?</p>
 
           {error && <p style={styles.error}>{error}</p>}
 
@@ -105,8 +94,6 @@ export default function Login({ onLogin }) {
   );
 }
 
-// ================= STYLES =================
-
 const styles = {
   container: {
     display: "flex",
@@ -114,7 +101,6 @@ const styles = {
     width: "100vw"
   },
 
-  // LEFT SIDE
   left: {
     flex: 1,
     background: "linear-gradient(135deg,#166534,#15803d)",
@@ -126,7 +112,7 @@ const styles = {
     borderBottomRightRadius: 60
   },
 
-  logoCircle: {
+  logo: {
     width: 60,
     height: 60,
     borderRadius: "50%",
@@ -135,7 +121,6 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 24,
     marginBottom: 10
   },
 
@@ -153,7 +138,6 @@ const styles = {
     color: "#d1fae5"
   },
 
-  // RIGHT SIDE
   right: {
     flex: 1,
     background: "#f1f5f9",
@@ -164,15 +148,14 @@ const styles = {
     borderBottomLeftRadius: 60
   },
 
-  formCard: {
+  card: {
     width: 320,
     textAlign: "center"
   },
 
   title: {
     fontSize: 28,
-    color: "#166534",
-    marginBottom: 5
+    color: "#166534"
   },
 
   subtitle: {
@@ -190,12 +173,6 @@ const styles = {
     background: "#bbf7d0"
   },
 
-  forgot: {
-    fontSize: 12,
-    color: "#6b7280",
-    marginBottom: 10
-  },
-
   button: {
     width: "100%",
     padding: 14,
@@ -204,11 +181,11 @@ const styles = {
     background: "#16a34a",
     color: "#fff",
     fontWeight: "bold",
-    cursor: "pointer",
-    marginBottom: 10
+    cursor: "pointer"
   },
 
   switch: {
+    marginTop: 15,
     fontSize: 13,
     color: "#166534",
     cursor: "pointer"
