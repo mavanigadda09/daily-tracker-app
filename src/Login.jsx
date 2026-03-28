@@ -22,12 +22,13 @@ export default function Login({ onLogin }) {
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
+
       onLogin();
     } catch (err) {
       if (err.code === "auth/email-already-in-use") {
-        setError("Email already registered.");
+        setError("Email already registered. Please login.");
       } else if (err.code === "auth/user-not-found") {
-        setError("No account found.");
+        setError("No account found. Please register.");
       } else if (err.code === "auth/wrong-password") {
         setError("Incorrect password.");
       } else {
@@ -39,10 +40,10 @@ export default function Login({ onLogin }) {
   return (
     <div style={styles.container}>
       
-      {/* LEFT PANEL */}
+      {/* LEFT SIDE */}
       <div style={styles.left}>
         <div>
-          <h1 style={styles.logo}>🔥 Ignira OS</h1>
+          <h1 style={styles.brand}>🔥 Ignira OS</h1>
           <h2 style={styles.welcome}>Welcome Back!</h2>
           <p style={styles.desc}>
             Build discipline, track your life, and stay consistent.
@@ -54,9 +55,10 @@ export default function Login({ onLogin }) {
         </div>
       </div>
 
-      {/* RIGHT PANEL */}
+      {/* RIGHT SIDE */}
       <div style={styles.right}>
-        <div style={styles.card}>
+        <div style={styles.formCard}>
+
           <h2 style={styles.title}>
             {isRegister ? "Create Account" : "Login"}
           </h2>
@@ -95,35 +97,39 @@ export default function Login({ onLogin }) {
           >
             {isRegister
               ? "Already have an account? Login"
-              : "Don't have an account? Sign up"}
+              : "Don’t have an account? Sign up"}
           </p>
+
         </div>
       </div>
+
     </div>
   );
 }
 
-/* 🎨 STYLES */
+// ================= STYLES =================
+
 const styles = {
   container: {
     display: "flex",
+    width: "100vw",
     height: "100vh",
-    fontFamily: "sans-serif"
+    overflow: "hidden"
   },
 
-  /* LEFT */
+  // LEFT PANEL
   left: {
     flex: 1,
-    background: "linear-gradient(135deg, #065f46, #10b981)",
+    background: "linear-gradient(135deg,#0f766e,#059669)",
     color: "#fff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: 40
+    padding: 60
   },
 
-  logo: {
-    fontSize: 28,
+  brand: {
+    fontSize: 24,
     marginBottom: 10
   },
 
@@ -133,20 +139,21 @@ const styles = {
   },
 
   desc: {
-    opacity: 0.8,
+    color: "#d1fae5",
+    maxWidth: 300,
     marginBottom: 30
   },
 
   ghostBtn: {
     padding: "10px 20px",
-    borderRadius: 25,
-    border: "1px solid #fff",
+    borderRadius: 30,
+    border: "1px solid #d1fae5",
     background: "transparent",
     color: "#fff",
     cursor: "pointer"
   },
 
-  /* RIGHT */
+  // RIGHT PANEL
   right: {
     flex: 1,
     background: "#f8fafc",
@@ -155,54 +162,55 @@ const styles = {
     justifyContent: "center"
   },
 
-  card: {
-    width: 320,
-    textAlign: "center"
+  formCard: {
+    width: "100%",
+    maxWidth: 380,
+    padding: 40
   },
 
   title: {
-    fontSize: 26,
+    fontSize: 28,
     marginBottom: 5,
     color: "#065f46"
   },
 
   subtitle: {
-    fontSize: 13,
-    color: "#64748b",
+    fontSize: 14,
+    color: "#6b7280",
     marginBottom: 20
   },
 
   input: {
     width: "100%",
-    padding: 12,
+    padding: 14,
     marginBottom: 12,
-    borderRadius: 25,
+    borderRadius: 30,
     border: "none",
-    background: "#d1fae5",
-    outline: "none"
+    background: "#d1fae5"
   },
 
   button: {
     width: "100%",
-    padding: 12,
-    borderRadius: 25,
+    padding: 14,
+    borderRadius: 30,
     border: "none",
     background: "#10b981",
     color: "#fff",
     fontWeight: "bold",
-    cursor: "pointer",
-    marginTop: 10
+    cursor: "pointer"
   },
 
   error: {
     color: "#ef4444",
-    fontSize: 12
+    fontSize: 13,
+    marginBottom: 10
   },
 
   switch: {
     marginTop: 15,
     fontSize: 13,
     color: "#065f46",
-    cursor: "pointer"
+    cursor: "pointer",
+    textAlign: "center"
   }
 };
