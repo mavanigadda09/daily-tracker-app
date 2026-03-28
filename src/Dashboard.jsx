@@ -1,157 +1,236 @@
-import { useState } from "react";
+import {
+  ResponsiveContainer,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell
+} from "recharts";
 
-export default function Dashboard({ activities, addActivity, updateActivity }) {
-  const [name, setName] = useState("");
-  const [target, setTarget] = useState("");
-  const [inputs, setInputs] = useState({});
+export default function Dashboard({
+  items = [],
+  logs = {}
+}) {
+
+  const habits = items.filter(i => i?.type === "habit");
+  const activities = items.filter(i => i?.type === "activity");
+
+  const activityCompletionRate = activities.length
+    ? Math.round(
+        (activities.filter(a => a.value >= a.target).length /
+          activities.length) * 100
+      )
+    : 0;
+
+  let totalChecks = 0;
+  let completedChecks = 0;
+
+  habits.forEach(h => {
+    Object.values(h?.completed || {}).forEach(v => {
+      totalChecks++;
+      if (v) completedChecks++;
+    });
+  });
+
+  const habitCompletionRate = totalChecks
+    ? Math.round((completedChecks / totalChecks) * 100)
+    : 0;
+
+  const overall = Math.round(
+    (activityCompletionRate + habitCompletionRate) / 2
+  );
+
+  const logArrays = Object.values(logs || {}).filter(Array.isArray);
+
+  const grouped = {};
+  logArrays.flat().forEach(l => {
+    if (!l?.date) return;
+    if (!grouped[l.date]) grouped[l.date] = 0;
+    if (l.value > 0) grouped[l.date]++;
+  });
+
+  const weekly = Object.keys(grouped).map(d => ({
+    date: d,
+    completed: grouped[d]
+  }));
 
   return (
-    <div>
-      <h1 style={styles.title}>Dashboard</h1>
+    <div style={styles.container}>
 
-      {/* Add */}
+      {/* HEADER */}
+      <div style={styles.header}>
+        <h1>Dashboard</h1>
+        <p>Track your performance & consistency</p>
+      </div>
+
+      {/* KPI */}
+      <div style={styles.kpiGrid}>
+        <Card title="Activity" value={activityCompletionRate + "%"} />
+        <Card title="Habits" value={habitCompletionRate + "%"} />
+        <Card title="Overall" value={overall + "%"} highlight />
+      </div>
+
+      {/* MAIN GRID */}
+      <div style={styles.mainGrid}>
+
+        {/* DONUT */}
+        <div style={styles.card}>
+          <h3>Progress</h3>
+          <Donut value={overall} />
+        </div>
+
+        {/* CHART */}
+        <div style={styles.card}>
+          <h3>Weekly Activity</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={weekly}>
+              <CartesianGrid stroke="#1e293b" />
+              <XAxis dataKey="date" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
+              <Tooltip />
+              <Bar dataKey="completed" fill="#6366f1" radius={[6,6,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+      </div>
+
+      {/* HEATMAP */}
       <div style={styles.card}>
-        <input
-          style={styles.input}
-          placeholder="Activity"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-
-        <input
-          style={styles.input}
-          placeholder="Target"
-          value={target}
-          onChange={(e) => setTarget(e.target.value)}
-        />
-
-        <button style={styles.btn} onClick={() => {
-          addActivity(name, target);
-          setName("");
-          setTarget("");
-        }}>
-          Add
-        </button>
+        <h3>Consistency</h3>
+        <Heatmap logs={logs} />
       </div>
 
-      {/* Activities */}
-      <div style={styles.grid}>
-        {activities.map((a) => {
-          const percent = (a.value / a.target) * 100;
-
-          return (
-            <div key={a.id} style={styles.card}>
-              <h3>{a.name}</h3>
-
-              {/* Progress */}
-              <div style={styles.progress}>
-                <div style={{ ...styles.fill, width: `${percent}%` }} />
-              </div>
-
-              <p>{a.value} / {a.target}</p>
-
-              {/* INPUT BASED CONTROL */}
-              <div style={styles.row}>
-                <button
-                  style={styles.step}
-                  onClick={() =>
-                    updateActivity(a.id, -Number(inputs[a.id] || 0))
-                  }
-                >
-                  −
-                </button>
-
-                <input
-                  style={styles.smallInput}
-                  placeholder="value"
-                  value={inputs[a.id] || ""}
-                  onChange={(e) =>
-                    setInputs({ ...inputs, [a.id]: e.target.value })
-                  }
-                />
-
-                <button
-                  style={styles.step}
-                  onClick={() =>
-                    updateActivity(a.id, Number(inputs[a.id] || 0))
-                  }
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
 
-const styles = {
-  title: { marginBottom: 20 },
+// ================= CARD =================
+function Card({ title, value, highlight }) {
+  return (
+    <div style={{
+      ...styles.kpiCard,
+      ...(highlight && styles.highlight)
+    }}>
+      <p>{title}</p>
+      <h2>{value}</h2>
+    </div>
+  );
+}
 
-  grid: {
+// ================= DONUT =================
+function Donut({ value }) {
+  const data = [
+    { value },
+    { value: 100 - value }
+  ];
+
+  return (
+    <div style={{ textAlign: "center" }}>
+      <PieChart width={180} height={180}>
+        <Pie
+          data={data}
+          innerRadius={60}
+          outerRadius={80}
+          dataKey="value"
+        >
+          <Cell fill="#6366f1" />
+          <Cell fill="#1e293b" />
+        </Pie>
+      </PieChart>
+      <h2 style={{ marginTop: -110 }}>{value}%</h2>
+    </div>
+  );
+}
+
+// ================= HEATMAP =================
+function Heatmap({ logs }) {
+  const daily = {};
+
+  Object.values(logs || {}).forEach(arr => {
+    arr.forEach(l => {
+      if (!l?.date) return;
+      if (!daily[l.date]) daily[l.date] = 0;
+      if (l.value > 0) daily[l.date]++;
+    });
+  });
+
+  const days = Object.keys(daily).slice(-35);
+
+  return (
+    <div style={styles.heatmap}>
+      {days.map((d, i) => {
+        const val = daily[d];
+
+        const color =
+          val === 0 ? "#020617" :
+          val < 2 ? "#1e293b" :
+          val < 4 ? "#4f46e5" :
+          "#22c55e";
+
+        return <div key={i} style={{ ...styles.box, background: color }} />;
+      })}
+    </div>
+  );
+}
+
+// ================= STYLES =================
+const styles = {
+  container: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 24,
+    padding: 20,
+    color: "#e2e8f0"
+  },
+
+  header: {
+    marginBottom: 10
+  },
+
+  kpiGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-    gap: 20
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 16
+  },
+
+  mainGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 2fr",
+    gap: 16
   },
 
   card: {
     background: "#0f172a",
     padding: 20,
-    borderRadius: 16
+    borderRadius: 16,
+    border: "1px solid #1e293b"
   },
 
-  row: {
-    display: "flex",
-    gap: 10,
-    marginTop: 10,
-    alignItems: "center"
-  },
-
-  input: {
-    padding: 10,
-    borderRadius: 8,
+  kpiCard: {
     background: "#020617",
-    color: "#fff",
-    border: "1px solid #334155"
+    padding: 16,
+    borderRadius: 14,
+    border: "1px solid #1e293b"
   },
 
-  smallInput: {
-    width: 60,
-    textAlign: "center",
-    padding: 8,
-    borderRadius: 8,
-    background: "#020617",
-    color: "#fff",
-    border: "1px solid #334155"
+  highlight: {
+    background: "linear-gradient(135deg,#6366f1,#4f46e5)"
   },
 
-  btn: {
-    background: "#22c55e",
-    padding: 10,
-    borderRadius: 8,
-    border: "none",
-    color: "#fff"
+  heatmap: {
+    display: "grid",
+    gridTemplateColumns: "repeat(10,1fr)",
+    gap: 6
   },
 
-  step: {
-    background: "#6366f1",
-    border: "none",
-    padding: "8px 12px",
-    borderRadius: 8,
-    color: "#fff"
-  },
-
-  progress: {
-    height: 8,
-    background: "#1e293b",
-    borderRadius: 10,
-    marginTop: 10
-  },
-
-  fill: {
-    height: "100%",
-    background: "#22c55e"
+  box: {
+    width: 18,
+    height: 18,
+    borderRadius: 4
   }
 };

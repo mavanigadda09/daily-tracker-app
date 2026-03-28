@@ -1,99 +1,120 @@
 import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
+
 import Dashboard from "./Dashboard";
 import Analytics from "./Analytics";
 import Tasks from "./Tasks";
+import Habits from "./Habits";
+import Insights from "./Insights";
+import Goals from "./Goals";
+import Routines from "./Routines";
+import Activities from "./Activities";
+
+import { saveData, subscribeToData } from "./cloud";
+
+import Landing from "./Landing";
+import Onboarding from "./Onboarding";
+
+import Login from "./Login";
+import { auth } from "./firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
 export default function App() {
 
-  // ================================
-  // 🔥 ACTIVITY STATE
-  // ================================
-  const [activities, setActivities] = useState(
-    () => JSON.parse(localStorage.getItem("activities")) || []
-  );
+  // ================= FIREBASE AUTH =================
+  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
 
-  // ================================
-  // 📊 ACTIVITY LOGS (FOR ANALYTICS)
-  // ================================
-  const [logs, setLogs] = useState(
-    () => JSON.parse(localStorage.getItem("logs")) || {}
-  );
-
-  // ================================
-  // ⏱ TASK STATE (TIME TRACKING)
-  // ================================
-  const [tasks, setTasks] = useState(
-    () => JSON.parse(localStorage.getItem("tasks")) || []
-  );
-
-  // ================================
-  // 💾 LOCAL STORAGE SYNC
-  // ================================
   useEffect(() => {
-    localStorage.setItem("activities", JSON.stringify(activities));
-    localStorage.setItem("logs", JSON.stringify(logs));
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-  }, [activities, logs, tasks]);
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setFirebaseUser(user);
+      setLoadingAuth(false);
+    });
+    return () => unsub();
+  }, []);
 
-  // ================================
-  // ➕ ADD ACTIVITY
-  // ================================
-  const addActivity = (name, target) => {
-    if (!name) return;
-
-    setActivities([
-      ...activities,
-      {
-        id: Date.now(),
-        name,
-        target: Number(target),
-        value: 0
-      }
-    ]);
+  // ================= LOGOUT =================
+  const handleLogout = async () => {
+    await signOut(auth);
+    localStorage.clear();
   };
 
-  // ================================
-  // 🔄 UPDATE ACTIVITY VALUE
-  // (Input-based + / - system)
-  // ================================
-  const updateActivity = (id, changeValue) => {
+  // ================= LOCAL STATE =================
+  const [user, setUser] = useState(() =>
+    JSON.parse(localStorage.getItem("user"))
+  );
+
+  const [items, setItems] = useState([]);
+  const [goal, setGoal] = useState({});
+  const [weightLogs, setWeightLogs] = useState([]);
+  const [logs, setLogs] = useState({});
+  const [tasks, setTasks] = useState([]);
+
+  // ================= 🔥 REAL-TIME SYNC =================
+  useEffect(() => {
+    if (!firebaseUser) return;
+
+    const unsub = subscribeToData((data) => {
+      setItems(data?.items || []);
+      setLogs(data?.logs || {});
+      setWeightLogs(data?.weightLogs || []);
+      setTasks(data?.tasks || []);
+      setGoal(data?.goal || {});
+    });
+
+    return () => unsub && unsub();
+  }, [firebaseUser]);
+
+  // ================= AUTO SAVE =================
+  useEffect(() => {
+    if (!firebaseUser) return;
+
+    saveData({
+      items,
+      logs,
+      weightLogs,
+      tasks,
+      goal
+    });
+  }, [items, logs, weightLogs, tasks, goal, firebaseUser]);
+
+  // ================= ACTIVITY =================
+  const updateActivity = (id, change, type = "increment") => {
     const now = new Date();
 
-    setActivities((prev) =>
-      prev.map((a) =>
-        a.id === id
-          ? { ...a, value: Math.max(0, a.value + changeValue) }
-          : a
-      )
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+
+        let newValue =
+          type === "set"
+            ? Math.max(0, change)
+            : Math.max(0, (item.value || 0) + change);
+
+        return { ...item, value: newValue };
+      })
     );
 
-    // Save log (hidden from UI)
-    setLogs((prev) => {
-      const prevLogs = prev[id] || [];
-
-      return {
-        ...prev,
-        [id]: [
-          ...prevLogs,
-          {
-            value: changeValue,
-            date: now.toLocaleDateString(),
-            time: now.toLocaleTimeString()
-          }
-        ]
-      };
-    });
+    setLogs((prev) => ({
+      ...prev,
+      [id]: [
+        ...(prev[id] || []),
+        {
+          value: change,
+          type,
+          date: now.toLocaleDateString(),
+          time: now.toLocaleTimeString()
+        }
+      ]
+    }));
   };
 
-  // ================================
-  // ➕ ADD TASK
-  // ================================
+  // ================= TASKS =================
   const addTask = (name) => {
     if (!name) return;
 
-    setTasks([
-      ...tasks,
+    setTasks((prev) => [
+      ...prev,
       {
         id: Date.now(),
         name,
@@ -105,9 +126,6 @@ export default function App() {
     ]);
   };
 
-  // ================================
-  // ▶ START TASK
-  // ================================
   const startTask = (id) => {
     setTasks((prev) =>
       prev.map((t) =>
@@ -118,22 +136,19 @@ export default function App() {
     );
   };
 
-  // ================================
-  // ⏹ END TASK
-  // ================================
   const endTask = (id) => {
-    const endTime = new Date().toISOString();
+    const end = new Date().toISOString();
 
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id !== id) return t;
 
         const duration =
-          (new Date(endTime) - new Date(t.start)) / 1000;
+          (new Date(end) - new Date(t.start)) / 1000;
 
         return {
           ...t,
-          end: endTime,
+          end,
           duration,
           running: false
         };
@@ -141,119 +156,164 @@ export default function App() {
     );
   };
 
-  // ================================
-  // 🎨 UI RENDER
-  // ================================
+  // ================= AUTH FLOW =================
+  if (loadingAuth) {
+    return <div style={{ color: "white", padding: 40 }}>Loading...</div>;
+  }
+
+  if (!firebaseUser) {
+    return <Login onLogin={() => {}} />;
+  }
+
+  if (!user) {
+    return <Landing onStart={() => setUser({})} />;
+  }
+
+  if (user && !user.name) {
+    return (
+      <Onboarding
+        onComplete={() =>
+          setUser(JSON.parse(localStorage.getItem("user")))
+        }
+      />
+    );
+  }
+
+  // ================= MAIN APP =================
   return (
     <BrowserRouter>
       <div style={styles.app}>
 
-        {/* ================================
-            📌 SIDEBAR NAVIGATION
-        ================================ */}
+        {/* SIDEBAR */}
         <div style={styles.sidebar}>
-          <h2>🚀 Tracker</h2>
+          <h2 style={styles.logo}>
+            🚀 Tracker {user?.name ? `- ${user.name}` : ""}
+          </h2>
 
-          <NavLink to="/" style={({ isActive }) =>
-            isActive ? styles.active : styles.link
-          }>
-            Dashboard
-          </NavLink>
+          <NavLink to="/" style={nav}>Dashboard</NavLink>
+          <NavLink to="/habits" style={nav}>Habits</NavLink>
+          <NavLink to="/routines" style={nav}>Routines</NavLink>
+          <NavLink to="/insights" style={nav}>Insights</NavLink>
+          <NavLink to="/goals" style={nav}>Goals</NavLink>
+          <NavLink to="/analytics" style={nav}>Analytics</NavLink>
+          <NavLink to="/tasks" style={nav}>Tasks</NavLink>
+          <NavLink to="/activities" style={nav}>Activities</NavLink>
 
-          <NavLink to="/tasks" style={({ isActive }) =>
-            isActive ? styles.active : styles.link
-          }>
-            Tasks
-          </NavLink>
-
-          <NavLink to="/analytics" style={({ isActive }) =>
-            isActive ? styles.active : styles.link
-          }>
-            Analytics
-          </NavLink>
+          <button onClick={handleLogout} style={styles.logout}>
+            🚪 Logout
+          </button>
         </div>
 
-        {/* ================================
-            📄 MAIN CONTENT AREA
-        ================================ */}
+        {/* MAIN */}
         <div style={styles.main}>
           <Routes>
 
-            {/* Dashboard */}
-            <Route
-              path="/"
-              element={
-                <Dashboard
-                  activities={activities}
-                  addActivity={addActivity}
-                  updateActivity={updateActivity}
-                />
-              }
-            />
+            <Route path="/" element={
+              <Dashboard
+                items={items}
+                updateActivity={updateActivity}
+                logs={logs}
+                weightLogs={weightLogs}
+              />
+            } />
 
-            {/* Tasks */}
-            <Route
-              path="/tasks"
-              element={
-                <Tasks
-                  tasks={tasks}
-                  addTask={addTask}
-                  startTask={startTask}
-                  endTask={endTask}
-                />
-              }
-            />
+            <Route path="/habits" element={
+              <Habits items={items} setItems={setItems} />
+            } />
 
-            {/* Analytics */}
-            <Route
-              path="/analytics"
-              element={<Analytics logs={logs} />}
-            />
+            <Route path="/routines" element={<Routines />} />
+
+            <Route path="/insights" element={
+              <Insights items={items} />
+            } />
+
+            <Route path="/goals" element={
+              <Goals
+                goal={goal}
+                setGoal={setGoal}
+                logs={weightLogs}
+                setLogs={setWeightLogs}
+              />
+            } />
+
+            <Route path="/analytics" element={
+              <Analytics logs={logs} />
+            } />
+
+            <Route path="/tasks" element={
+              <Tasks
+                tasks={tasks}
+                addTask={addTask}
+                startTask={startTask}
+                endTask={endTask}
+              />
+            } />
+
+            <Route path="/activities" element={
+              <Activities
+                items={items}
+                setItems={setItems}
+                updateActivity={updateActivity}
+              />
+            } />
 
           </Routes>
         </div>
+
       </div>
     </BrowserRouter>
   );
 }
 
-// ================================
-// 🎨 STYLES
-// ================================
+// ================= NAV =================
+const nav = ({ isActive }) => ({
+  padding: "12px 14px",
+  borderRadius: 10,
+  textDecoration: "none",
+  color: isActive ? "#fff" : "#94a3b8",
+  background: isActive
+    ? "linear-gradient(90deg, #6366f1, #4f46e5)"
+    : "transparent"
+});
+
+// ================= STYLES =================
 const styles = {
   app: {
     display: "flex",
+    width: "100%",
     height: "100vh",
     background: "#020617",
     color: "#fff"
   },
 
   sidebar: {
-    width: 220,
-    background: "#0f172a",
+    width: 260,
     padding: 20,
+    background: "#0f172a",
     display: "flex",
     flexDirection: "column",
-    gap: 12
+    gap: 12,
+    borderRight: "1px solid #1e293b"
   },
 
-  link: {
-    color: "#94a3b8",
-    padding: 10,
-    borderRadius: 8,
-    textDecoration: "none"
-  },
-
-  active: {
-    background: "#6366f1",
-    color: "#fff",
-    padding: 10,
-    borderRadius: 8
+  logo: {
+    marginBottom: 20,
+    fontWeight: 700
   },
 
   main: {
     flex: 1,
-    padding: 30,
-    overflow: "auto"
+    padding: "30px 40px",
+    overflowY: "auto"
+  },
+
+  logout: {
+    marginTop: "auto",
+    padding: "10px",
+    borderRadius: 10,
+    border: "none",
+    background: "#ef4444",
+    color: "#fff",
+    cursor: "pointer"
   }
 };

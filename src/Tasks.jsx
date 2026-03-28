@@ -12,7 +12,7 @@ export default function Tasks({
     <div>
       <h1 style={styles.title}>⏱ Task Tracker</h1>
 
-      {/* Add Task */}
+      {/* ================= ADD TASK ================= */}
       <div style={styles.card}>
         <input
           style={styles.input}
@@ -32,16 +32,22 @@ export default function Tasks({
         </button>
       </div>
 
-      {/* Tasks List */}
+      {/* ================= TASK LIST ================= */}
       <div style={styles.grid}>
-        {tasks.map((t) => (
-          <div key={t.id} style={styles.card}>
-            <h3>{t.name}</h3>
+        {tasks.length === 0 && (
+          <p style={{ color: "#94a3b8" }}>No tasks added</p>
+        )}
 
-            <p>
-              {t.running ? "🟢 Running..." : "⚪ Not running"}
+        {tasks.map((t) => (
+          <div key={t.id} style={styles.cardHover}>
+            <h3 style={styles.taskName}>{t.name}</h3>
+
+            {/* STATUS */}
+            <p style={t.running ? styles.running : styles.stopped}>
+              {t.running ? "🟢 Running" : "⚪ Not running"}
             </p>
 
+            {/* TIME */}
             {t.start && (
               <p style={styles.time}>
                 Start: {new Date(t.start).toLocaleTimeString()}
@@ -54,13 +60,14 @@ export default function Tasks({
               </p>
             )}
 
+            {/* DURATION */}
             {t.duration > 0 && (
               <p style={styles.duration}>
                 ⏳ {Math.floor(t.duration)} sec
               </p>
             )}
 
-            {/* Controls */}
+            {/* CONTROLS */}
             {!t.running ? (
               <button
                 style={styles.start}
@@ -83,9 +90,13 @@ export default function Tasks({
   );
 }
 
+// ================= STYLES =================
 const styles = {
   title: {
-    marginBottom: 20
+    fontSize: 28,
+    fontWeight: 600,
+    marginBottom: 20,
+    color: "#e2e8f0"
   },
 
   grid: {
@@ -97,7 +108,22 @@ const styles = {
   card: {
     background: "#0f172a",
     padding: 20,
-    borderRadius: 16
+    borderRadius: 16,
+    marginBottom: 20,
+    border: "1px solid rgba(148,163,184,0.1)"
+  },
+
+  cardHover: {
+    background: "#0f172a",
+    padding: 20,
+    borderRadius: 16,
+    border: "1px solid rgba(148,163,184,0.1)",
+    transition: "0.3s",
+    cursor: "pointer"
+  },
+
+  taskName: {
+    color: "#e2e8f0"
   },
 
   input: {
@@ -114,7 +140,8 @@ const styles = {
     border: "none",
     padding: 10,
     borderRadius: 8,
-    color: "#fff"
+    color: "#fff",
+    cursor: "pointer"
   },
 
   start: {
@@ -123,7 +150,8 @@ const styles = {
     padding: 10,
     borderRadius: 8,
     color: "#fff",
-    marginTop: 10
+    marginTop: 10,
+    cursor: "pointer"
   },
 
   stop: {
@@ -132,7 +160,16 @@ const styles = {
     padding: 10,
     borderRadius: 8,
     color: "#fff",
-    marginTop: 10
+    marginTop: 10,
+    cursor: "pointer"
+  },
+
+  running: {
+    color: "#22c55e"
+  },
+
+  stopped: {
+    color: "#94a3b8"
   },
 
   time: {
