@@ -1,16 +1,20 @@
 import { useState } from "react";
 
-export default function Activities({ items, setItems }) {
+export default function Activities({ items = [], setItems }) {
 
-  // 🔥 FILTER FROM UNIFIED SYSTEM
-  const activities = items.filter(i => i.type === "activity");
+  // 🛡️ SAFE FILTER (prevents crash)
+  const activities = Array.isArray(items)
+    ? items.filter(i => i.type === "activity")
+    : [];
 
   const [activeInput, setActiveInput] = useState(null);
   const [tempValues, setTempValues] = useState({});
 
   // ================= UPDATE =================
   const updateActivity = (id, value, mode) => {
-    setItems((prev) =>
+    if (!setItems) return;
+
+    setItems((prev = []) =>
       prev.map((item) => {
         if (item.id !== id) return item;
 
@@ -30,11 +34,20 @@ export default function Activities({ items, setItems }) {
     );
   };
 
+  // 🛑 SAFE LOADING STATE
+  if (!items) {
+    return (
+      <div style={container}>
+        <p style={{ color: "#94a3b8" }}>Loading activities...</p>
+      </div>
+    );
+  }
+
   return (
     <div style={container}>
       <h1 style={title}>📊 Daily Activities</h1>
 
-      {/* ✅ FIXED */}
+      {/* EMPTY STATE */}
       {activities.length === 0 && (
         <p style={{ color: "#64748b" }}>No activities added</p>
       )}
@@ -42,16 +55,20 @@ export default function Activities({ items, setItems }) {
       <div style={grid}>
         {activities.map((a) => {
 
-          const percent = Math.min((a.value / a.target) * 100, 100);
+          // 🛡️ SAFE PERCENT CALCULATION
+          const percent = a.target
+            ? Math.min((a.value / a.target) * 100, 100)
+            : 0;
+
           const inputValue = tempValues[a.id];
 
           return (
             <div key={a.id} style={card}>
 
-              <h3>{a.name}</h3>
+              <h3 style={{ color: "#e2e8f0" }}>{a.name}</h3>
 
-              <p>
-                {a.value} / {a.target} {a.unit}
+              <p style={{ color: "#94a3b8" }}>
+                {a.value || 0} / {a.target || 0} {a.unit || ""}
               </p>
 
               {/* PROGRESS */}
@@ -80,7 +97,7 @@ export default function Activities({ items, setItems }) {
                   }}
                   style={btn}
                 >
-                  -
+                  −
                 </button>
 
                 {/* INPUT */}
@@ -101,7 +118,7 @@ export default function Activities({ items, setItems }) {
                   {/* DROPDOWN */}
                   {activeInput === a.id && (
                     <div style={dropdown}>
-                      {[5,10,15,20,25,30].map((num) => (
+                      {[5, 10, 15, 20, 25, 30].map((num) => (
                         <div
                           key={num}
                           style={option}
@@ -172,7 +189,8 @@ const card = {
   background: "linear-gradient(145deg, #0f172a, #020617)",
   padding: 20,
   borderRadius: 14,
-  border: "1px solid #1e293b"
+  border: "1px solid #1e293b",
+  boxShadow: "0 6px 20px rgba(0,0,0,0.4)"
 };
 
 const barBg = {
@@ -184,7 +202,7 @@ const barBg = {
 
 const barFill = {
   height: 8,
-  background: "#6366f1",
+  background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
   borderRadius: 10
 };
 
@@ -201,7 +219,8 @@ const btn = {
   border: "none",
   borderRadius: 8,
   color: "#fff",
-  cursor: "pointer"
+  cursor: "pointer",
+  fontWeight: "bold"
 };
 
 const inputWrapper = {
@@ -233,5 +252,6 @@ const dropdown = {
 const option = {
   padding: 8,
   cursor: "pointer",
-  borderBottom: "1px solid #1e293b"
+  borderBottom: "1px solid #1e293b",
+  color: "#e2e8f0"
 };

@@ -14,14 +14,14 @@ import { saveData, subscribeToData } from "./cloud";
 
 import Landing from "./Landing";
 import Onboarding from "./Onboarding";
-
 import Login from "./Login";
+
 import { auth } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
 export default function App() {
 
-  // ================= FIREBASE AUTH =================
+  // ================= AUTH =================
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
@@ -33,10 +33,10 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // ================= LOGOUT =================
   const handleLogout = async () => {
     await signOut(auth);
     localStorage.clear();
+    window.location.reload(); // 🔥 important
   };
 
   // ================= LOCAL STATE =================
@@ -50,7 +50,7 @@ export default function App() {
   const [logs, setLogs] = useState({});
   const [tasks, setTasks] = useState([]);
 
-  // ================= 🔥 REAL-TIME SYNC =================
+  // ================= REALTIME SYNC =================
   useEffect(() => {
     if (!firebaseUser) return;
 
@@ -82,7 +82,7 @@ export default function App() {
   const updateActivity = (id, change, type = "increment") => {
     const now = new Date();
 
-    setItems((prev) =>
+    setItems((prev = []) =>
       prev.map((item) => {
         if (item.id !== id) return item;
 
@@ -179,7 +179,7 @@ export default function App() {
     );
   }
 
-  // ================= MAIN APP =================
+  // ================= MAIN =================
   return (
     <BrowserRouter>
       <div style={styles.app}>
@@ -187,7 +187,7 @@ export default function App() {
         {/* SIDEBAR */}
         <div style={styles.sidebar}>
           <h2 style={styles.logo}>
-            🚀 Tracker {user?.name ? `- ${user.name}` : ""}
+            🚀 Ignira OS {user?.name ? `- ${user.name}` : ""}
           </h2>
 
           <NavLink to="/" style={nav}>Dashboard</NavLink>
@@ -253,7 +253,6 @@ export default function App() {
               <Activities
                 items={items}
                 setItems={setItems}
-                updateActivity={updateActivity}
               />
             } />
 
