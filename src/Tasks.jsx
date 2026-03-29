@@ -1,12 +1,31 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Tasks({
-  tasks,
+  tasks = [],
   addTask,
   startTask,
   endTask
 }) {
   const [name, setName] = useState("");
+  const [now, setNow] = useState(Date.now());
+
+  // ================= LIVE TIMER =================
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // ================= FORMAT TIME =================
+  const formatDuration = (sec) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+
+    if (m === 0) return `${s}s`;
+    return `${m}m ${s}s`;
+  };
 
   return (
     <div>
@@ -19,12 +38,19 @@ export default function Tasks({
           placeholder="Task name (e.g. Medicine)"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && name.trim()) {
+              addTask(name.trim());
+              setName("");
+            }
+          }}
         />
 
         <button
           style={styles.btn}
           onClick={() => {
-            addTask(name);
+            if (!name.trim()) return;
+            addTask(name.trim());
             setName("");
           }}
         >
@@ -38,53 +64,73 @@ export default function Tasks({
           <p style={{ color: "#94a3b8" }}>No tasks added</p>
         )}
 
-        {tasks.map((t) => (
-          <div key={t.id} style={styles.cardHover}>
-            <h3 style={styles.taskName}>{t.name}</h3>
+        {tasks.map((t) => {
+          let duration = t.duration || 0;
 
-            {/* STATUS */}
-            <p style={t.running ? styles.running : styles.stopped}>
-              {t.running ? "🟢 Running" : "⚪ Not running"}
-            </p>
+          if (t.running && t.start) {
+            duration =
+              (now - new Date(t.start)) / 1000;
+          }
 
-            {/* TIME */}
-            {t.start && (
-              <p style={styles.time}>
-                Start: {new Date(t.start).toLocaleTimeString()}
+          return (
+            <div key={t.id} style={styles.cardHover}>
+              <h3 style={styles.taskName}>{t.name}</h3>
+
+              {/* STATUS */}
+              <p style={t.running ? styles.running : styles.stopped}>
+                {t.running ? "🟢 Running" : "⚪ Not running"}
               </p>
-            )}
 
-            {t.end && (
-              <p style={styles.time}>
-                End: {new Date(t.end).toLocaleTimeString()}
-              </p>
-            )}
+              {/* TIME */}
+              {t.start && (
+                <p style={styles.time}>
+                  Start: {new Date(t.start).toLocaleTimeString()}
+                </p>
+              )}
 
-            {/* DURATION */}
-            {t.duration > 0 && (
-              <p style={styles.duration}>
-                ⏳ {Math.floor(t.duration)} sec
-              </p>
-            )}
+              {t.end && (
+                <p style={styles.time}>
+                  End: {new Date(t.end).toLocaleTimeString()}
+                </p>
+              )}
 
-            {/* CONTROLS */}
-            {!t.running ? (
-              <button
-                style={styles.start}
-                onClick={() => startTask(t.id)}
-              >
-                ▶ Start
-              </button>
-            ) : (
-              <button
-                style={styles.stop}
-                onClick={() => endTask(t.id)}
-              >
-                ⏹ End
-              </button>
-            )}
-          </div>
-        ))}
+              {/* DURATION */}
+              {duration > 0 && (
+                <p style={styles.duration}>
+                  ⏳ {formatDuration(duration)}
+                </p>
+              )}
+
+              {/* CONTROLS */}
+              {!t.running ? (
+                <button
+                  style={styles.start}
+                  onClick={() => startTask(t.id)}
+                >
+                  ▶ Start
+                </button>
+              ) : (
+                <button
+                  style={styles.stop}
+                  onClick={() => {
+                    const endTime = Date.now();
+                    const startTime = new Date(t.start).getTime();
+
+                    const durationSec =
+                      (endTime - startTime) / 1000;
+
+                    const date = new Date().toDateString();
+
+                    // 🔥 AUTO LOGGING HERE
+                    endTask(t.id, durationSec, date);
+                  }}
+                >
+                  ⏹ End
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -179,6 +225,7 @@ const styles = {
 
   duration: {
     marginTop: 5,
-    color: "#facc15"
+    color: "#facc15",
+    fontWeight: 500
   }
 };

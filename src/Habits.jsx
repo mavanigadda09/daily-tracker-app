@@ -2,14 +2,11 @@ import { useState } from "react";
 
 export default function Habits({ items, setItems }) {
 
-  // ================= FILTER =================
   const habits = items.filter(i => i.type === "habit");
 
-  // ================= STATE =================
   const [name, setName] = useState("");
   const [weekOffset, setWeekOffset] = useState(0);
 
-  // ================= ADD HABIT =================
   const addHabit = () => {
     if (!name.trim()) return;
 
@@ -26,11 +23,9 @@ export default function Habits({ items, setItems }) {
     setName("");
   };
 
-  // ================= DATE KEY =================
   const getKey = (d) =>
     `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
-  // ================= WEEK =================
   const getWeek = () => {
     const today = new Date();
     const day = today.getDay();
@@ -51,7 +46,6 @@ export default function Habits({ items, setItems }) {
 
   const week = getWeek();
 
-  // ================= LAST 30 =================
   const getLast30Days = () => {
     return Array.from({ length: 30 }, (_, i) => {
       const d = new Date();
@@ -62,7 +56,6 @@ export default function Habits({ items, setItems }) {
 
   const last30 = getLast30Days();
 
-  // ================= TOGGLE =================
   const toggleDay = (id, key) => {
     setItems(prev =>
       prev.map(item => {
@@ -76,7 +69,6 @@ export default function Habits({ items, setItems }) {
     );
   };
 
-  // ================= STREAK =================
   const getStreak = (habit) => {
     const completed = habit.completed || {};
     let streak = 0;
@@ -94,7 +86,6 @@ export default function Habits({ items, setItems }) {
     return streak;
   };
 
-  // ================= BEST STREAK =================
   const getBestStreak = (habit) => {
     const completed = habit.completed || {};
     const dates = Object.keys(completed).sort(
@@ -124,11 +115,10 @@ export default function Habits({ items, setItems }) {
     return best;
   };
 
-  // ================= UI =================
   return (
     <div style={styles.container}>
 
-      <h1 style={styles.title}>🔥 Habits Tracker</h1>
+      <h1 style={styles.title}>Habits Tracker</h1>
 
       {/* NAV */}
       <div style={styles.navRow}>
@@ -137,7 +127,7 @@ export default function Habits({ items, setItems }) {
         <button onClick={() => setWeekOffset(p => p + 1)} style={styles.navBtn}>➡</button>
       </div>
 
-      {/* ADD HABIT */}
+      {/* ADD */}
       <div style={styles.card}>
         <input
           style={styles.input}
@@ -145,12 +135,13 @@ export default function Habits({ items, setItems }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <button style={styles.btn} onClick={addHabit}>Add Habit</button>
+        <button style={styles.btn} onClick={addHabit}>
+          Add Habit
+        </button>
       </div>
 
-      {/* EMPTY STATE */}
       {habits.length === 0 && (
-        <p style={{ color: "#64748b", marginTop: 20 }}>
+        <p style={{ color: "#6b7280", marginTop: 20 }}>
           No habits yet. Add one above 👆
         </p>
       )}
@@ -178,34 +169,31 @@ export default function Habits({ items, setItems }) {
             return (
               <div key={h.id} style={{ display: "contents" }}>
 
-                {/* NAME */}
                 <div style={styles.habit}>{h.name}</div>
 
-                {/* DAYS */}
                 {week.map((d) => (
                   <div
                     key={d.key}
                     onClick={() => toggleDay(h.id, d.key)}
                     style={{
                       ...styles.cell,
-                      background: completed[d.key] ? "#22c55e" : "#020617"
+                      background: completed[d.key]
+                        ? "#16a34a"
+                        : "#f3f4f6"
                     }}
                   >
                     {completed[d.key] ? "✔" : ""}
                   </div>
                 ))}
 
-                {/* STREAK */}
                 <div style={styles.streak}>
                   {streak} 🔥
                 </div>
 
-                {/* BEST */}
                 <div style={styles.best}>
                   🏆 {getBestStreak(h)}
                 </div>
 
-                {/* HEATMAP */}
                 <div style={styles.heatmap}>
                   {last30.map((k) => (
                     <div
@@ -214,7 +202,7 @@ export default function Habits({ items, setItems }) {
                         ...styles.heatCell,
                         background: completed[k]
                           ? "#16a34a"
-                          : "#1e293b"
+                          : "#e5e7eb"
                       }}
                     />
                   ))}
@@ -233,15 +221,23 @@ export default function Habits({ items, setItems }) {
 // ================= STYLES =================
 
 const styles = {
-  container: { padding: 30, color: "#fff" },
+  container: {
+    padding: 30,
+    color: "#111827"
+  },
 
-  title: { fontSize: 28, marginBottom: 20 },
+  title: {
+    fontSize: 28,
+    marginBottom: 20
+  },
 
-  navRow: { display: "flex", gap: 10 },
+  navRow: {
+    display: "flex",
+    gap: 10
+  },
 
   navBtn: {
-    background: "#334155",
-    color: "#fff",
+    background: "#e5e7eb",
     padding: 8,
     borderRadius: 8,
     border: "none",
@@ -249,7 +245,8 @@ const styles = {
   },
 
   todayBtn: {
-    background: "#22c55e",
+    background: "#16a34a",
+    color: "#fff",
     padding: 8,
     borderRadius: 8,
     border: "none",
@@ -260,22 +257,22 @@ const styles = {
     display: "flex",
     gap: 10,
     marginTop: 20,
-    background: "linear-gradient(145deg, #0f172a, #020617)",
+    background: "#ffffff",
     padding: 15,
-    borderRadius: 12
+    borderRadius: 12,
+    border: "1px solid #e5e7eb"
   },
 
   input: {
     padding: 10,
-    background: "#020617",
-    border: "1px solid #334155",
-    color: "#fff",
+    background: "#f9fafb",
+    border: "1px solid #e5e7eb",
     borderRadius: 8,
     flex: 1
   },
 
   btn: {
-    background: "#6366f1",
+    background: "#16a34a",
     color: "#fff",
     padding: 10,
     borderRadius: 8,
@@ -293,7 +290,7 @@ const styles = {
   headerCell: {
     textAlign: "center",
     fontSize: 12,
-    color: "#94a3b8"
+    color: "#6b7280"
   },
 
   habit: {
@@ -307,7 +304,7 @@ const styles = {
     cursor: "pointer",
     textAlign: "center",
     lineHeight: "40px",
-    border: "1px solid #1e293b"
+    border: "1px solid #e5e7eb"
   },
 
   streak: {
@@ -316,7 +313,7 @@ const styles = {
 
   best: {
     textAlign: "center",
-    color: "#facc15"
+    color: "#16a34a"
   },
 
   heatmap: {

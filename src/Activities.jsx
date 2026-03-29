@@ -1,14 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function Activities({ items = [], setItems }) {
 
-  // 🛡️ SAFE FILTER (prevents crash)
   const activities = Array.isArray(items)
     ? items.filter(i => i.type === "activity")
     : [];
 
   const [activeInput, setActiveInput] = useState(null);
   const [tempValues, setTempValues] = useState({});
+  const wrapperRef = useRef(null);
+
+  // ================= CLOSE DROPDOWN ON OUTSIDE CLICK =================
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (!wrapperRef.current?.contains(e.target)) {
+        setActiveInput(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   // ================= UPDATE =================
   const updateActivity = (id, value, mode) => {
@@ -21,9 +33,9 @@ export default function Activities({ items = [], setItems }) {
         let newValue = item.value || 0;
 
         if (mode === "set") {
-          newValue = value;
+          newValue = Number(value) || 0;
         } else {
-          newValue = newValue + value;
+          newValue = newValue + (Number(value) || 0);
         }
 
         return {
@@ -34,7 +46,6 @@ export default function Activities({ items = [], setItems }) {
     );
   };
 
-  // 🛑 SAFE LOADING STATE
   if (!items) {
     return (
       <div style={container}>
@@ -44,34 +55,31 @@ export default function Activities({ items = [], setItems }) {
   }
 
   return (
-    <div style={container}>
+    <div style={container} ref={wrapperRef}>
       <h1 style={title}>📊 Daily Activities</h1>
 
-      {/* EMPTY STATE */}
       {activities.length === 0 && (
         <p style={{ color: "#64748b" }}>No activities added</p>
       )}
 
       <div style={grid}>
         {activities.map((a) => {
-
-          // 🛡️ SAFE PERCENT CALCULATION
           const percent = a.target
             ? Math.min((a.value / a.target) * 100, 100)
             : 0;
 
-          const inputValue = tempValues[a.id];
+          const inputValue = tempValues[a.id] ?? "";
 
           return (
             <div key={a.id} style={card}>
 
-              <h3 style={{ color: "#e2e8f0" }}>{a.name}</h3>
+              <h3 style={name}>{a.name}</h3>
 
-              <p style={{ color: "#94a3b8" }}>
+              <p style={stats}>
                 {a.value || 0} / {a.target || 0} {a.unit || ""}
               </p>
 
-              {/* PROGRESS */}
+              {/* PROGRESS BAR */}
               <div style={barBg}>
                 <div style={{ ...barFill, width: `${percent}%` }} />
               </div>
@@ -81,19 +89,10 @@ export default function Activities({ items = [], setItems }) {
 
                 {/* MINUS */}
                 <button
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-
-                    const val = Number(inputValue);
-
-                    updateActivity(
-                      a.id,
-                      (!isNaN(val) && inputValue !== "") ? -val : -1,
-                      "increment"
-                    );
-
+                  onClick={() => {
+                    const val = Number(inputValue) || 1;
+                    updateActivity(a.id, -val, "increment");
                     setTempValues((p) => ({ ...p, [a.id]: "" }));
-                    setActiveInput(null);
                   }}
                   style={btn}
                 >
@@ -103,7 +102,7 @@ export default function Activities({ items = [], setItems }) {
                 {/* INPUT */}
                 <div style={inputWrapper}>
                   <input
-                    value={inputValue || ""}
+                    value={inputValue}
                     onFocus={() => setActiveInput(a.id)}
                     onChange={(e) =>
                       setTempValues({
@@ -111,6 +110,14 @@ export default function Activities({ items = [], setItems }) {
                         [a.id]: e.target.value
                       })
                     }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        const val = Number(inputValue) || 0;
+                        updateActivity(a.id, val, "increment");
+                        setTempValues((p) => ({ ...p, [a.id]: "" }));
+                        setActiveInput(null);
+                      }
+                    }}
                     placeholder="0"
                     style={input}
                   />
@@ -122,8 +129,7 @@ export default function Activities({ items = [], setItems }) {
                         <div
                           key={num}
                           style={option}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
+                          onClick={() => {
                             updateActivity(a.id, num, "increment");
                             setActiveInput(null);
                           }}
@@ -137,19 +143,10 @@ export default function Activities({ items = [], setItems }) {
 
                 {/* PLUS */}
                 <button
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-
-                    const val = Number(inputValue);
-
-                    updateActivity(
-                      a.id,
-                      (!isNaN(val) && inputValue !== "") ? val : 1,
-                      "increment"
-                    );
-
+                  onClick={() => {
+                    const val = Number(inputValue) || 1;
+                    updateActivity(a.id, val, "increment");
                     setTempValues((p) => ({ ...p, [a.id]: "" }));
-                    setActiveInput(null);
                   }}
                   style={btn}
                 >
@@ -157,7 +154,6 @@ export default function Activities({ items = [], setItems }) {
                 </button>
 
               </div>
-
             </div>
           );
         })}
@@ -190,7 +186,17 @@ const card = {
   padding: 20,
   borderRadius: 14,
   border: "1px solid #1e293b",
-  boxShadow: "0 6px 20px rgba(0,0,0,0.4)"
+  boxShadow: "0 6px 20px rgba(0,0,0,0.4)",
+  transition: "0.2s"
+};
+
+const name = {
+  color: "#e2e8f0",
+  marginBottom: 5
+};
+
+const stats = {
+  color: "#94a3b8"
 };
 
 const barBg = {

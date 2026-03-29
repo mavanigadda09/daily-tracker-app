@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 
-// ================= DEFAULT ROUTINES =================
 const DEFAULT_ROUTINES = [
   "Lift Weights",
   "Eat Healthy",
@@ -11,10 +10,8 @@ const DEFAULT_ROUTINES = [
 
 export default function Routines() {
 
-  // ================= LOAD =================
   const [routines, setRoutines] = useState(() => {
     const stored = JSON.parse(localStorage.getItem("routines"));
-
     if (stored && stored.length) return stored;
 
     return DEFAULT_ROUTINES.map((name, i) => ({
@@ -26,20 +23,18 @@ export default function Routines() {
 
   const [newRoutine, setNewRoutine] = useState("");
 
-  // ================= SAVE =================
   useEffect(() => {
     localStorage.setItem("routines", JSON.stringify(routines));
   }, [routines]);
 
-  // ================= WEEK WITH DATE =================
   const getWeek = () => {
     const today = new Date();
-    const day = today.getDay(); // 0 = Sunday
+    const day = today.getDay();
 
     const start = new Date(today);
     start.setDate(today.getDate() - day);
 
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(start);
@@ -48,17 +43,16 @@ export default function Routines() {
       return {
         label: days[d.getDay()],
         date: d.getDate(),
-        key: `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+        key: `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`
       };
     });
   };
 
   const week = getWeek();
 
-  // ================= TOGGLE =================
   const toggle = (id, key) => {
-    setRoutines((prev) =>
-      prev.map((r) => {
+    setRoutines(prev =>
+      prev.map(r => {
         if (r.id !== id) return r;
 
         const updated = { ...(r.completed || {}) };
@@ -69,7 +63,6 @@ export default function Routines() {
     );
   };
 
-  // ================= ADD =================
   const addRoutine = () => {
     if (!newRoutine.trim()) return;
 
@@ -85,24 +78,20 @@ export default function Routines() {
     setNewRoutine("");
   };
 
-  // ================= DELETE =================
   const deleteRoutine = (id) => {
-    setRoutines((prev) => prev.filter((r) => r.id !== id));
+    setRoutines(prev => prev.filter(r => r.id !== id));
   };
 
-  // ================= PROGRESS =================
   const getPercent = (routine) => {
     const values = Object.values(routine.completed || {});
     const done = values.filter(Boolean).length;
-
     return Math.round((done / 7) * 100);
   };
 
-  // ================= UI =================
   return (
     <div style={styles.container}>
 
-      <h1 style={styles.title}>🔥 Weekly Routines</h1>
+      <h1 style={styles.title}>Weekly Routines</h1>
 
       {/* ADD */}
       <div style={styles.addBox}>
@@ -154,7 +143,7 @@ export default function Routines() {
                     onClick={() => toggle(r.id, d.key)}
                     style={{
                       ...styles.cell,
-                      background: checked ? "#22c55e" : "#020617"
+                      background: checked ? "#16a34a" : "#f3f4f6"
                     }}
                   >
                     {checked ? "✔" : ""}
@@ -173,7 +162,6 @@ export default function Routines() {
                 />
               </div>
 
-              {/* DELETE BUTTON */}
               <button
                 onClick={() => deleteRoutine(r.id)}
                 style={styles.deleteBtn}
@@ -185,15 +173,17 @@ export default function Routines() {
           );
         })}
       </div>
+
     </div>
   );
 }
 
 // ================= STYLES =================
+
 const styles = {
   container: {
     padding: 30,
-    color: "#fff"
+    color: "#111827"
   },
 
   title: {
@@ -210,13 +200,12 @@ const styles = {
   input: {
     padding: 10,
     borderRadius: 8,
-    border: "1px solid #334155",
-    background: "#020617",
-    color: "#fff"
+    border: "1px solid #e5e7eb",
+    background: "#f9fafb"
   },
 
   addBtn: {
-    background: "#6366f1",
+    background: "#16a34a",
     border: "none",
     padding: "10px 16px",
     borderRadius: 8,
@@ -233,7 +222,8 @@ const styles = {
 
   header: {
     textAlign: "center",
-    fontWeight: "bold"
+    fontWeight: "bold",
+    color: "#6b7280"
   },
 
   name: {
@@ -243,7 +233,7 @@ const styles = {
   cell: {
     width: 40,
     height: 40,
-    border: "1px solid #1e293b",
+    border: "1px solid #e5e7eb",
     borderRadius: 6,
     cursor: "pointer",
     textAlign: "center",
@@ -252,14 +242,14 @@ const styles = {
 
   progressBar: {
     height: 10,
-    background: "#1e293b",
+    background: "#e5e7eb",
     borderRadius: 10,
     overflow: "hidden"
   },
 
   progressFill: {
     height: "100%",
-    background: "#22c55e"
+    background: "#16a34a"
   },
 
   deleteBtn: {

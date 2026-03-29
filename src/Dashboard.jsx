@@ -11,6 +11,16 @@ import {
   Cell
 } from "recharts";
 
+const theme = {
+  bg: "#f9fafb",
+  card: "#ffffff",
+  border: "#e5e7eb",
+  text: "#111827",
+  subtext: "#6b7280",
+  primary: "#16a34a",
+  primaryLight: "#22c55e"
+};
+
 export default function Dashboard({ items = [], logs = {} }) {
 
   const habits = items.filter(i => i?.type === "habit");
@@ -56,69 +66,83 @@ export default function Dashboard({ items = [], logs = {} }) {
   return (
     <div style={styles.container}>
 
+      {/* HEADER */}
       <div style={styles.header}>
         <div>
-          <h1>Dashboard</h1>
-          <p>Track your performance & consistency</p>
+          <h1 style={styles.title}>Dashboard</h1>
+          <p style={styles.subtitle}>Track your performance & consistency</p>
         </div>
         <div style={styles.profile}>👤</div>
       </div>
 
+      {/* KPI */}
       <div style={styles.kpiGrid}>
-        <Card title="Activity" value={activityCompletionRate + "%"} />
-        <Card title="Habits" value={habitCompletionRate + "%"} />
-        <Card title="Overall" value={overall + "%"} highlight />
+        <Kpi title="Activity" value={activityCompletionRate} />
+        <Kpi title="Habits" value={habitCompletionRate} />
+        <Kpi title="Overall" value={overall} highlight />
       </div>
 
+      {/* MAIN */}
       <div style={styles.mainGrid}>
-        <div style={styles.card}>
+        <Card>
           <h3>Progress</h3>
           <Donut value={overall} />
-        </div>
+        </Card>
 
-        <div style={styles.card}>
+        <Card>
           <h3>Weekly Activity</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={weekly}>
-              <CartesianGrid stroke="#e5e7eb" />
-              <XAxis dataKey="date" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
+              <CartesianGrid stroke={theme.border} />
+              <XAxis dataKey="date" stroke={theme.subtext} />
+              <YAxis stroke={theme.subtext} />
               <Tooltip />
-              <Bar dataKey="completed" fill="#16a34a" radius={[6,6,0,0]} />
+              <Bar dataKey="completed" fill={theme.primary} radius={[6,6,0,0]} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </Card>
       </div>
 
-      <div style={styles.card}>
+      {/* HEATMAP */}
+      <Card>
         <h3>Consistency</h3>
         <Heatmap logs={logs} />
-      </div>
+      </Card>
 
     </div>
   );
 }
 
-// reusable components
-function Card({ title, value, highlight }) {
+// ================= KPI =================
+function Kpi({ title, value, highlight }) {
   return (
     <div style={{
       ...styles.kpiCard,
       ...(highlight && styles.highlight)
     }}>
       <p>{title}</p>
-      <h2>{value}</h2>
+      <h2>{value}%</h2>
     </div>
   );
 }
 
+// ================= CARD =================
+function Card({ children }) {
+  return (
+    <div style={styles.card}>
+      {children}
+    </div>
+  );
+}
+
+// ================= DONUT =================
 function Donut({ value }) {
   return (
     <div style={{ textAlign: "center" }}>
       <PieChart width={180} height={180}>
         <Pie data={[{value},{value:100-value}]} innerRadius={60} outerRadius={80} dataKey="value">
-          <Cell fill="#16a34a" />
-          <Cell fill="#e5e7eb" />
+          <Cell fill={theme.primary} />
+          <Cell fill={theme.border} />
         </Pie>
       </PieChart>
       <h2 style={{ marginTop: -110 }}>{value}%</h2>
@@ -126,8 +150,10 @@ function Donut({ value }) {
   );
 }
 
+// ================= HEATMAP =================
 function Heatmap({ logs }) {
   const daily = {};
+
   Object.values(logs || {}).forEach(arr => {
     arr.forEach(l => {
       if (!l?.date) return;
@@ -140,6 +166,7 @@ function Heatmap({ logs }) {
     <div style={styles.heatmap}>
       {Object.keys(daily).slice(-35).map((d, i) => {
         const val = daily[d];
+
         const color =
           val === 0 ? "#f1f5f9" :
           val < 2 ? "#bbf7d0" :
@@ -152,23 +179,31 @@ function Heatmap({ logs }) {
   );
 }
 
-// styles
+// ================= STYLES =================
 const styles = {
   container: {
-    background: "#ffffff",
-    minHeight: "100vh",
-    padding: 30,
-    color: "#111"
+    display: "flex",
+    flexDirection: "column",
+    gap: 24,
+    color: "#111827"
   },
 
   header: {
     display: "flex",
     justifyContent: "space-between",
-    marginBottom: 20
+    alignItems: "center"
+  },
+
+  title: {
+    margin: 0
+  },
+
+  subtitle: {
+    color: "#6b7280"
   },
 
   profile: {
-    background: "#f1f5f9",
+    background: "#f3f4f6",
     padding: 10,
     borderRadius: "50%"
   },
@@ -182,12 +217,11 @@ const styles = {
   mainGrid: {
     display: "grid",
     gridTemplateColumns: "1fr 2fr",
-    gap: 16,
-    marginTop: 20
+    gap: 16
   },
 
   card: {
-    background: "#fff",
+    background: "#ffffff",
     padding: 20,
     borderRadius: 16,
     border: "1px solid #e5e7eb"
