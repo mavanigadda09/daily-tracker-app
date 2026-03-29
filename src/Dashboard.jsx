@@ -86,9 +86,12 @@ export default function Dashboard({
       {/* MAIN */}
       <div style={styles.main}>
 
-        {/* TOP BAR */}
+        {/* TOP */}
         <div style={styles.topbar}>
-          <h1>Dashboard</h1>
+          <div>
+            <h1 style={styles.title}>Dashboard</h1>
+            <p style={styles.subtitle}>Track your performance & consistency</p>
+          </div>
           <div style={styles.profile}>👤</div>
         </div>
 
@@ -122,6 +125,7 @@ export default function Dashboard({
 
         </div>
 
+        {/* HEATMAP */}
         <div style={styles.card}>
           <h3>Consistency</h3>
           <Heatmap logs={logs} />
@@ -155,7 +159,7 @@ function Card({ title, value, highlight }) {
       ...styles.kpiCard,
       ...(highlight && styles.highlight)
     }}>
-      <p>{title}</p>
+      <p style={{color:"#94a3b8"}}>{title}</p>
       <h2>{value}</h2>
     </div>
   );
@@ -209,13 +213,13 @@ const styles = {
     display: "flex",
     height: "100vh",
     background: "#020617",
-    color: "#fff"
+    color: "#e2e8f0"
   },
 
   sidebar: {
     width: 230,
     padding: 20,
-    background: "linear-gradient(180deg,#022c22,#020617)",
+    background: "linear-gradient(180deg,#166534,#020617)",
     borderRight: "1px solid #1e293b",
     display: "flex",
     flexDirection: "column",
@@ -225,7 +229,7 @@ const styles = {
   logo: {
     fontSize: 20,
     marginBottom: 20,
-    color: "#22c55e"
+    fontWeight: "bold"
   },
 
   menuItem: {
@@ -233,10 +237,9 @@ const styles = {
     gap: 10,
     alignItems: "center",
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     cursor: "pointer",
-    color: "#94a3b8",
-    transition: "0.2s"
+    color: "#94a3b8"
   },
 
   activeItem: {
@@ -256,13 +259,21 @@ const styles = {
 
   main: {
     flex: 1,
-    padding: 24
+    padding: 30
   },
 
   topbar: {
     display: "flex",
     justifyContent: "space-between",
     marginBottom: 20
+  },
+
+  title: {
+    fontSize: 28
+  },
+
+  subtitle: {
+    color: "#94a3b8"
   },
 
   profile: {
@@ -285,17 +296,18 @@ const styles = {
   },
 
   card: {
-    background: "rgba(15,23,42,0.8)",
-    backdropFilter: "blur(10px)",
+    background: "rgba(15,23,42,0.7)",
+    backdropFilter: "blur(12px)",
     padding: 20,
-    borderRadius: 16,
+    borderRadius: 20,
     border: "1px solid rgba(255,255,255,0.05)"
   },
 
   kpiCard: {
-    background: "#020617",
-    padding: 16,
-    borderRadius: 14
+    background: "rgba(2,6,23,0.9)",
+    padding: 18,
+    borderRadius: 18,
+    border: "1px solid #1e293b"
   },
 
   highlight: {
