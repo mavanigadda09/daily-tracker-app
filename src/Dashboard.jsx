@@ -11,11 +11,17 @@ import {
   Cell
 } from "recharts";
 
+import { logoutUser } from "./firebase";
+import { Home, Activity, Target, BarChart2, CheckSquare } from "lucide-react";
+
 export default function Dashboard({
   items = [],
-  logs = {}
+  logs = {},
+  onNavigate,
+  activePage = "dashboard"
 }) {
 
+  // ================= DATA =================
   const habits = items.filter(i => i?.type === "habit");
   const activities = items.filter(i => i?.type === "activity");
 
@@ -44,10 +50,8 @@ export default function Dashboard({
     (activityCompletionRate + habitCompletionRate) / 2
   );
 
-  const logArrays = Object.values(logs || {}).filter(Array.isArray);
-
   const grouped = {};
-  logArrays.flat().forEach(l => {
+  Object.values(logs || {}).flat().forEach(l => {
     if (!l?.date) return;
     if (!grouped[l.date]) grouped[l.date] = 0;
     if (l.value > 0) grouped[l.date]++;
@@ -58,53 +62,88 @@ export default function Dashboard({
     completed: grouped[d]
   }));
 
+  // ================= UI =================
   return (
-    <div style={styles.container}>
+    <div style={styles.app}>
 
-      {/* HEADER */}
-      <div style={styles.header}>
-        <h1>Dashboard</h1>
-        <p>Track your performance & consistency</p>
-      </div>
+      {/* SIDEBAR */}
+      <div style={styles.sidebar}>
+        <div>
+          <h2 style={styles.logo}>Ignira OS</h2>
 
-      {/* KPI */}
-      <div style={styles.kpiGrid}>
-        <Card title="Activity" value={activityCompletionRate + "%"} />
-        <Card title="Habits" value={habitCompletionRate + "%"} />
-        <Card title="Overall" value={overall + "%"} highlight />
-      </div>
-
-      {/* MAIN GRID */}
-      <div style={styles.mainGrid}>
-
-        {/* DONUT */}
-        <div style={styles.card}>
-          <h3>Progress</h3>
-          <Donut value={overall} />
+          <MenuItem icon={<Home size={18} />} label="Dashboard" active={activePage==="dashboard"} onClick={()=>onNavigate("dashboard")} />
+          <MenuItem icon={<Activity size={18} />} label="Activities" active={activePage==="activities"} onClick={()=>onNavigate("activities")} />
+          <MenuItem icon={<CheckSquare size={18} />} label="Habits" active={activePage==="habits"} onClick={()=>onNavigate("habits")} />
+          <MenuItem icon={<Target size={18} />} label="Goals" active={activePage==="goals"} onClick={()=>onNavigate("goals")} />
+          <MenuItem icon={<BarChart2 size={18} />} label="Analytics" active={activePage==="analytics"} onClick={()=>onNavigate("analytics")} />
         </div>
 
-        {/* CHART */}
+        <button style={styles.logout} onClick={logoutUser}>
+          Logout
+        </button>
+      </div>
+
+      {/* MAIN */}
+      <div style={styles.main}>
+
+        {/* TOP BAR */}
+        <div style={styles.topbar}>
+          <h1>Dashboard</h1>
+          <div style={styles.profile}>👤</div>
+        </div>
+
+        {/* KPI */}
+        <div style={styles.kpiGrid}>
+          <Card title="Activity" value={activityCompletionRate + "%"} />
+          <Card title="Habits" value={habitCompletionRate + "%"} />
+          <Card title="Overall" value={overall + "%"} highlight />
+        </div>
+
+        {/* GRID */}
+        <div style={styles.mainGrid}>
+
+          <div style={styles.card}>
+            <h3>Progress</h3>
+            <Donut value={overall} />
+          </div>
+
+          <div style={styles.card}>
+            <h3>Weekly Activity</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={weekly}>
+                <CartesianGrid stroke="#1e293b" />
+                <XAxis dataKey="date" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip />
+                <Bar dataKey="completed" fill="#22c55e" radius={[6,6,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+        </div>
+
         <div style={styles.card}>
-          <h3>Weekly Activity</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={weekly}>
-              <CartesianGrid stroke="#1e293b" />
-              <XAxis dataKey="date" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
-              <Tooltip />
-              <Bar dataKey="completed" fill="#6366f1" radius={[6,6,0,0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <h3>Consistency</h3>
+          <Heatmap logs={logs} />
         </div>
 
       </div>
+    </div>
+  );
+}
 
-      {/* HEATMAP */}
-      <div style={styles.card}>
-        <h3>Consistency</h3>
-        <Heatmap logs={logs} />
-      </div>
-
+// ================= MENU ITEM =================
+function MenuItem({ icon, label, active, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        ...styles.menuItem,
+        ...(active && styles.activeItem)
+      }}
+    >
+      {icon}
+      <span>{label}</span>
     </div>
   );
 }
@@ -124,21 +163,11 @@ function Card({ title, value, highlight }) {
 
 // ================= DONUT =================
 function Donut({ value }) {
-  const data = [
-    { value },
-    { value: 100 - value }
-  ];
-
   return (
     <div style={{ textAlign: "center" }}>
       <PieChart width={180} height={180}>
-        <Pie
-          data={data}
-          innerRadius={60}
-          outerRadius={80}
-          dataKey="value"
-        >
-          <Cell fill="#6366f1" />
+        <Pie data={[{value},{value:100-value}]} innerRadius={60} outerRadius={80} dataKey="value">
+          <Cell fill="#22c55e" />
           <Cell fill="#1e293b" />
         </Pie>
       </PieChart>
@@ -150,7 +179,6 @@ function Donut({ value }) {
 // ================= HEATMAP =================
 function Heatmap({ logs }) {
   const daily = {};
-
   Object.values(logs || {}).forEach(arr => {
     arr.forEach(l => {
       if (!l?.date) return;
@@ -159,18 +187,15 @@ function Heatmap({ logs }) {
     });
   });
 
-  const days = Object.keys(daily).slice(-35);
-
   return (
     <div style={styles.heatmap}>
-      {days.map((d, i) => {
+      {Object.keys(daily).slice(-35).map((d, i) => {
         const val = daily[d];
-
         const color =
           val === 0 ? "#020617" :
           val < 2 ? "#1e293b" :
-          val < 4 ? "#4f46e5" :
-          "#22c55e";
+          val < 4 ? "#22c55e" :
+          "#16a34a";
 
         return <div key={i} style={{ ...styles.box, background: color }} />;
       })}
@@ -180,16 +205,70 @@ function Heatmap({ logs }) {
 
 // ================= STYLES =================
 const styles = {
-  container: {
+  app: {
     display: "flex",
-    flexDirection: "column",
-    gap: 24,
-    padding: 20,
-    color: "#e2e8f0"
+    height: "100vh",
+    background: "#020617",
+    color: "#fff"
   },
 
-  header: {
-    marginBottom: 10
+  sidebar: {
+    width: 230,
+    padding: 20,
+    background: "linear-gradient(180deg,#022c22,#020617)",
+    borderRight: "1px solid #1e293b",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between"
+  },
+
+  logo: {
+    fontSize: 20,
+    marginBottom: 20,
+    color: "#22c55e"
+  },
+
+  menuItem: {
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 10,
+    cursor: "pointer",
+    color: "#94a3b8",
+    transition: "0.2s"
+  },
+
+  activeItem: {
+    background: "#22c55e",
+    color: "#000",
+    fontWeight: "bold"
+  },
+
+  logout: {
+    padding: 10,
+    borderRadius: 10,
+    border: "none",
+    background: "#ef4444",
+    color: "#fff",
+    cursor: "pointer"
+  },
+
+  main: {
+    flex: 1,
+    padding: 24
+  },
+
+  topbar: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: 20
+  },
+
+  profile: {
+    background: "#1e293b",
+    padding: 10,
+    borderRadius: "50%"
   },
 
   kpiGrid: {
@@ -201,25 +280,26 @@ const styles = {
   mainGrid: {
     display: "grid",
     gridTemplateColumns: "1fr 2fr",
-    gap: 16
+    gap: 16,
+    marginTop: 20
   },
 
   card: {
-    background: "#0f172a",
+    background: "rgba(15,23,42,0.8)",
+    backdropFilter: "blur(10px)",
     padding: 20,
     borderRadius: 16,
-    border: "1px solid #1e293b"
+    border: "1px solid rgba(255,255,255,0.05)"
   },
 
   kpiCard: {
     background: "#020617",
     padding: 16,
-    borderRadius: 14,
-    border: "1px solid #1e293b"
+    borderRadius: 14
   },
 
   highlight: {
-    background: "linear-gradient(135deg,#6366f1,#4f46e5)"
+    background: "linear-gradient(135deg,#22c55e,#16a34a)"
   },
 
   heatmap: {
