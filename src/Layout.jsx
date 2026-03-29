@@ -35,7 +35,6 @@ export default function Layout({ children, user, onLogout }) {
         animate={{ width: collapsed ? 70 : 230 }}
         style={styles.sidebar}
       >
-
         {/* TOP */}
         <div>
           <div style={styles.topRow}>
@@ -82,11 +81,13 @@ export default function Layout({ children, user, onLogout }) {
             Logout
           </button>
         </div>
-
       </motion.aside>
 
       {/* MAIN */}
-      <main style={styles.main}>{children}</main>
+      <main style={styles.main}>
+        {children}
+      </main>
+
     </div>
   );
 }
@@ -94,8 +95,8 @@ export default function Layout({ children, user, onLogout }) {
 const styles = {
   container: {
     display: "flex",
-    minHeight: "100vh",
-    background: "var(--bg)"
+    width: "100%",
+    minHeight: "100vh"
   },
 
   sidebar: {
@@ -104,23 +105,28 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
-    borderRight: "1px solid var(--border)"
+    borderRight: "1px solid var(--border)",
+    position: "sticky",   // ✅ FIXED
+    top: 0,
+    height: "100vh"
   },
 
   topRow: {
     display: "flex",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 20
   },
 
   logo: {
-    fontWeight: "bold"
+    fontWeight: "bold",
+    color: "var(--text)"
   },
 
   menuBtn: {
     background: "transparent",
     border: "none",
-    color: "#fff",
+    color: "var(--text)",
     cursor: "pointer"
   },
 
@@ -137,7 +143,8 @@ const styles = {
     padding: "10px 12px",
     borderRadius: 8,
     textDecoration: "none",
-    color: "var(--text-muted)"
+    color: "var(--text-muted)",
+    transition: "0.2s"
   },
 
   active: {
@@ -152,7 +159,8 @@ const styles = {
   },
 
   user: {
-    fontSize: 14
+    fontSize: 14,
+    color: "var(--text)"
   },
 
   logout: {
@@ -166,6 +174,9 @@ const styles = {
 
   main: {
     flex: 1,
-    padding: 20
+    padding: 24,
+    width: "100%",
+    minWidth: 0,
+    overflowX: "hidden"   // ✅ FIXES RIGHT EMPTY SPACE BUG
   }
 };
