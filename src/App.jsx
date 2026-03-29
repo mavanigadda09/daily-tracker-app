@@ -265,35 +265,35 @@ export default function App() {
   );
 }
 
-// ================= NAV =================
+// ONLY REPLACE styles + sidebar part
+
 const nav = ({ isActive }) => ({
   padding: "12px 14px",
   borderRadius: 10,
   textDecoration: "none",
-  color: isActive ? "#fff" : "#94a3b8",
+  color: isActive ? "#fff" : "#d1fae5",
   background: isActive
-    ? "linear-gradient(90deg, #16a34a, #15803d)"
+    ? "rgba(255,255,255,0.2)"
     : "transparent"
 });
 
-// ================= STYLES =================
 const styles = {
   app: {
     display: "flex",
     width: "100%",
     height: "100vh",
-    background: "#020617",
-    color: "#fff"
+    background: "#ffffff",
+    color: "#111"
   },
 
   sidebar: {
     width: 260,
     padding: 20,
-    background: "#0f172a",
+    background: "linear-gradient(180deg,#166534,#15803d)",
     display: "flex",
     flexDirection: "column",
     gap: 12,
-    borderRight: "1px solid #1e293b"
+    color: "#fff"
   },
 
   logo: {
@@ -304,7 +304,8 @@ const styles = {
   main: {
     flex: 1,
     padding: "30px 40px",
-    overflowY: "auto"
+    overflowY: "auto",
+    background: "#ffffff"
   },
 
   logout: {
