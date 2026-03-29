@@ -13,37 +13,13 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
-// ================= SMART GOAL PARSER =================
-const parseSmartGoal = (goal) => {
-  if (!goal) return null;
+import {
+  parseSmartGoal,
+  calculatePercent,
+  getDailyData
+} from "./utils";
 
-  const num = goal.match(/\d+/);
-  const value = num ? Number(num[0]) : null;
-
-  const lower = goal.toLowerCase();
-
-  let unit = "count";
-
-  if (lower.includes("hour") || lower.includes("hr")) {
-    unit = "minutes";
-  } else if (lower.includes("min")) {
-    unit = "minutes";
-  } else if (lower.includes("cal")) {
-    unit = "calories";
-  } else if (lower.includes("page")) {
-    unit = "pages";
-  }
-
-  let target = value;
-
-  if (unit === "minutes" && lower.includes("hour")) {
-    target = value * 60;
-  }
-
-  return { target, unit };
-};
-
-export default function Dashboard({ items = [], logs = {}, user }) {
+export default function Dashboard({ items = [], logs = {}, tasks = [], user }) {
   const navigate = useNavigate();
 
   const habits = items.filter(i => i?.type === "habit");
@@ -75,27 +51,22 @@ export default function Dashboard({ items = [], logs = {}, user }) {
     (activityCompletionRate + habitCompletionRate) / 2
   );
 
-  // ================= WEEKLY =================
-  const grouped = {};
-  Object.values(logs || {}).flat().forEach(l => {
-    if (!l?.date) return;
-    if (!grouped[l.date]) grouped[l.date] = 0;
-    if (l.value > 0) grouped[l.date]++;
-  });
+  // ================= 🔥 DAILY DATA (FROM UTILS) =================
+  const daily = getDailyData(logs, tasks);
 
-  const weekly = Object.keys(grouped).map(d => ({
+  const weekly = Object.keys(daily).map(d => ({
     date: d,
-    completed: grouped[d]
+    completed: daily[d]
   }));
 
   // ================= 🎯 GOAL =================
   const goalData = parseSmartGoal(user?.goal);
 
   const todayKey = new Date().toDateString();
-  const todayValue = grouped[todayKey] || 0;
+  const todayValue = daily[todayKey] || 0;
 
-  const goalPercent = goalData?.target
-    ? Math.min(Math.round((todayValue / goalData.target) * 100), 100)
+  const goalPercent = goalData
+    ? calculatePercent(todayValue, goalData.target)
     : 0;
 
   return (
@@ -176,7 +147,7 @@ export default function Dashboard({ items = [], logs = {}, user }) {
       {/* CONSISTENCY */}
       <Card>
         <h3>Consistency</h3>
-        <Heatmap logs={logs} />
+        <Heatmap daily={daily} />
       </Card>
 
     </div>
@@ -219,26 +190,18 @@ function Donut({ value }) {
   );
 }
 
-function Heatmap({ logs }) {
-  const daily = {};
-
-  Object.values(logs || {}).forEach(arr => {
-    arr.forEach(l => {
-      if (!l?.date) return;
-      if (!daily[l.date]) daily[l.date] = 0;
-      if (l.value > 0) daily[l.date]++;
-    });
-  });
+function Heatmap({ daily }) {
+  const lastDays = Object.keys(daily).slice(-35);
 
   return (
     <div style={styles.heatmap}>
-      {Object.keys(daily).slice(-35).map((d, i) => {
+      {lastDays.map((d, i) => {
         const val = daily[d];
 
         const color =
           val === 0 ? "#1f2937" :
-          val < 2 ? "#4ade80" :
-          val < 4 ? "#22c55e" :
+          val < 30 ? "#4ade80" :
+          val < 60 ? "#22c55e" :
           "#16a34a";
 
         return (

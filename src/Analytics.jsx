@@ -12,36 +12,15 @@ import {
 
 import { motion } from "framer-motion";
 
-// ================= SMART GOAL PARSER =================
-const parseSmartGoal = (goal) => {
-  if (!goal) return null;
-
-  const numMatch = goal.match(/\d+/);
-  const value = numMatch ? Number(numMatch[0]) : null;
-
-  const lower = goal.toLowerCase();
-
-  let unit = "count";
-
-  if (lower.includes("hour") || lower.includes("hr")) {
-    unit = "minutes";
-  } else if (lower.includes("min")) {
-    unit = "minutes";
-  } else if (lower.includes("cal")) {
-    unit = "calories";
-  } else if (lower.includes("page")) {
-    unit = "pages";
-  }
-
-  let target = value;
-
-  // convert hours → minutes
-  if (unit === "minutes" && lower.includes("hour")) {
-    target = value * 60;
-  }
-
-  return { target, unit };
-};
+import {
+  parseSmartGoal,
+  calculatePercent,
+  getDailyData,
+  getWeeklyData,
+  getHeatmapData,
+  getStreak,
+  getTaskBreakdown
+} from "./utils";
 
 export default function Analytics({ logs = {}, tasks = [], user }) {
 
@@ -49,31 +28,9 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
     return <p style={styles.empty}>No data available</p>;
   }
 
-  const daily = {};
-  const taskTotals = {};
-
-  // ================= MERGE DATA =================
-  Object.values(logs).flat().forEach((l) => {
-    if (!l?.date) return;
-    if (!daily[l.date]) daily[l.date] = 0;
-    daily[l.date] += Number(l.value || 0);
-  });
-
-  tasks.forEach((t) => {
-    t.logs?.forEach((log) => {
-      if (!log?.date) return;
-
-      const minutes = Math.round((log.duration || 0) / 60);
-
-      if (!daily[log.date]) daily[log.date] = 0;
-      daily[log.date] += minutes;
-
-      if (!taskTotals[t.name]) taskTotals[t.name] = 0;
-      taskTotals[t.name] += minutes;
-    });
-  });
-
-  const chartData = Object.keys(daily).map((date) => ({
+  // ✅ CLEAN DATA PIPELINE
+  const daily = getDailyData(logs, tasks);
+  const chartData = Object.keys(daily).map(date => ({
     date,
     value: daily[date]
   }));
@@ -113,44 +70,21 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
       ? "📈 Good progress!"
       : "⚡ Stay consistent!";
 
-  // ================= 🎯 SMART GOAL =================
+  // ================= GOAL =================
   const goalData = parseSmartGoal(user?.goal);
 
   const todayKey = new Date().toDateString();
   const todayValue = daily[todayKey] || 0;
 
-  const goalPercent = goalData?.target
-    ? Math.min(Math.round((todayValue / goalData.target) * 100), 100)
+  const goalPercent = goalData
+    ? calculatePercent(todayValue, goalData.target)
     : 0;
 
-  const goalInsight = user?.goal
-    ? `🎯 Goal: ${user.goal}`
-    : "Set a goal to stay focused";
-
-  // ================= TASK BREAKDOWN =================
-  const taskData = Object.keys(taskTotals)
-    .map(name => ({ name, value: taskTotals[name] }))
-    .sort((a, b) => b.value - a.value);
-
-  // ================= WEEKLY =================
-  const last7Days = Array.from({ length: 7 }).map((_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    return {
-      date: d.toLocaleDateString("en-US", { weekday: "short" }),
-      value: daily[d.toDateString()] || 0
-    };
-  });
-
-  // ================= HEATMAP =================
-  const last30Days = Array.from({ length: 30 }).map((_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (29 - i));
-    return {
-      date: d.toDateString(),
-      value: daily[d.toDateString()] || 0
-    };
-  });
+  // ================= REUSABLE LOGIC =================
+  const last7Days = getWeeklyData(daily);
+  const last30Days = getHeatmapData(daily);
+  const streak = getStreak(last30Days);
+  const taskData = getTaskBreakdown(tasks);
 
   const getColor = (v) =>
     v === 0 ? "#1f2937"
@@ -158,94 +92,57 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
     : v < 60 ? "#22c55e"
     : "#16a34a";
 
-  // ================= STREAK =================
-  let streak = 0;
-  for (let i = last30Days.length - 1; i >= 0; i--) {
-    if (last30Days[i].value > 0) streak++;
-    else break;
-  }
-
   return (
-    <motion.div
-      style={styles.container}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-    >
+    <motion.div style={styles.container}>
 
       <h1 style={styles.title}>Analytics</h1>
       <p style={styles.subtitle}>Your performance insights</p>
 
       {/* KPI */}
       <div style={styles.kpiGrid}>
-        {[ 
-          { title: "Total", value: total },
-          { title: "Average", value: avg },
-          { title: "Best Day", value: best.date },
-          { title: "Score", value: score }
-        ].map((k, i) => (
-          <motion.div
-            key={i}
-            style={styles.kpiCard}
-            whileHover={{ scale: 1.05 }}
-          >
-            <p style={styles.kpiTitle}>{k.title}</p>
-            <h2>{k.value}</h2>
-          </motion.div>
-        ))}
+        <Card title="Total" value={total} />
+        <Card title="Average" value={avg} />
+        <Card title="Best Day" value={best.date} />
+        <Card title="Score" value={score} />
       </div>
 
-      {/* INSIGHTS */}
       <div style={styles.insight}>{insight}</div>
-      <div style={styles.insight}>{goalInsight}</div>
 
-      {/* 🎯 GOAL PROGRESS */}
+      {/* GOAL */}
       {goalData && (
         <div style={styles.card}>
           <h3>🎯 Goal Progress</h3>
 
           <div style={styles.progressBg}>
-            <div
-              style={{
-                ...styles.progressFill,
-                width: `${goalPercent}%`
-              }}
-            />
+            <div style={{
+              ...styles.progressFill,
+              width: `${goalPercent}%`
+            }} />
           </div>
 
           <p style={styles.subtitle}>
-            {todayValue} / {goalData.target} {goalData.unit} ({goalPercent}%)
+            {todayValue} / {goalData.target} {goalData.unit}
           </p>
         </div>
       )}
 
       {/* DAILY */}
       <div style={styles.card}>
-        <h3>Daily Trend</h3>
-        <ResponsiveContainer width="100%" height={260}>
+        <ResponsiveContainer width="100%" height={250}>
           <LineChart data={chartData}>
             <CartesianGrid stroke="var(--border)" />
-            <XAxis dataKey="date" stroke="var(--text-muted)" />
-            <YAxis stroke="var(--text-muted)" />
+            <XAxis dataKey="date" />
+            <YAxis />
             <Tooltip />
-            <Line
-              type="monotone"
-              dataKey="value"
-              stroke="var(--accent)"
-              strokeWidth={3}
-            />
+            <Line dataKey="value" stroke="var(--accent)" />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       {/* WEEKLY */}
       <div style={styles.card}>
-        <h3>Weekly</h3>
-        <ResponsiveContainer width="100%" height={260}>
+        <ResponsiveContainer width="100%" height={250}>
           <BarChart data={last7Days}>
-            <CartesianGrid stroke="var(--border)" />
-            <XAxis dataKey="date" stroke="var(--text-muted)" />
-            <YAxis stroke="var(--text-muted)" />
-            <Tooltip />
             <Bar dataKey="value" fill="var(--accent)" />
           </BarChart>
         </ResponsiveContainer>
@@ -253,13 +150,8 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
       {/* TASKS */}
       <div style={styles.card}>
-        <h3>Top Tasks</h3>
-        <ResponsiveContainer width="100%" height={260}>
+        <ResponsiveContainer width="100%" height={250}>
           <BarChart data={taskData}>
-            <CartesianGrid stroke="var(--border)" />
-            <XAxis dataKey="name" stroke="var(--text-muted)" />
-            <YAxis stroke="var(--text-muted)" />
-            <Tooltip />
             <Bar dataKey="value" fill="#8b5cf6" />
           </BarChart>
         </ResponsiveContainer>
@@ -267,7 +159,6 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
       {/* HEATMAP */}
       <div style={styles.card}>
-        <h3>Heatmap</h3>
         <div style={styles.heatmap}>
           {last30Days.map((d, i) => (
             <div
@@ -283,15 +174,23 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
       {/* STREAK */}
       <div style={styles.card}>
-        <h3>Streak</h3>
-        <div style={styles.big}>{streak} days</div>
+        <h3>{streak} day streak 🔥</h3>
       </div>
 
     </motion.div>
   );
 }
 
-// ================= STYLES =================
+// ================= UI =================
+function Card({ title, value }) {
+  return (
+    <div style={styles.kpiCard}>
+      <p>{title}</p>
+      <h2>{value}</h2>
+    </div>
+  );
+}
+
 const styles = {
   container: { display: "flex", flexDirection: "column", gap: 20 },
   title: { fontSize: 28 },
@@ -310,8 +209,6 @@ const styles = {
     border: "1px solid var(--border)"
   },
 
-  kpiTitle: { color: "var(--text-muted)" },
-
   card: {
     background: "var(--card)",
     padding: 20,
@@ -320,17 +217,15 @@ const styles = {
   },
 
   insight: {
-    background: "var(--card)",
-    padding: 12,
+    padding: 10,
     borderRadius: 10,
-    border: "1px solid var(--border)"
+    background: "var(--card)"
   },
 
   progressBg: {
     height: 10,
     background: "var(--border)",
-    borderRadius: 10,
-    marginTop: 10
+    borderRadius: 10
   },
 
   progressFill: {
@@ -346,14 +241,8 @@ const styles = {
   },
 
   cell: {
-    aspectRatio: "1",
+    aspectRatio: 1,
     borderRadius: 4
-  },
-
-  big: {
-    fontSize: 36,
-    textAlign: "center",
-    color: "var(--accent)"
   },
 
   empty: {
