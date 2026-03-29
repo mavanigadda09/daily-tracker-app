@@ -10,7 +10,6 @@ export default function Activities({ items = [], setItems }) {
   const [tempValues, setTempValues] = useState({});
   const wrapperRef = useRef(null);
 
-  // ================= CLOSE DROPDOWN ON OUTSIDE CLICK =================
   useEffect(() => {
     const handleClick = (e) => {
       if (!wrapperRef.current?.contains(e.target)) {
@@ -22,7 +21,6 @@ export default function Activities({ items = [], setItems }) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // ================= UPDATE =================
   const updateActivity = (id, value, mode) => {
     if (!setItems) return;
 
@@ -46,23 +44,17 @@ export default function Activities({ items = [], setItems }) {
     );
   };
 
-  if (!items) {
-    return (
-      <div style={container}>
-        <p style={{ color: "#94a3b8" }}>Loading activities...</p>
-      </div>
-    );
-  }
-
   return (
-    <div style={container} ref={wrapperRef}>
-      <h1 style={title}>📊 Daily Activities</h1>
+    <div style={styles.container} ref={wrapperRef}>
+
+      <h1 style={styles.title}>Activities</h1>
+      <p style={styles.subtitle}>Track your daily progress</p>
 
       {activities.length === 0 && (
-        <p style={{ color: "#64748b" }}>No activities added</p>
+        <p style={styles.empty}>No activities added</p>
       )}
 
-      <div style={grid}>
+      <div style={styles.grid}>
         {activities.map((a) => {
           const percent = a.target
             ? Math.min((a.value / a.target) * 100, 100)
@@ -71,38 +63,43 @@ export default function Activities({ items = [], setItems }) {
           const inputValue = tempValues[a.id] ?? "";
 
           return (
-            <div key={a.id} style={card}>
+            <div key={a.id} style={styles.card}>
 
-              <h3 style={name}>{a.name}</h3>
+              <h3>{a.name}</h3>
 
-              <p style={stats}>
+              <p style={styles.stats}>
                 {a.value || 0} / {a.target || 0} {a.unit || ""}
               </p>
 
-              {/* PROGRESS BAR */}
-              <div style={barBg}>
-                <div style={{ ...barFill, width: `${percent}%` }} />
+              {/* PROGRESS */}
+              <div style={styles.barBg}>
+                <div
+                  style={{
+                    ...styles.barFill,
+                    width: `${percent}%`
+                  }}
+                />
               </div>
 
               {/* CONTROLS */}
-              <div style={controls}>
+              <div style={styles.controls}>
 
-                {/* MINUS */}
                 <button
+                  style={styles.btn}
                   onClick={() => {
                     const val = Number(inputValue) || 1;
                     updateActivity(a.id, -val, "increment");
                     setTempValues((p) => ({ ...p, [a.id]: "" }));
                   }}
-                  style={btn}
                 >
                   −
                 </button>
 
-                {/* INPUT */}
-                <div style={inputWrapper}>
+                <div style={styles.inputWrapper}>
                   <input
                     value={inputValue}
+                    placeholder="0"
+                    style={styles.input}
                     onFocus={() => setActiveInput(a.id)}
                     onChange={(e) =>
                       setTempValues({
@@ -118,17 +115,14 @@ export default function Activities({ items = [], setItems }) {
                         setActiveInput(null);
                       }
                     }}
-                    placeholder="0"
-                    style={input}
                   />
 
-                  {/* DROPDOWN */}
                   {activeInput === a.id && (
-                    <div style={dropdown}>
+                    <div style={styles.dropdown}>
                       {[5, 10, 15, 20, 25, 30].map((num) => (
                         <div
                           key={num}
-                          style={option}
+                          style={styles.option}
                           onClick={() => {
                             updateActivity(a.id, num, "increment");
                             setActiveInput(null);
@@ -141,14 +135,13 @@ export default function Activities({ items = [], setItems }) {
                   )}
                 </div>
 
-                {/* PLUS */}
                 <button
+                  style={styles.btn}
                   onClick={() => {
                     const val = Number(inputValue) || 1;
                     updateActivity(a.id, val, "increment");
                     setTempValues((p) => ({ ...p, [a.id]: "" }));
                   }}
-                  style={btn}
                 >
                   +
                 </button>
@@ -163,101 +156,101 @@ export default function Activities({ items = [], setItems }) {
 }
 
 // ================= STYLES =================
+const styles = {
+  container: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 20
+  },
 
-const container = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 20
-};
+  title: {
+    fontSize: 28
+  },
 
-const title = {
-  fontSize: 28,
-  color: "#e2e8f0"
-};
+  subtitle: {
+    color: "var(--text-muted)"
+  },
 
-const grid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-  gap: 20
-};
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))",
+    gap: 16
+  },
 
-const card = {
-  background: "linear-gradient(145deg, #0f172a, #020617)",
-  padding: 20,
-  borderRadius: 14,
-  border: "1px solid #1e293b",
-  boxShadow: "0 6px 20px rgba(0,0,0,0.4)",
-  transition: "0.2s"
-};
+  card: {
+    background: "var(--card)",
+    padding: 16,
+    borderRadius: 12,
+    border: "1px solid var(--border)"
+  },
 
-const name = {
-  color: "#e2e8f0",
-  marginBottom: 5
-};
+  stats: {
+    color: "var(--text-muted)"
+  },
 
-const stats = {
-  color: "#94a3b8"
-};
+  barBg: {
+    height: 8,
+    background: "var(--border)",
+    borderRadius: 10,
+    marginTop: 10
+  },
 
-const barBg = {
-  height: 8,
-  background: "#1e293b",
-  borderRadius: 10,
-  marginTop: 10
-};
+  barFill: {
+    height: 8,
+    background: "var(--accent)",
+    borderRadius: 10
+  },
 
-const barFill = {
-  height: 8,
-  background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
-  borderRadius: 10
-};
+  controls: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 14
+  },
 
-const controls = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  marginTop: 15
-};
+  btn: {
+    padding: "6px 10px",
+    background: "var(--accent)",
+    border: "none",
+    borderRadius: 8,
+    color: "#fff",
+    cursor: "pointer"
+  },
 
-const btn = {
-  padding: "8px 12px",
-  background: "#6366f1",
-  border: "none",
-  borderRadius: 8,
-  color: "#fff",
-  cursor: "pointer",
-  fontWeight: "bold"
-};
+  inputWrapper: {
+    position: "relative",
+    flex: 1
+  },
 
-const inputWrapper = {
-  position: "relative",
-  flex: 1
-};
+  input: {
+    width: "100%",
+    padding: 8,
+    textAlign: "center",
+    background: "#020617",
+    color: "#fff",
+    border: "1px solid var(--border)",
+    borderRadius: 8
+  },
 
-const input = {
-  width: "100%",
-  padding: 8,
-  textAlign: "center",
-  background: "#020617",
-  color: "#fff",
-  border: "1px solid #334155",
-  borderRadius: 8
-};
+  dropdown: {
+    position: "absolute",
+    top: "110%",
+    left: 0,
+    right: 0,
+    background: "var(--card)",
+    border: "1px solid var(--border)",
+    borderRadius: 8,
+    zIndex: 10
+  },
 
-const dropdown = {
-  position: "absolute",
-  top: "110%",
-  left: 0,
-  right: 0,
-  background: "#0f172a",
-  border: "1px solid #334155",
-  borderRadius: 8,
-  zIndex: 10
-};
+  option: {
+    padding: 8,
+    cursor: "pointer",
+    borderBottom: "1px solid var(--border)",
+    color: "var(--text)"
+  },
 
-const option = {
-  padding: 8,
-  cursor: "pointer",
-  borderBottom: "1px solid #1e293b",
-  color: "#e2e8f0"
+  empty: {
+    color: "var(--text-muted)"
+  }
 };

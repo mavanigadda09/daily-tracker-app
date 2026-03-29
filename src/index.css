@@ -1,40 +1,52 @@
+/* ================= ROOT THEME ================= */
 :root {
-  --text: #9ca3af;
-  --text-h: #f3f4f6;
-  --bg: #020617;
-  --border: #2e303a;
+  --bg: #0b1220;
+  --sidebar: #111827;
+  --card: #1f2937;
+
+  --text: #e5e7eb;
+  --text-muted: #9ca3af;
 
   --accent: #6366f1;
+  --accent-hover: #4f46e5;
 
-  font-family: system-ui, sans-serif;
+  --border: #374151;
 }
 
-/* 🔥 IMPORTANT FIX */
+/* ================= RESET ================= */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ================= BODY ================= */
 html, body, #root {
   width: 100%;
   height: 100%;
-  margin: 0;
-  padding: 0;
 }
 
-/* REMOVE CENTER BOX ISSUE */
-#root {
-  display: flex;
-}
-
-/* GLOBAL */
 body {
-  background: #020617;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* ================= TEXT ================= */
+h1, h2, h3 {
   color: var(--text);
 }
 
-/* HEADINGS */
-h1, h2, h3 {
-  color: var(--text-h);
-  margin: 0;
+p {
+  color: var(--text-muted);
 }
 
-/* TEXT */
-p {
-  margin: 0;
+/* ================= SCROLL ================= */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 6px;
 }

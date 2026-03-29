@@ -12,7 +12,7 @@ import {
 
 import { motion } from "framer-motion";
 
-export default function Analytics({ logs = {}, tasks = [] }) {
+export default function Analytics({ logs = {}, tasks = [], user }) {
 
   if ((!logs || typeof logs !== "object") && !tasks.length) {
     return <p style={styles.empty}>No data available</p>;
@@ -21,20 +21,15 @@ export default function Analytics({ logs = {}, tasks = [] }) {
   const daily = {};
   const taskTotals = {};
 
-  const logArrays = Object.values(logs).filter(Array.isArray);
-
-  logArrays.forEach((activityLogs) => {
-    activityLogs.forEach((l) => {
-      if (!l?.date) return;
-      if (!daily[l.date]) daily[l.date] = 0;
-      daily[l.date] += Number(l.value || 0);
-    });
+  // ================= MERGE DATA =================
+  Object.values(logs).flat().forEach((l) => {
+    if (!l?.date) return;
+    if (!daily[l.date]) daily[l.date] = 0;
+    daily[l.date] += Number(l.value || 0);
   });
 
   tasks.forEach((t) => {
-    if (!Array.isArray(t.logs)) return;
-
-    t.logs.forEach((log) => {
+    t.logs?.forEach((log) => {
       if (!log?.date) return;
 
       const minutes = Math.round((log.duration || 0) / 60);
@@ -52,12 +47,12 @@ export default function Analytics({ logs = {}, tasks = [] }) {
     value: daily[date]
   }));
 
-  if (chartData.length === 0) {
+  if (!chartData.length) {
     return <p style={styles.empty}>No usable data</p>;
   }
 
+  // ================= METRICS =================
   const values = chartData.map(d => d.value);
-
   const total = values.reduce((a, b) => a + b, 0);
   const avg = Math.round(total / values.length);
 
@@ -68,7 +63,7 @@ export default function Analytics({ logs = {}, tasks = [] }) {
 
   const trend =
     values.length >= 2
-      ? values[values.length - 1] - values[values.length - 2]
+      ? values.at(-1) - values.at(-2)
       : 0;
 
   const consistency =
@@ -76,7 +71,7 @@ export default function Analytics({ logs = {}, tasks = [] }) {
 
   const score = Math.min(
     100,
-    Math.round((avg * 0.5 + consistency * 50 + (trend > 0 ? 10 : 0)))
+    Math.round(avg * 0.5 + consistency * 50 + (trend > 0 ? 10 : 0))
   );
 
   const insight =
@@ -84,49 +79,45 @@ export default function Analytics({ logs = {}, tasks = [] }) {
       ? "🔥 Excellent consistency!"
       : score > 50
       ? "📈 Good progress!"
-      : "⚡ Try to stay consistent!";
+      : "⚡ Stay consistent!";
 
+  // ================= 🎯 GOAL =================
+  const goalInsight = user?.goal
+    ? `🎯 Goal: ${user.goal}`
+    : "Set a goal to stay focused";
+
+  // ================= TASK BREAKDOWN =================
   const taskData = Object.keys(taskTotals)
-    .map((name) => ({
-      name,
-      value: taskTotals[name]
-    }))
+    .map(name => ({ name, value: taskTotals[name] }))
     .sort((a, b) => b.value - a.value);
 
-  const last7Days = [];
-
-  for (let i = 6; i >= 0; i--) {
+  // ================= WEEKLY =================
+  const last7Days = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date();
-    d.setDate(d.getDate() - i);
-    const key = d.toDateString();
-
-    last7Days.push({
+    d.setDate(d.getDate() - (6 - i));
+    return {
       date: d.toLocaleDateString("en-US", { weekday: "short" }),
-      value: daily[key] || 0
-    });
-  }
+      value: daily[d.toDateString()] || 0
+    };
+  });
 
-  const last30Days = [];
-
-  for (let i = 29; i >= 0; i--) {
+  // ================= HEATMAP =================
+  const last30Days = Array.from({ length: 30 }).map((_, i) => {
     const d = new Date();
-    d.setDate(d.getDate() - i);
-    const key = d.toDateString();
+    d.setDate(d.getDate() - (29 - i));
+    return {
+      date: d.toDateString(),
+      value: daily[d.toDateString()] || 0
+    };
+  });
 
-    last30Days.push({
-      date: key,
-      value: daily[key] || 0
-    });
-  }
+  const getColor = (v) =>
+    v === 0 ? "#1f2937"
+    : v < 30 ? "#4ade80"
+    : v < 60 ? "#22c55e"
+    : "#16a34a";
 
-  const getColor = (value) => {
-    if (value === 0) return "#e5e7eb";
-    if (value < 30) return "#86efac";
-    if (value < 60) return "#4ade80";
-    if (value < 120) return "#22c55e";
-    return "#16a34a";
-  };
-
+  // ================= STREAK =================
   let streak = 0;
   for (let i = last30Days.length - 1; i >= 0; i--) {
     if (last30Days[i].value > 0) streak++;
@@ -162,134 +153,131 @@ export default function Analytics({ logs = {}, tasks = [] }) {
         ))}
       </div>
 
+      {/* INSIGHTS */}
       <div style={styles.insight}>{insight}</div>
+      <div style={styles.insight}>{goalInsight}</div>
 
       {/* DAILY */}
-      <motion.div style={styles.card} whileHover={{ y: -5 }}>
-        <h3>📈 Daily Trend</h3>
-        <ResponsiveContainer width="100%" height={280}>
+      <div style={styles.card}>
+        <h3>Daily Trend</h3>
+        <ResponsiveContainer width="100%" height={260}>
           <LineChart data={chartData}>
-            <CartesianGrid stroke="#e5e7eb" />
-            <XAxis dataKey="date" stroke="#6b7280" />
-            <YAxis stroke="#6b7280" />
+            <CartesianGrid stroke="var(--border)" />
+            <XAxis dataKey="date" stroke="var(--text-muted)" />
+            <YAxis stroke="var(--text-muted)" />
             <Tooltip />
-            <Line type="monotone" dataKey="value" stroke="#16a34a" strokeWidth={3} />
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke="var(--accent)"
+              strokeWidth={3}
+            />
           </LineChart>
         </ResponsiveContainer>
-      </motion.div>
+      </div>
 
       {/* WEEKLY */}
-      <motion.div style={styles.card} whileHover={{ y: -5 }}>
-        <h3>📅 Weekly Overview</h3>
-        <ResponsiveContainer width="100%" height={280}>
+      <div style={styles.card}>
+        <h3>Weekly</h3>
+        <ResponsiveContainer width="100%" height={260}>
           <BarChart data={last7Days}>
-            <CartesianGrid stroke="#e5e7eb" />
-            <XAxis dataKey="date" />
-            <YAxis />
+            <CartesianGrid stroke="var(--border)" />
+            <XAxis dataKey="date" stroke="var(--text-muted)" />
+            <YAxis stroke="var(--text-muted)" />
             <Tooltip />
-            <Bar dataKey="value" fill="#3b82f6" />
+            <Bar dataKey="value" fill="var(--accent)" />
           </BarChart>
         </ResponsiveContainer>
-      </motion.div>
+      </div>
 
       {/* TASKS */}
-      <motion.div style={styles.card} whileHover={{ y: -5 }}>
-        <h3>🏆 Top Tasks</h3>
-        <ResponsiveContainer width="100%" height={280}>
+      <div style={styles.card}>
+        <h3>Top Tasks</h3>
+        <ResponsiveContainer width="100%" height={260}>
           <BarChart data={taskData}>
-            <CartesianGrid stroke="#e5e7eb" />
-            <XAxis dataKey="name" />
-            <YAxis />
+            <CartesianGrid stroke="var(--border)" />
+            <XAxis dataKey="name" stroke="var(--text-muted)" />
+            <YAxis stroke="var(--text-muted)" />
             <Tooltip />
-            <Bar dataKey="value" fill="#6366f1" />
+            <Bar dataKey="value" fill="#8b5cf6" />
           </BarChart>
         </ResponsiveContainer>
-      </motion.div>
+      </div>
 
       {/* HEATMAP */}
-      <motion.div style={styles.card}>
-        <h3>🟩 Heatmap</h3>
+      <div style={styles.card}>
+        <h3>Heatmap</h3>
         <div style={styles.heatmap}>
           {last30Days.map((d, i) => (
-            <motion.div
+            <div
               key={i}
               style={{
                 ...styles.cell,
                 background: getColor(d.value)
               }}
-              whileHover={{ scale: 1.2 }}
             />
           ))}
         </div>
-      </motion.div>
+      </div>
 
       {/* STREAK */}
-      <motion.div style={styles.card}>
-        <h3>🔥 Streak</h3>
+      <div style={styles.card}>
+        <h3>Streak</h3>
         <div style={styles.big}>{streak} days</div>
-      </motion.div>
+      </div>
 
     </motion.div>
   );
 }
 
+// ================= STYLES =================
 const styles = {
   container: {
-    padding: 30,
-    background: "#f8fafc", // ✅ FIXED
-    maxWidth: 1200,        // ✅ CENTERED
-    margin: "0 auto",
-    minHeight: "100vh"
+    display: "flex",
+    flexDirection: "column",
+    gap: 20
   },
 
-  title: {
-    fontSize: 28,
-    color: "#111827"
-  },
+  title: { fontSize: 28 },
 
   subtitle: {
-    color: "#6b7280",
-    marginBottom: 20
+    color: "var(--text-muted)"
   },
 
   kpiGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
-    gap: 16,
-    marginBottom: 20
+    gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))",
+    gap: 16
   },
 
   kpiCard: {
-    background: "#fff",
+    background: "var(--card)",
     padding: 16,
     borderRadius: 12,
-    border: "1px solid #e5e7eb",
-    boxShadow: "0 4px 10px rgba(0,0,0,0.05)"
+    border: "1px solid var(--border)"
   },
 
   kpiTitle: {
-    color: "#6b7280"
+    color: "var(--text-muted)"
   },
 
   card: {
-    background: "#fff",
+    background: "var(--card)",
     padding: 20,
     borderRadius: 16,
-    border: "1px solid #e5e7eb",
-    marginBottom: 20,
-    boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
+    border: "1px solid var(--border)"
   },
 
   insight: {
-    background: "#eef2ff",
+    background: "var(--card)",
     padding: 12,
     borderRadius: 10,
-    marginBottom: 20
+    border: "1px solid var(--border)"
   },
 
   heatmap: {
     display: "grid",
-    gridTemplateColumns: "repeat(10, 1fr)",
+    gridTemplateColumns: "repeat(10,1fr)",
     gap: 6
   },
 
@@ -299,12 +287,13 @@ const styles = {
   },
 
   big: {
-    fontSize: 40,
+    fontSize: 36,
     textAlign: "center",
-    color: "#16a34a"
+    color: "var(--accent)"
   },
 
   empty: {
-    padding: 30
+    padding: 30,
+    color: "var(--text-muted)"
   }
 };

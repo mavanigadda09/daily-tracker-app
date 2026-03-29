@@ -9,33 +9,31 @@ export default function Tasks({
   const [name, setName] = useState("");
   const [now, setNow] = useState(Date.now());
 
-  // ================= LIVE TIMER =================
   useEffect(() => {
     const interval = setInterval(() => {
       setNow(Date.now());
     }, 1000);
-
     return () => clearInterval(interval);
   }, []);
 
-  // ================= FORMAT TIME =================
   const formatDuration = (sec) => {
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
-
-    if (m === 0) return `${s}s`;
-    return `${m}m ${s}s`;
+    return m === 0 ? `${s}s` : `${m}m ${s}s`;
   };
 
   return (
-    <div>
-      <h1 style={styles.title}>⏱ Task Tracker</h1>
+    <div style={styles.container}>
 
-      {/* ================= ADD TASK ================= */}
-      <div style={styles.card}>
+      {/* HEADER */}
+      <h1 style={styles.title}>Tasks</h1>
+      <p style={styles.subtitle}>Track your time & productivity</p>
+
+      {/* ADD TASK */}
+      <div style={styles.addBox}>
         <input
           style={styles.input}
-          placeholder="Task name (e.g. Medicine)"
+          placeholder="Enter task name..."
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
@@ -47,41 +45,38 @@ export default function Tasks({
         />
 
         <button
-          style={styles.btn}
+          style={styles.addBtn}
           onClick={() => {
             if (!name.trim()) return;
             addTask(name.trim());
             setName("");
           }}
         >
-          Add Task
+          Add
         </button>
       </div>
 
-      {/* ================= TASK LIST ================= */}
+      {/* TASK LIST */}
       <div style={styles.grid}>
         {tasks.length === 0 && (
-          <p style={{ color: "#94a3b8" }}>No tasks added</p>
+          <p style={styles.empty}>No tasks yet</p>
         )}
 
         {tasks.map((t) => {
           let duration = t.duration || 0;
 
           if (t.running && t.start) {
-            duration =
-              (now - new Date(t.start)) / 1000;
+            duration = (now - new Date(t.start)) / 1000;
           }
 
           return (
-            <div key={t.id} style={styles.cardHover}>
-              <h3 style={styles.taskName}>{t.name}</h3>
+            <div key={t.id} style={styles.card}>
+              <h3>{t.name}</h3>
 
-              {/* STATUS */}
               <p style={t.running ? styles.running : styles.stopped}>
-                {t.running ? "🟢 Running" : "⚪ Not running"}
+                {t.running ? "Running" : "Stopped"}
               </p>
 
-              {/* TIME */}
               {t.start && (
                 <p style={styles.time}>
                   Start: {new Date(t.start).toLocaleTimeString()}
@@ -94,14 +89,12 @@ export default function Tasks({
                 </p>
               )}
 
-              {/* DURATION */}
               {duration > 0 && (
                 <p style={styles.duration}>
                   ⏳ {formatDuration(duration)}
                 </p>
               )}
 
-              {/* CONTROLS */}
               {!t.running ? (
                 <button
                   style={styles.start}
@@ -121,93 +114,75 @@ export default function Tasks({
 
                     const date = new Date().toDateString();
 
-                    // 🔥 AUTO LOGGING HERE
                     endTask(t.id, durationSec, date);
                   }}
                 >
-                  ⏹ End
+                  ⏹ Stop
                 </button>
               )}
             </div>
           );
         })}
       </div>
+
     </div>
   );
 }
 
 // ================= STYLES =================
 const styles = {
+  container: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 20
+  },
+
   title: {
-    fontSize: 28,
-    fontWeight: 600,
-    marginBottom: 20,
-    color: "#e2e8f0"
+    fontSize: 28
+  },
+
+  subtitle: {
+    color: "var(--text-muted)"
+  },
+
+  addBox: {
+    display: "flex",
+    gap: 10,
+    background: "var(--card)",
+    padding: 16,
+    borderRadius: 12,
+    border: "1px solid var(--border)"
+  },
+
+  input: {
+    flex: 1,
+    padding: 10,
+    borderRadius: 8,
+    border: "1px solid var(--border)",
+    background: "#020617",
+    color: "#fff"
+  },
+
+  addBtn: {
+    background: "var(--accent)",
+    border: "none",
+    padding: "10px 16px",
+    borderRadius: 8,
+    color: "#fff",
+    cursor: "pointer"
   },
 
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-    gap: 20
+    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+    gap: 16
   },
 
   card: {
-    background: "#0f172a",
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 20,
-    border: "1px solid rgba(148,163,184,0.1)"
-  },
-
-  cardHover: {
-    background: "#0f172a",
-    padding: 20,
-    borderRadius: 16,
-    border: "1px solid rgba(148,163,184,0.1)",
-    transition: "0.3s",
-    cursor: "pointer"
-  },
-
-  taskName: {
-    color: "#e2e8f0"
-  },
-
-  input: {
-    padding: 10,
-    borderRadius: 8,
-    border: "1px solid #334155",
-    background: "#020617",
-    color: "#fff",
-    marginRight: 10
-  },
-
-  btn: {
-    background: "#6366f1",
-    border: "none",
-    padding: 10,
-    borderRadius: 8,
-    color: "#fff",
-    cursor: "pointer"
-  },
-
-  start: {
-    background: "#22c55e",
-    border: "none",
-    padding: 10,
-    borderRadius: 8,
-    color: "#fff",
-    marginTop: 10,
-    cursor: "pointer"
-  },
-
-  stop: {
-    background: "#ef4444",
-    border: "none",
-    padding: 10,
-    borderRadius: 8,
-    color: "#fff",
-    marginTop: 10,
-    cursor: "pointer"
+    background: "var(--card)",
+    padding: 16,
+    borderRadius: 12,
+    border: "1px solid var(--border)"
   },
 
   running: {
@@ -215,17 +190,40 @@ const styles = {
   },
 
   stopped: {
-    color: "#94a3b8"
+    color: "var(--text-muted)"
   },
 
   time: {
     fontSize: 12,
-    color: "#94a3b8"
+    color: "var(--text-muted)"
   },
 
   duration: {
-    marginTop: 5,
-    color: "#facc15",
-    fontWeight: 500
+    marginTop: 6,
+    color: "#facc15"
+  },
+
+  start: {
+    marginTop: 10,
+    background: "#22c55e",
+    border: "none",
+    padding: 8,
+    borderRadius: 8,
+    color: "#fff",
+    cursor: "pointer"
+  },
+
+  stop: {
+    marginTop: 10,
+    background: "#ef4444",
+    border: "none",
+    padding: 8,
+    borderRadius: 8,
+    color: "#fff",
+    cursor: "pointer"
+  },
+
+  empty: {
+    color: "var(--text-muted)"
   }
 };

@@ -1,34 +1,59 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
 export default function Onboarding({ onComplete }) {
   const [name, setName] = useState("");
+  const [goal, setGoal] = useState("");
 
   const handleSubmit = () => {
-    if (!name) return;
+    if (!name.trim()) return;
 
-    localStorage.setItem("user", JSON.stringify({ name }));
-    onComplete();
+    const user = {
+      name: name.trim(),
+      goal: goal.trim()
+    };
+
+    localStorage.setItem("user", JSON.stringify(user));
+    onComplete(user);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") handleSubmit();
   };
 
   return (
     <div style={styles.container}>
+
       <div style={styles.card}>
-        <h2 style={{ color: "#fff" }}>Welcome 👋</h2>
-        <p style={{ color: "#94a3b8" }}>
-          What should we call you?
+
+        <h1 style={styles.title}>Welcome 👋</h1>
+        <p style={styles.subtitle}>
+          Let’s set up your profile
         </p>
 
+        {/* NAME */}
         <input
           style={styles.input}
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Enter your name"
+          onKeyDown={handleKeyDown}
+        />
+
+        {/* GOAL */}
+        <input
+          style={styles.input}
+          value={goal}
+          onChange={(e) => setGoal(e.target.value)}
+          placeholder="Your goal (e.g. Study 2h daily)"
+          onKeyDown={handleKeyDown}
         />
 
         <button style={styles.button} onClick={handleSubmit}>
           Continue
         </button>
+
       </div>
+
     </div>
   );
 }
@@ -39,30 +64,46 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    background: "#020617"
+    background: "var(--bg)"
   },
+
   card: {
+    width: 360,
     padding: 30,
     borderRadius: 16,
-    background: "#0f172a",
-    border: "1px solid #1e293b"
+    background: "var(--card)",
+    border: "1px solid var(--border)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12
   },
+
+  title: {
+    fontSize: 26
+  },
+
+  subtitle: {
+    color: "var(--text-muted)"
+  },
+
   input: {
     width: "100%",
-    padding: 10,
-    marginTop: 10,
-    marginBottom: 10,
+    padding: 12,
     borderRadius: 8,
-    border: "1px solid #334155",
+    border: "1px solid var(--border)",
     background: "#020617",
-    color: "#fff"
+    color: "#fff",
+    outline: "none"
   },
+
   button: {
-    padding: "10px 16px",
+    marginTop: 5,
+    padding: 12,
     borderRadius: 8,
-    background: "#6366f1",
+    background: "var(--accent)",
     border: "none",
     color: "#fff",
+    fontWeight: "bold",
     cursor: "pointer"
   }
 };

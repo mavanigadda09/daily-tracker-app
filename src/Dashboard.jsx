@@ -11,17 +11,10 @@ import {
   Cell
 } from "recharts";
 
-const theme = {
-  bg: "#f9fafb",
-  card: "#ffffff",
-  border: "#e5e7eb",
-  text: "#111827",
-  subtext: "#6b7280",
-  primary: "#16a34a",
-  primaryLight: "#22c55e"
-};
+import { useNavigate } from "react-router-dom";
 
-export default function Dashboard({ items = [], logs = {} }) {
+export default function Dashboard({ items = [], logs = {}, user }) {
+  const navigate = useNavigate();
 
   const habits = items.filter(i => i?.type === "habit");
   const activities = items.filter(i => i?.type === "activity");
@@ -69,10 +62,28 @@ export default function Dashboard({ items = [], logs = {} }) {
       {/* HEADER */}
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>Dashboard</h1>
-          <p style={styles.subtitle}>Track your performance & consistency</p>
+          <h1 style={styles.title}>
+            Welcome, {user?.name} 👋
+          </h1>
+          <p style={styles.subtitle}>
+            Let’s achieve your goals today
+          </p>
         </div>
-        <div style={styles.profile}>👤</div>
+
+        <div
+          style={styles.profile}
+          onClick={() => navigate("/profile")}
+        >
+          👤
+        </div>
+      </div>
+
+      {/* 🎯 GOAL */}
+      <div style={styles.card}>
+        <h3>Your Goal</h3>
+        <p style={styles.goalText}>
+          {user?.goal || "No goal set yet"}
+        </p>
       </div>
 
       {/* KPI */}
@@ -93,17 +104,16 @@ export default function Dashboard({ items = [], logs = {} }) {
           <h3>Weekly Activity</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={weekly}>
-              <CartesianGrid stroke={theme.border} />
-              <XAxis dataKey="date" stroke={theme.subtext} />
-              <YAxis stroke={theme.subtext} />
+              <CartesianGrid stroke="var(--border)" />
+              <XAxis dataKey="date" stroke="var(--text-muted)" />
+              <YAxis stroke="var(--text-muted)" />
               <Tooltip />
-              <Bar dataKey="completed" fill={theme.primary} radius={[6,6,0,0]} />
+              <Bar dataKey="completed" fill="var(--accent)" />
             </BarChart>
           </ResponsiveContainer>
         </Card>
       </div>
 
-      {/* HEATMAP */}
       <Card>
         <h3>Consistency</h3>
         <Heatmap logs={logs} />
@@ -113,7 +123,7 @@ export default function Dashboard({ items = [], logs = {} }) {
   );
 }
 
-// ================= KPI =================
+// ================= COMPONENTS =================
 function Kpi({ title, value, highlight }) {
   return (
     <div style={{
@@ -126,23 +136,17 @@ function Kpi({ title, value, highlight }) {
   );
 }
 
-// ================= CARD =================
 function Card({ children }) {
-  return (
-    <div style={styles.card}>
-      {children}
-    </div>
-  );
+  return <div style={styles.card}>{children}</div>;
 }
 
-// ================= DONUT =================
 function Donut({ value }) {
   return (
     <div style={{ textAlign: "center" }}>
       <PieChart width={180} height={180}>
-        <Pie data={[{value},{value:100-value}]} innerRadius={60} outerRadius={80} dataKey="value">
-          <Cell fill={theme.primary} />
-          <Cell fill={theme.border} />
+        <Pie data={[{ value }, { value: 100 - value }]} innerRadius={60} outerRadius={80} dataKey="value">
+          <Cell fill="var(--accent)" />
+          <Cell fill="var(--border)" />
         </Pie>
       </PieChart>
       <h2 style={{ marginTop: -110 }}>{value}%</h2>
@@ -150,7 +154,6 @@ function Donut({ value }) {
   );
 }
 
-// ================= HEATMAP =================
 function Heatmap({ logs }) {
   const daily = {};
 
@@ -166,11 +169,10 @@ function Heatmap({ logs }) {
     <div style={styles.heatmap}>
       {Object.keys(daily).slice(-35).map((d, i) => {
         const val = daily[d];
-
         const color =
-          val === 0 ? "#f1f5f9" :
-          val < 2 ? "#bbf7d0" :
-          val < 4 ? "#4ade80" :
+          val === 0 ? "#1f2937" :
+          val < 2 ? "#4ade80" :
+          val < 4 ? "#22c55e" :
           "#16a34a";
 
         return <div key={i} style={{ ...styles.box, background: color }} />;
@@ -181,73 +183,22 @@ function Heatmap({ logs }) {
 
 // ================= STYLES =================
 const styles = {
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 24,
-    color: "#111827"
-  },
-
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center"
-  },
-
-  title: {
-    margin: 0
-  },
-
-  subtitle: {
-    color: "#6b7280"
-  },
-
+  container: { display: "flex", flexDirection: "column", gap: 24 },
+  header: { display: "flex", justifyContent: "space-between" },
+  subtitle: { color: "var(--text-muted)" },
+  goalText: { color: "var(--accent)", fontWeight: "bold" },
   profile: {
-    background: "#f3f4f6",
+    background: "var(--card)",
     padding: 10,
-    borderRadius: "50%"
+    borderRadius: "50%",
+    cursor: "pointer",
+    border: "1px solid var(--border)"
   },
-
-  kpiGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3,1fr)",
-    gap: 16
-  },
-
-  mainGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 2fr",
-    gap: 16
-  },
-
-  card: {
-    background: "#ffffff",
-    padding: 20,
-    borderRadius: 16,
-    border: "1px solid #e5e7eb"
-  },
-
-  kpiCard: {
-    background: "#f9fafb",
-    padding: 16,
-    borderRadius: 16,
-    border: "1px solid #e5e7eb"
-  },
-
-  highlight: {
-    background: "linear-gradient(135deg,#16a34a,#22c55e)",
-    color: "#fff"
-  },
-
-  heatmap: {
-    display: "grid",
-    gridTemplateColumns: "repeat(10,1fr)",
-    gap: 6
-  },
-
-  box: {
-    width: 18,
-    height: 18,
-    borderRadius: 4
-  }
+  kpiGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 16 },
+  mainGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16 },
+  card: { background: "var(--card)", padding: 20, borderRadius: 16, border: "1px solid var(--border)" },
+  kpiCard: { background: "var(--card)", padding: 16, borderRadius: 16, border: "1px solid var(--border)" },
+  highlight: { background: "var(--accent)", color: "#fff" },
+  heatmap: { display: "grid", gridTemplateColumns: "repeat(10,1fr)", gap: 6 },
+  box: { width: 18, height: 18, borderRadius: 4 }
 };

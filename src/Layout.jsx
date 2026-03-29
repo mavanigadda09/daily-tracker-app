@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 
 import {
@@ -10,26 +10,13 @@ import {
   BarChart3,
   Lightbulb,
   User,
-  Menu,
-  Sun,
-  Moon
+  Menu
 } from "lucide-react";
 
 export default function Layout({ children, user, onLogout }) {
   const location = useLocation();
-
   const [collapsed, setCollapsed] = useState(false);
 
-  // 🌗 THEME
-  const [dark, setDark] = useState(() => {
-    return localStorage.getItem("theme") === "dark";
-  });
-
-  useEffect(() => {
-    localStorage.setItem("theme", dark ? "dark" : "light");
-  }, [dark]);
-
-  // 📌 NAV ITEMS (UPDATED WITH PROFILE)
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
     { path: "/habits", label: "Habits", icon: CheckSquare },
@@ -37,36 +24,22 @@ export default function Layout({ children, user, onLogout }) {
     { path: "/activities", label: "Activities", icon: Activity },
     { path: "/analytics", label: "Analytics", icon: BarChart3 },
     { path: "/insights", label: "Insights", icon: Lightbulb },
-    { path: "/profile", label: "Profile", icon: User } // ✅ NEW
+    { path: "/profile", label: "Profile", icon: User }
   ];
 
   return (
-    <div
-      style={{
-        ...styles.container,
-        background: dark ? "#020617" : "#f8fafc",
-        color: dark ? "#e2e8f0" : "#111827"
-      }}
-    >
+    <div style={styles.container}>
 
       {/* SIDEBAR */}
       <motion.aside
         animate={{ width: collapsed ? 70 : 230 }}
-        style={{
-          ...styles.sidebar,
-          background: dark ? "#020617" : "#ffffff",
-          borderRight: dark
-            ? "1px solid #1e293b"
-            : "1px solid #e5e7eb"
-        }}
+        style={styles.sidebar}
       >
 
         {/* TOP */}
         <div>
           <div style={styles.topRow}>
-            {!collapsed && (
-              <h2 style={styles.logo}>🚀 Tracker</h2>
-            )}
+            {!collapsed && <h2 style={styles.logo}>🚀 Tracker</h2>}
 
             <button
               style={styles.menuBtn}
@@ -88,17 +61,11 @@ export default function Layout({ children, user, onLogout }) {
                   to={item.path}
                   style={{
                     ...styles.link,
-                    color: dark ? "#94a3b8" : "#6b7280",
-                    ...(active ? styles.activeLink : {})
+                    ...(active ? styles.active : {})
                   }}
                 >
                   <Icon size={18} />
-
-                  {!collapsed && (
-                    <span style={styles.label}>
-                      {item.label}
-                    </span>
-                  )}
+                  {!collapsed && <span>{item.label}</span>}
                 </Link>
               );
             })}
@@ -107,40 +74,19 @@ export default function Layout({ children, user, onLogout }) {
 
         {/* BOTTOM */}
         <div style={styles.bottom}>
-
-          {/* THEME TOGGLE */}
-          <button
-            style={styles.themeBtn}
-            onClick={() => setDark(!dark)}
-          >
-            {dark ? <Sun size={18} /> : <Moon size={18} />}
-            {!collapsed && (
-              <span style={{ marginLeft: 8 }}>
-                {dark ? "Light Mode" : "Dark Mode"}
-              </span>
-            )}
-          </button>
-
-          {/* USER */}
           {!collapsed && (
-            <p style={styles.user}>
-              👤 {user?.name || "User"}
-            </p>
+            <p style={styles.user}>👤 {user?.name}</p>
           )}
 
-          {/* LOGOUT */}
           <button style={styles.logout} onClick={onLogout}>
-            {collapsed ? "⎋" : "Logout"}
+            Logout
           </button>
         </div>
 
       </motion.aside>
 
       {/* MAIN */}
-      <main style={styles.main}>
-        {children}
-      </main>
-
+      <main style={styles.main}>{children}</main>
     </div>
   );
 }
@@ -149,57 +95,54 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    transition: "0.3s"
+    background: "var(--bg)"
   },
 
   sidebar: {
+    background: "var(--sidebar)",
     padding: 16,
     display: "flex",
     flexDirection: "column",
-    justifyContent: "space-between"
+    justifyContent: "space-between",
+    borderRight: "1px solid var(--border)"
   },
 
   topRow: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
     marginBottom: 20
   },
 
   logo: {
-    fontSize: 18,
     fontWeight: "bold"
   },
 
   menuBtn: {
     background: "transparent",
     border: "none",
+    color: "#fff",
     cursor: "pointer"
   },
 
   nav: {
     display: "flex",
     flexDirection: "column",
-    gap: 6
+    gap: 8
   },
 
   link: {
     display: "flex",
     alignItems: "center",
     gap: 10,
-    textDecoration: "none",
     padding: "10px 12px",
     borderRadius: 8,
-    transition: "0.2s"
+    textDecoration: "none",
+    color: "var(--text-muted)"
   },
 
-  activeLink: {
-    background: "#6366f1",
+  active: {
+    background: "var(--accent)",
     color: "#fff"
-  },
-
-  label: {
-    fontSize: 14
   },
 
   bottom: {
@@ -219,17 +162,6 @@ const styles = {
     borderRadius: 8,
     color: "#fff",
     cursor: "pointer"
-  },
-
-  themeBtn: {
-    background: "#6366f1",
-    border: "none",
-    padding: "8px 10px",
-    borderRadius: 8,
-    color: "#fff",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center"
   },
 
   main: {
