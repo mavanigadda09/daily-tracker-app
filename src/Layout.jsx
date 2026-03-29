@@ -9,6 +9,7 @@ import {
   Activity,
   BarChart3,
   Lightbulb,
+  User,
   Menu,
   Sun,
   Moon
@@ -16,9 +17,10 @@ import {
 
 export default function Layout({ children, user, onLogout }) {
   const location = useLocation();
+
   const [collapsed, setCollapsed] = useState(false);
 
-  // 🌗 THEME STATE
+  // 🌗 THEME
   const [dark, setDark] = useState(() => {
     return localStorage.getItem("theme") === "dark";
   });
@@ -27,13 +29,15 @@ export default function Layout({ children, user, onLogout }) {
     localStorage.setItem("theme", dark ? "dark" : "light");
   }, [dark]);
 
+  // 📌 NAV ITEMS (UPDATED WITH PROFILE)
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
     { path: "/habits", label: "Habits", icon: CheckSquare },
     { path: "/tasks", label: "Tasks", icon: ListTodo },
     { path: "/activities", label: "Activities", icon: Activity },
     { path: "/analytics", label: "Analytics", icon: BarChart3 },
-    { path: "/insights", label: "Insights", icon: Lightbulb }
+    { path: "/insights", label: "Insights", icon: Lightbulb },
+    { path: "/profile", label: "Profile", icon: User } // ✅ NEW
   ];
 
   return (
@@ -47,7 +51,7 @@ export default function Layout({ children, user, onLogout }) {
 
       {/* SIDEBAR */}
       <motion.aside
-        animate={{ width: collapsed ? 70 : 220 }}
+        animate={{ width: collapsed ? 70 : 230 }}
         style={{
           ...styles.sidebar,
           background: dark ? "#020617" : "#ffffff",
@@ -60,7 +64,9 @@ export default function Layout({ children, user, onLogout }) {
         {/* TOP */}
         <div>
           <div style={styles.topRow}>
-            {!collapsed && <h2 style={styles.logo}>🚀 Tracker</h2>}
+            {!collapsed && (
+              <h2 style={styles.logo}>🚀 Tracker</h2>
+            )}
 
             <button
               style={styles.menuBtn}
@@ -83,12 +89,7 @@ export default function Layout({ children, user, onLogout }) {
                   style={{
                     ...styles.link,
                     color: dark ? "#94a3b8" : "#6b7280",
-                    ...(active
-                      ? {
-                          background: "#6366f1",
-                          color: "#fff"
-                        }
-                      : {})
+                    ...(active ? styles.activeLink : {})
                   }}
                 >
                   <Icon size={18} />
@@ -106,6 +107,7 @@ export default function Layout({ children, user, onLogout }) {
 
         {/* BOTTOM */}
         <div style={styles.bottom}>
+
           {/* THEME TOGGLE */}
           <button
             style={styles.themeBtn}
@@ -119,12 +121,14 @@ export default function Layout({ children, user, onLogout }) {
             )}
           </button>
 
+          {/* USER */}
           {!collapsed && (
             <p style={styles.user}>
               👤 {user?.name || "User"}
             </p>
           )}
 
+          {/* LOGOUT */}
           <button style={styles.logout} onClick={onLogout}>
             {collapsed ? "⎋" : "Logout"}
           </button>
@@ -149,11 +153,10 @@ const styles = {
   },
 
   sidebar: {
-    padding: 15,
+    padding: 16,
     display: "flex",
     flexDirection: "column",
-    justifyContent: "space-between",
-    transition: "0.3s"
+    justifyContent: "space-between"
   },
 
   topRow: {
@@ -164,7 +167,8 @@ const styles = {
   },
 
   logo: {
-    fontSize: 18
+    fontSize: 18,
+    fontWeight: "bold"
   },
 
   menuBtn: {
@@ -176,7 +180,7 @@ const styles = {
   nav: {
     display: "flex",
     flexDirection: "column",
-    gap: 8
+    gap: 6
   },
 
   link: {
@@ -189,12 +193,16 @@ const styles = {
     transition: "0.2s"
   },
 
+  activeLink: {
+    background: "#6366f1",
+    color: "#fff"
+  },
+
   label: {
     fontSize: 14
   },
 
   bottom: {
-    marginTop: 20,
     display: "flex",
     flexDirection: "column",
     gap: 10

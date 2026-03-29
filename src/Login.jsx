@@ -17,13 +17,35 @@ export default function Login({ onLogin }) {
     setError("");
 
     try {
+      let userCredential;
+
       if (isRegister) {
-        await createUserWithEmailAndPassword(auth, email, password);
+        userCredential = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        userCredential = await signInWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
       }
 
-      onLogin();
+      const firebaseUser = userCredential.user;
+
+      const userData = {
+        name: firebaseUser.email.split("@")[0], // simple name
+        email: firebaseUser.email
+      };
+
+      // ✅ SAVE USER (IMPORTANT)
+      localStorage.setItem("user", JSON.stringify(userData));
+
+      // ✅ SEND TO APP
+      onLogin(userData);
+
     } catch (err) {
       setError(err.message);
     }
@@ -49,9 +71,14 @@ export default function Login({ onLogin }) {
       <div style={styles.right}>
         <div style={styles.card}>
 
-          <h2 style={styles.title}>welcome</h2>
+          <h2 style={styles.title}>
+            {isRegister ? "Create Account" : "Welcome"}
+          </h2>
+
           <p style={styles.subtitle}>
-            Login to your account to continue
+            {isRegister
+              ? "Sign up to get started"
+              : "Login to your account"}
           </p>
 
           <input
@@ -84,7 +111,7 @@ export default function Login({ onLogin }) {
           >
             {isRegister
               ? "Already have an account? Login"
-              : "Don't have an account? sign up"}
+              : "Don't have an account? Sign up"}
           </p>
 
         </div>

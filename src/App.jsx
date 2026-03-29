@@ -9,6 +9,8 @@ import Insights from "./Insights";
 import Goals from "./Goals";
 import Routines from "./Routines";
 import Activities from "./Activities";
+import Profile from "./Profile"; // ✅ NEW
+import ProtectedRoute from "./ProtectedRoute";
 
 import { saveData, subscribeToData } from "./cloud";
 
@@ -41,11 +43,17 @@ export default function App() {
     window.location.reload();
   };
 
-  // ================= LOCAL STATE =================
+  // ================= USER PERSISTENCE =================
   const [user, setUser] = useState(() =>
-    JSON.parse(localStorage.getItem("user"))
+    JSON.parse(localStorage.getItem("user")) || null
   );
 
+  const handleLoginUser = (userData) => {
+    localStorage.setItem("user", JSON.stringify(userData));
+    setUser(userData);
+  };
+
+  // ================= DATA =================
   const [items, setItems] = useState([]);
   const [goal, setGoal] = useState({});
   const [weightLogs, setWeightLogs] = useState([]);
@@ -74,8 +82,7 @@ export default function App() {
     saveData({ items, logs, weightLogs, tasks, goal });
   }, [items, logs, weightLogs, tasks, goal, firebaseUser]);
 
-  // ================= TASK LOGIC (NEW 🔥) =================
-
+  // ================= TASK LOGIC =================
   const addTask = (name) => {
     setTasks((prev) => [
       ...prev,
@@ -86,7 +93,7 @@ export default function App() {
         start: null,
         end: null,
         duration: 0,
-        logs: [] // 🔥 important
+        logs: []
       }
     ]);
   };
@@ -95,12 +102,7 @@ export default function App() {
     setTasks((prev) =>
       prev.map((t) =>
         t.id === id
-          ? {
-              ...t,
-              running: true,
-              start: Date.now(),
-              end: null
-            }
+          ? { ...t, running: true, start: Date.now(), end: null }
           : t
       )
     );
@@ -115,26 +117,18 @@ export default function App() {
           ...t,
           running: false,
           end: Date.now(),
-          duration: duration,
-          logs: [
-            ...(t.logs || []),
-            {
-              date,
-              duration
-            }
-          ]
+          duration,
+          logs: [...(t.logs || []), { date, duration }]
         };
       })
     );
   };
 
   // ================= AUTH FLOW =================
-  if (loadingAuth) {
-    return <div style={{ padding: 40 }}>Loading...</div>;
-  }
+  if (loadingAuth) return <div style={{ padding: 40 }}>Loading...</div>;
 
   if (!firebaseUser) {
-    return <Login onLogin={() => window.location.reload()} />;
+    return <Login onLogin={handleLoginUser} />;
   }
 
   if (!user) {
@@ -157,56 +151,69 @@ export default function App() {
       <Layout user={user} onLogout={handleLogout}>
         <Routes>
 
-          <Route path="/" element={
-            <Dashboard
-              items={items}
-              logs={logs}
-              weightLogs={weightLogs}
-            />
-          } />
+  <Route path="/" element={
+    <Dashboard items={items} logs={logs} weightLogs={weightLogs} />
+  } />
 
-          <Route path="/habits" element={
-            <Habits items={items} setItems={setItems} />
-          } />
+  <Route path="/habits" element={
+    <ProtectedRoute user={user} firebaseUser={firebaseUser}>
+      <Habits items={items} setItems={setItems} />
+    </ProtectedRoute>
+  } />
 
-          <Route path="/routines" element={<Routines />} />
+  <Route path="/routines" element={
+    <ProtectedRoute user={user} firebaseUser={firebaseUser}>
+      <Routines />
+    </ProtectedRoute>
+  } />
 
-          <Route path="/insights" element={
-            <Insights items={items} />
-          } />
+  <Route path="/insights" element={
+    <ProtectedRoute user={user} firebaseUser={firebaseUser}>
+      <Insights items={items} />
+    </ProtectedRoute>
+  } />
 
-          <Route path="/goals" element={
-            <Goals
-              goal={goal}
-              setGoal={setGoal}
-              logs={weightLogs}
-              setLogs={setWeightLogs}
-            />
-          } />
+  <Route path="/goals" element={
+    <ProtectedRoute user={user} firebaseUser={firebaseUser}>
+      <Goals
+        goal={goal}
+        setGoal={setGoal}
+        logs={weightLogs}
+        setLogs={setWeightLogs}
+      />
+    </ProtectedRoute>
+  } />
 
-          {/* 🔥 UPDATED ANALYTICS */}
-          <Route path="/analytics" element={
-            <Analytics logs={logs} tasks={tasks} />
-          } />
+  <Route path="/analytics" element={
+    <ProtectedRoute user={user} firebaseUser={firebaseUser}>
+      <Analytics logs={logs} tasks={tasks} />
+    </ProtectedRoute>
+  } />
 
-          {/* 🔥 UPDATED TASKS */}
-          <Route path="/tasks" element={
-            <Tasks
-              tasks={tasks}
-              addTask={addTask}
-              startTask={startTask}
-              endTask={endTask}
-            />
-          } />
+  <Route path="/tasks" element={
+    <ProtectedRoute user={user} firebaseUser={firebaseUser}>
+      <Tasks
+        tasks={tasks}
+        addTask={addTask}
+        startTask={startTask}
+        endTask={endTask}
+      />
+    </ProtectedRoute>
+  } />
 
-          <Route path="/activities" element={
-            <Activities
-              items={items}
-              setItems={setItems}
-            />
-          } />
+  <Route path="/activities" element={
+    <ProtectedRoute user={user} firebaseUser={firebaseUser}>
+      <Activities items={items} setItems={setItems} />
+    </ProtectedRoute>
+  } />
 
-        </Routes>
+  <Route path="/profile" element={
+    <ProtectedRoute user={user} firebaseUser={firebaseUser}>
+      <Profile user={user} />
+    </ProtectedRoute>
+  } />
+
+</Routes>
       </Layout>
     </BrowserRouter>
   );
