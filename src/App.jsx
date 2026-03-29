@@ -58,10 +58,9 @@ export default function App() {
   const [logs, setLogs] = useState({});
   const [tasks, setTasks] = useState([]);
 
-  const [history, setHistory] = useState([]);
   const [initialLoad, setInitialLoad] = useState(true);
 
-  // ================= 📴 OFFLINE LOAD =================
+  // ================= LOAD =================
   useEffect(() => {
     if (!firebaseUser) return;
 
@@ -74,13 +73,12 @@ export default function App() {
       setWeightLogs(data.weightLogs);
       setTasks(data.tasks);
       setGoal(data.goal);
-      setHistory(data.history || []);
     };
 
     init();
   }, [firebaseUser]);
 
-  // ================= ☁️ REALTIME =================
+  // ================= REALTIME =================
   useEffect(() => {
     if (!firebaseUser) return;
 
@@ -90,7 +88,6 @@ export default function App() {
       setWeightLogs(data.weightLogs);
       setTasks(data.tasks);
       setGoal(data.goal);
-      setHistory(data.history || []);
 
       setInitialLoad(false);
     });
@@ -98,7 +95,7 @@ export default function App() {
     return () => unsub && unsub();
   }, [firebaseUser]);
 
-  // ================= 💾 SAVE =================
+  // ================= SAVE =================
   useEffect(() => {
     if (!firebaseUser || initialLoad) return;
 
@@ -107,44 +104,12 @@ export default function App() {
       logs,
       weightLogs,
       tasks,
-      goal,
-      history
+      goal
     };
 
     queueSave(data);
 
-  }, [items, logs, weightLogs, tasks, goal, history, firebaseUser, initialLoad]);
-
-  // ================= 🔙 UNDO =================
-  const undoLastChange = () => {
-    if (!history || history.length < 2) return;
-
-    const prev = history[history.length - 2];
-    if (!prev) return;
-
-    const state = prev.data;
-
-    setItems(state.items || []);
-    setLogs(state.logs || {});
-    setWeightLogs(state.weightLogs || []);
-    setTasks(state.tasks || []);
-    setGoal(state.goal || {});
-
-    setHistory(history.slice(0, -1));
-  };
-
-  // ================= 🔁 RESTORE VERSION =================
-  const restoreVersion = (snapshot) => {
-    if (!snapshot) return;
-
-    const state = snapshot.data;
-
-    setItems(state.items || []);
-    setLogs(state.logs || {});
-    setWeightLogs(state.weightLogs || []);
-    setTasks(state.tasks || []);
-    setGoal(state.goal || {});
-  };
+  }, [items, logs, weightLogs, tasks, goal, firebaseUser, initialLoad]);
 
   // ================= TASK LOGIC =================
   const addTask = (name) => {
@@ -207,10 +172,7 @@ export default function App() {
               logs={logs}
               tasks={tasks}
               user={user}
-              onUndo={undoLastChange}
-              history={history}
-              onRestoreVersion={restoreVersion}
-              setGoal={setGoal} // 🔥 FINAL FIX
+              setGoal={setGoal}
             />
           } />
 

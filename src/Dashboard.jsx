@@ -1,35 +1,18 @@
-import {
-  ResponsiveContainer,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Tooltip,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell
-} from "recharts";
-
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useState } from "react";
 
 import {
   parseSmartGoal,
-  calculatePercent,
   getDailyData,
   getHeatmapData,
-  getStreak,
-  compareVersions
+  getStreak
 } from "./utils";
 
 import {
   getAIInsight,
   getHabitSuggestions,
-  explainDiff,
   predictPerformance,
-  getAdaptiveGoal // 🔥 NEW
+  getAdaptiveGoal
 } from "./ai";
 
 export default function Dashboard({
@@ -37,28 +20,11 @@ export default function Dashboard({
   logs = {},
   tasks = [],
   user,
-  onUndo,
-  history = [],
-  onRestoreVersion,
-  setGoal // 🔥 NEW
+  setGoal
 }) {
   const navigate = useNavigate();
 
-  const [selectedA, setSelectedA] = useState(null);
-  const [selectedB, setSelectedB] = useState(null);
-
-  const diff =
-    selectedA && selectedB
-      ? compareVersions(selectedA.data, selectedB.data)
-      : [];
-
-  const explanation =
-    selectedA && selectedB
-      ? explainDiff(diff, selectedA.data, selectedB.data)
-      : "";
-
   const habits = items.filter(i => i?.type === "habit");
-  const activities = items.filter(i => i?.type === "activity");
 
   // ================= DATA =================
   const daily = getDailyData(logs, tasks);
@@ -66,7 +32,7 @@ export default function Dashboard({
   const streak = getStreak(heatmap);
 
   const goalData = parseSmartGoal(user?.goal);
-  const consistency = 0.5; // safe fallback
+  const consistency = 0.5;
 
   // ================= AI =================
   const insight = getAIInsight({
@@ -88,7 +54,6 @@ export default function Dashboard({
     consistency
   });
 
-  // 🔥 ADAPTIVE GOAL
   const adaptive = getAdaptiveGoal({
     daily,
     goal: goalData,
@@ -116,13 +81,13 @@ export default function Dashboard({
       <div style={styles.header}>
         <h1>Welcome, {user?.name} 👋</h1>
 
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={onUndo}
-          style={styles.undoBtn}
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          style={styles.profile}
+          onClick={() => navigate("/profile")}
         >
-          ⬅ Undo
-        </motion.button>
+          👤
+        </motion.div>
       </div>
 
       {/* AI COACH */}
@@ -131,7 +96,7 @@ export default function Dashboard({
       {/* FORECAST */}
       <div style={styles.forecastCard}>{forecast}</div>
 
-      {/* 🔥 ADAPTIVE GOAL */}
+      {/* ADAPTIVE GOAL */}
       {adaptive && (
         <div style={styles.adaptiveCard}>
           <h3>Adaptive Goal Suggestion</h3>
@@ -152,51 +117,12 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* SUGGESTIONS */}
+      {/* AI SUGGESTIONS */}
       <div style={styles.card}>
         <h3>AI Suggestions</h3>
         {suggestions.map((s, i) => (
           <p key={i}>• {s}</p>
         ))}
-      </div>
-
-      {/* VERSION HISTORY */}
-      <div style={styles.card}>
-        <h3>Version History</h3>
-        {history.map((h, i) => (
-          <div key={i} onClick={() => onRestoreVersion(h)}>
-            {new Date(h.timestamp).toLocaleString()}
-          </div>
-        ))}
-      </div>
-
-      {/* DIFF */}
-      <div style={styles.card}>
-        <h3>Compare Versions</h3>
-
-        <select onChange={(e) => setSelectedA(history[e.target.value])}>
-          <option>Select A</option>
-          {history.map((h, i) => (
-            <option key={i} value={i}>
-              {new Date(h.timestamp).toLocaleString()}
-            </option>
-          ))}
-        </select>
-
-        <select onChange={(e) => setSelectedB(history[e.target.value])}>
-          <option>Select B</option>
-          {history.map((h, i) => (
-            <option key={i} value={i}>
-              {new Date(h.timestamp).toLocaleString()}
-            </option>
-          ))}
-        </select>
-
-        {diff.map((d, i) => (
-          <p key={i}>{d}</p>
-        ))}
-
-        {explanation && <p>{explanation}</p>}
       </div>
 
     </div>
@@ -205,39 +131,44 @@ export default function Dashboard({
 
 // ================= STYLES =================
 const styles = {
-  container: { padding: 20, color: "#fff" },
+  container: {
+    padding: 24,
+    display: "flex",
+    flexDirection: "column",
+    gap: 16
+  },
 
   header: {
     display: "flex",
-    justifyContent: "space-between"
+    justifyContent: "space-between",
+    alignItems: "center"
   },
 
-  undoBtn: {
-    background: "#ef4444",
-    color: "#fff",
-    border: "none",
+  profile: {
+    background: "#1f2937",
     padding: 10,
-    borderRadius: 8
+    borderRadius: "50%",
+    cursor: "pointer"
   },
 
   aiCard: {
-    padding: 15,
-    background: "#1f2937",
-    borderRadius: 10
+    padding: 16,
+    borderRadius: 12,
+    background: "#1f2937"
   },
 
   forecastCard: {
-    padding: 15,
+    padding: 16,
+    borderRadius: 12,
     background: "#0284c7",
-    borderRadius: 10,
-    marginTop: 10
+    color: "#fff"
   },
 
   adaptiveCard: {
-    padding: 15,
-    background: "#065f46",
+    padding: 16,
     borderRadius: 12,
-    marginTop: 10
+    background: "#065f46",
+    color: "#fff"
   },
 
   adaptiveText: {
@@ -252,16 +183,15 @@ const styles = {
   applyBtn: {
     background: "#22c55e",
     border: "none",
-    padding: 10,
+    padding: "10px 14px",
     borderRadius: 8,
     color: "#fff",
     cursor: "pointer"
   },
 
   card: {
-    padding: 15,
-    background: "#1f2937",
-    borderRadius: 10,
-    marginTop: 10
+    padding: 16,
+    borderRadius: 12,
+    background: "#1f2937"
   }
 };
