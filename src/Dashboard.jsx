@@ -16,8 +16,15 @@ import { useNavigate } from "react-router-dom";
 import {
   parseSmartGoal,
   calculatePercent,
-  getDailyData
+  getDailyData,
+  getHeatmapData,
+  getStreak
 } from "./utils";
+
+import {
+  getAIInsight,
+  getHabitSuggestions
+} from "./ai";
 
 export default function Dashboard({ items = [], logs = {}, tasks = [], user }) {
   const navigate = useNavigate();
@@ -51,15 +58,15 @@ export default function Dashboard({ items = [], logs = {}, tasks = [], user }) {
     (activityCompletionRate + habitCompletionRate) / 2
   );
 
-  // ================= 🔥 DAILY DATA (FROM UTILS) =================
+  // ================= DAILY =================
   const daily = getDailyData(logs, tasks);
 
-  const weekly = Object.keys(daily).map(d => ({
+  const weekly = Object.keys(daily).slice(-7).map(d => ({
     date: d,
     completed: daily[d]
   }));
 
-  // ================= 🎯 GOAL =================
+  // ================= GOAL =================
   const goalData = parseSmartGoal(user?.goal);
 
   const todayKey = new Date().toDateString();
@@ -69,8 +76,33 @@ export default function Dashboard({ items = [], logs = {}, tasks = [], user }) {
     ? calculatePercent(todayValue, goalData.target)
     : 0;
 
+  // ================= 🧠 AI DATA =================
+  const trend =
+    weekly.length >= 2
+      ? weekly[weekly.length - 1].completed -
+        weekly[weekly.length - 2].completed
+      : 0;
+
+  const consistency = overall / 100;
+
+  const heatmap = getHeatmapData(daily);
+  const streak = getStreak(heatmap);
+
+  // ================= 🤖 AI =================
+  const insight = getAIInsight({
+    goalPercent,
+    trend,
+    consistency,
+    todayValue,
+    streak,
+    heatmap,
+    habits
+  });
+
+  const suggestions = getHabitSuggestions(items);
+
   return (
-    <div style={styles.container}>
+    <div style={styles.container} className="fade-in">
 
       {/* HEADER */}
       <div style={styles.header}>
@@ -91,7 +123,23 @@ export default function Dashboard({ items = [], logs = {}, tasks = [], user }) {
         </div>
       </div>
 
-      {/* 🎯 GOAL CARD */}
+      {/* 🤖 AI COACH */}
+      <div style={styles.aiCard}>
+        {insight}
+      </div>
+
+      {/* 💡 AI SUGGESTIONS */}
+      <div style={styles.card}>
+        <h3>AI Suggestions</h3>
+
+        {suggestions.map((s, i) => (
+          <p key={i} style={styles.suggestion}>
+            • {s}
+          </p>
+        ))}
+      </div>
+
+      {/* 🎯 GOAL */}
       <div style={styles.card}>
         <h3>Your Goal</h3>
         <p style={styles.goalText}>
@@ -138,7 +186,11 @@ export default function Dashboard({ items = [], logs = {}, tasks = [], user }) {
               <XAxis dataKey="date" stroke="var(--text-muted)" />
               <YAxis stroke="var(--text-muted)" />
               <Tooltip />
-              <Bar dataKey="completed" fill="var(--accent)" />
+              <Bar
+                dataKey="completed"
+                fill="var(--accent)"
+                radius={[6,6,0,0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -150,6 +202,11 @@ export default function Dashboard({ items = [], logs = {}, tasks = [], user }) {
         <Heatmap daily={daily} />
       </Card>
 
+      {/* 🔥 STREAK */}
+      <Card>
+        <h3>{streak} day streak 🔥</h3>
+      </Card>
+
     </div>
   );
 }
@@ -157,10 +214,12 @@ export default function Dashboard({ items = [], logs = {}, tasks = [], user }) {
 // ================= COMPONENTS =================
 function Kpi({ title, value, highlight }) {
   return (
-    <div style={{
-      ...styles.kpiCard,
-      ...(highlight && styles.highlight)
-    }}>
+    <div
+      style={{
+        ...styles.kpiCard,
+        ...(highlight && styles.highlight)
+      }}
+    >
       <p>{title}</p>
       <h2>{value}%</h2>
     </div>
@@ -217,13 +276,35 @@ function Heatmap({ daily }) {
 
 // ================= STYLES =================
 const styles = {
-  container: { display: "flex", flexDirection: "column", gap: 24 },
+  container: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 24
+  },
 
-  header: { display: "flex", justifyContent: "space-between" },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
 
   title: { fontSize: 28 },
 
   subtitle: { color: "var(--text-muted)" },
+
+  aiCard: {
+    background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+    padding: 16,
+    borderRadius: 12,
+    color: "#fff",
+    fontWeight: 500
+  },
+
+  suggestion: {
+    fontSize: 14,
+    color: "var(--text-muted)",
+    marginTop: 6
+  },
 
   goalText: {
     color: "var(--accent)",
@@ -271,6 +352,7 @@ const styles = {
 
   card: {
     background: "var(--card)",
+    backdropFilter: "blur(12px)",
     padding: 20,
     borderRadius: 16,
     border: "1px solid var(--border)"

@@ -1,16 +1,27 @@
 /* ================= ROOT THEME ================= */
 :root {
-  --bg: #0b1220;
-  --sidebar: #111827;
-  --card: #1f2937;
+  --bg: #020617;
+  --sidebar: #020617;
 
-  --text: #e5e7eb;
-  --text-muted: #9ca3af;
+  /* glass cards */
+  --card: rgba(255, 255, 255, 0.05);
+  --card-hover: rgba(255, 255, 255, 0.08);
 
+  /* text */
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+
+  /* accent */
   --accent: #6366f1;
   --accent-hover: #4f46e5;
 
-  --border: #374151;
+  /* borders */
+  --border: rgba(255, 255, 255, 0.1);
+
+  /* effects */
+  --blur: blur(12px);
+  --radius: 14px;
+  --transition: 0.25s ease;
 }
 
 /* ================= RESET ================= */
@@ -26,19 +37,57 @@ html, body, #root {
   height: 100%;
 }
 
+#root {
+  display: flex;
+}
+
 body {
-  background: var(--bg);
+  background: radial-gradient(circle at top, #0f172a, #020617);
   color: var(--text);
   font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ================= TEXT ================= */
 h1, h2, h3 {
   color: var(--text);
+  font-weight: 600;
 }
 
 p {
   color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ================= GLASS CARD ================= */
+.card {
+  background: var(--card);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: var(--transition);
+}
+
+.card:hover {
+  background: var(--card-hover);
+  transform: translateY(-2px);
+}
+
+/* ================= BUTTON ================= */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+/* ================= INPUT ================= */
+input {
+  outline: none;
+  font-family: inherit;
 }
 
 /* ================= SCROLL ================= */
@@ -49,4 +98,20 @@ p {
 ::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 6px;
+}
+
+/* ================= ANIMATIONS ================= */
+.fade-in {
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

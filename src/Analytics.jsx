@@ -22,14 +22,17 @@ import {
   getTaskBreakdown
 } from "./utils";
 
+import { getAIInsight } from "./ai";
+
 export default function Analytics({ logs = {}, tasks = [], user }) {
 
   if ((!logs || typeof logs !== "object") && !tasks.length) {
     return <p style={styles.empty}>No data available</p>;
   }
 
-  // ✅ CLEAN DATA PIPELINE
+  // ================= DATA =================
   const daily = getDailyData(logs, tasks);
+
   const chartData = Object.keys(daily).map(date => ({
     date,
     value: daily[date]
@@ -39,9 +42,9 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
     return <p style={styles.empty}>No usable data</p>;
   }
 
-  // ================= METRICS =================
   const values = chartData.map(d => d.value);
 
+  // ================= METRICS =================
   const total = values.reduce((a, b) => a + b, 0);
   const avg = Math.round(total / values.length);
 
@@ -63,12 +66,11 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
     Math.round(avg * 0.5 + consistency * 50 + (trend > 0 ? 10 : 0))
   );
 
-  const insight =
-    score > 80
-      ? "🔥 Excellent consistency!"
-      : score > 50
-      ? "📈 Good progress!"
-      : "⚡ Stay consistent!";
+  // ================= 🤖 AI COACH =================
+  const insight = getAIInsight({
+    goalPercent: score,
+    trend
+  });
 
   // ================= GOAL =================
   const goalData = parseSmartGoal(user?.goal);
@@ -80,7 +82,7 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
     ? calculatePercent(todayValue, goalData.target)
     : 0;
 
-  // ================= REUSABLE LOGIC =================
+  // ================= REUSABLE =================
   const last7Days = getWeeklyData(daily);
   const last30Days = getHeatmapData(daily);
   const streak = getStreak(last30Days);
@@ -93,76 +95,110 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
     : "#16a34a";
 
   return (
-    <motion.div style={styles.container}>
+    <motion.div style={styles.container} className="fade-in">
 
       <h1 style={styles.title}>Analytics</h1>
       <p style={styles.subtitle}>Your performance insights</p>
 
-      {/* KPI */}
-      <div style={styles.kpiGrid}>
-        <Card title="Total" value={total} />
-        <Card title="Average" value={avg} />
-        <Card title="Best Day" value={best.date} />
-        <Card title="Score" value={score} />
+      {/* 🤖 AI COACH */}
+      <div style={styles.aiCard}>
+        {insight}
       </div>
 
-      <div style={styles.insight}>{insight}</div>
+      {/* KPI */}
+      <div style={styles.kpiGrid}>
+        <Kpi title="Total" value={total} />
+        <Kpi title="Average" value={avg} />
+        <Kpi title="Best Day" value={best.date} />
+        <Kpi title="Score" value={score} highlight />
+      </div>
 
-      {/* GOAL */}
+      {/* 🎯 GOAL */}
       {goalData && (
         <div style={styles.card}>
           <h3>🎯 Goal Progress</h3>
 
           <div style={styles.progressBg}>
-            <div style={{
-              ...styles.progressFill,
-              width: `${goalPercent}%`
-            }} />
+            <div
+              style={{
+                ...styles.progressFill,
+                width: `${goalPercent}%`
+              }}
+            />
           </div>
 
-          <p style={styles.subtitle}>
-            {todayValue} / {goalData.target} {goalData.unit}
+          <p style={styles.sub}>
+            {todayValue} / {goalData.target} {goalData.unit} ({goalPercent}%)
           </p>
         </div>
       )}
 
-      {/* DAILY */}
+      {/* 📈 DAILY */}
       <div style={styles.card}>
+        <h3>Daily Trend</h3>
         <ResponsiveContainer width="100%" height={250}>
           <LineChart data={chartData}>
             <CartesianGrid stroke="var(--border)" />
-            <XAxis dataKey="date" />
-            <YAxis />
+            <XAxis dataKey="date" stroke="var(--text-muted)" />
+            <YAxis stroke="var(--text-muted)" />
             <Tooltip />
-            <Line dataKey="value" stroke="var(--accent)" />
+            <Line
+              dataKey="value"
+              stroke="var(--accent)"
+              strokeWidth={3}
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      {/* WEEKLY */}
+      {/* 📅 WEEKLY */}
       <div style={styles.card}>
+        <h3>Weekly Overview</h3>
         <ResponsiveContainer width="100%" height={250}>
           <BarChart data={last7Days}>
-            <Bar dataKey="value" fill="var(--accent)" />
+            <CartesianGrid stroke="var(--border)" />
+            <XAxis dataKey="date" stroke="var(--text-muted)" />
+            <YAxis stroke="var(--text-muted)" />
+            <Tooltip />
+            <Bar
+              dataKey="value"
+              fill="var(--accent)"
+              radius={[6, 6, 0, 0]}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* TASKS */}
+      {/* 🏆 TASKS */}
       <div style={styles.card}>
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={taskData}>
-            <Bar dataKey="value" fill="#8b5cf6" />
-          </BarChart>
-        </ResponsiveContainer>
+        <h3>Top Tasks</h3>
+        {taskData.length === 0 ? (
+          <p style={styles.sub}>No task data yet</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={taskData}>
+              <CartesianGrid stroke="var(--border)" />
+              <XAxis dataKey="name" stroke="var(--text-muted)" />
+              <YAxis stroke="var(--text-muted)" />
+              <Tooltip />
+              <Bar
+                dataKey="value"
+                fill="#8b5cf6"
+                radius={[6, 6, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
-      {/* HEATMAP */}
+      {/* 🟩 HEATMAP */}
       <div style={styles.card}>
+        <h3>Consistency</h3>
         <div style={styles.heatmap}>
           {last30Days.map((d, i) => (
             <div
               key={i}
+              title={`${d.date}: ${d.value}`}
               style={{
                 ...styles.cell,
                 background: getColor(d.value)
@@ -172,7 +208,7 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
         </div>
       </div>
 
-      {/* STREAK */}
+      {/* 🔥 STREAK */}
       <div style={styles.card}>
         <h3>{streak} day streak 🔥</h3>
       </div>
@@ -181,20 +217,45 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
   );
 }
 
-// ================= UI =================
-function Card({ title, value }) {
+// ================= COMPONENTS =================
+function Kpi({ title, value, highlight }) {
   return (
-    <div style={styles.kpiCard}>
+    <div
+      style={{
+        ...styles.kpiCard,
+        ...(highlight && styles.highlight)
+      }}
+    >
       <p>{title}</p>
       <h2>{value}</h2>
     </div>
   );
 }
 
+// ================= STYLES =================
 const styles = {
-  container: { display: "flex", flexDirection: "column", gap: 20 },
+  container: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 24
+  },
+
   title: { fontSize: 28 },
+
   subtitle: { color: "var(--text-muted)" },
+
+  sub: {
+    color: "var(--text-muted)",
+    fontSize: 13
+  },
+
+  aiCard: {
+    background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+    padding: 16,
+    borderRadius: 12,
+    color: "#fff",
+    fontWeight: 500
+  },
 
   kpiGrid: {
     display: "grid",
@@ -205,21 +266,21 @@ const styles = {
   kpiCard: {
     background: "var(--card)",
     padding: 16,
-    borderRadius: 12,
-    border: "1px solid var(--border)"
-  },
-
-  card: {
-    background: "var(--card)",
-    padding: 20,
     borderRadius: 16,
     border: "1px solid var(--border)"
   },
 
-  insight: {
-    padding: 10,
-    borderRadius: 10,
-    background: "var(--card)"
+  highlight: {
+    background: "var(--accent)",
+    color: "#fff"
+  },
+
+  card: {
+    background: "var(--card)",
+    backdropFilter: "blur(12px)",
+    padding: 20,
+    borderRadius: 16,
+    border: "1px solid var(--border)"
   },
 
   progressBg: {

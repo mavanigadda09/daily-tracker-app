@@ -11,37 +11,33 @@ export default function Insights({ items = [] }) {
     let completed = 0;
 
     habits.forEach((h) => {
-      const data = h.completed || {};
-      Object.values(data).forEach((v) => {
+      Object.values(h.completed || {}).forEach((v) => {
         total++;
         if (v) completed++;
       });
     });
 
     const percent = total ? Math.round((completed / total) * 100) : 0;
-
     return { total, completed, percent };
   }, [habits]);
 
-  // ================= PROCESS DATES =================
+  // ================= DATES =================
   const processDates = () => {
-    let allDates = [];
+    let dates = [];
 
     habits.forEach((h) => {
-      const entries = Object.entries(h.completed || {})
+      Object.entries(h.completed || {})
         .filter(([_, v]) => v)
-        .map(([date]) => new Date(date));
-
-      allDates.push(...entries);
+        .forEach(([d]) => dates.push(new Date(d)));
     });
 
-    return allDates.sort((a, b) => a - b);
+    return dates.sort((a, b) => a - b);
   };
 
-  // ================= BEST STREAK =================
+  // ================= STREAK =================
   const getBestStreak = () => {
     const dates = processDates();
-    if (dates.length === 0) return 0;
+    if (!dates.length) return 0;
 
     let best = 1;
     let streak = 1;
@@ -61,10 +57,9 @@ export default function Insights({ items = [] }) {
     return best;
   };
 
-  // ================= CURRENT STREAK =================
   const getCurrentStreak = () => {
     const dates = processDates();
-    if (dates.length === 0) return 0;
+    if (!dates.length) return 0;
 
     let streak = 1;
 
@@ -72,17 +67,14 @@ export default function Insights({ items = [] }) {
       const diff =
         (dates[i] - dates[i - 1]) / (1000 * 60 * 60 * 24);
 
-      if (diff === 1) {
-        streak++;
-      } else {
-        break;
-      }
+      if (diff === 1) streak++;
+      else break;
     }
 
     return streak;
   };
 
-  // ================= TODAY HABITS =================
+  // ================= TODAY =================
   const todayStr = new Date().toDateString();
 
   const todayStats = useMemo(() => {
@@ -93,12 +85,14 @@ export default function Insights({ items = [] }) {
       if (h.completed?.[todayStr]) done++;
     });
 
-    const percent = total ? Math.round((done / total) * 100) : 0;
+    const percent = total
+      ? Math.round((done / total) * 100)
+      : 0;
 
     return { total, done, percent };
   }, [habits, todayStr]);
 
-  // ================= ACTIVITY STATS =================
+  // ================= ACTIVITY =================
   const activityStats = useMemo(() => {
     let totalValue = 0;
     let totalTarget = 0;
@@ -125,56 +119,39 @@ export default function Insights({ items = [] }) {
 
       <div style={styles.grid}>
 
-        {/* HABIT COMPLETION */}
-        <div style={styles.card}>
-          <h3>Habits</h3>
-
-          <div style={styles.circleWrapper}>
-            <div style={styles.circle}>
-              {totalStats.percent}%
-            </div>
-          </div>
-
+        {/* HABITS */}
+        <Card title="Habits">
+          <Circle value={totalStats.percent} color="#6366f1" />
           <p style={styles.subtext}>
             {totalStats.completed} / {totalStats.total}
           </p>
-        </div>
+        </Card>
 
-        {/* BEST STREAK */}
-        <div style={styles.card}>
-          <h3>🔥 Best Streak</h3>
+        {/* BEST */}
+        <Card title="🔥 Best Streak">
           <div style={styles.big}>{getBestStreak()}</div>
-        </div>
+        </Card>
 
-        {/* CURRENT STREAK */}
-        <div style={styles.card}>
-          <h3>⚡ Current Streak</h3>
-          <div style={styles.big}>{getCurrentStreak()}</div>
-        </div>
+        {/* CURRENT */}
+        <Card title="⚡ Current Streak">
+          <div style={styles.bigPurple}>{getCurrentStreak()}</div>
+        </Card>
 
-        {/* TODAY HABITS */}
-        <div style={styles.card}>
-          <h3>📅 Today Habits</h3>
+        {/* TODAY */}
+        <Card title="📅 Today">
           <div style={styles.date}>{today}</div>
           <p style={styles.subtext}>
             {todayStats.done} / {todayStats.total} ({todayStats.percent}%)
           </p>
-        </div>
+        </Card>
 
-        {/* ACTIVITY PROGRESS (NEW 🔥) */}
-        <div style={styles.card}>
-          <h3>📊 Activities</h3>
-
-          <div style={styles.circleWrapper}>
-            <div style={styles.circleBlue}>
-              {activityStats.percent}%
-            </div>
-          </div>
-
+        {/* ACTIVITIES */}
+        <Card title="📊 Activities">
+          <Circle value={activityStats.percent} color="#22c55e" />
           <p style={styles.subtext}>
             {activityStats.totalValue} / {activityStats.totalTarget}
           </p>
-        </div>
+        </Card>
 
       </div>
 
@@ -182,84 +159,98 @@ export default function Insights({ items = [] }) {
   );
 }
 
-// ================= STYLES =================
+// ================= COMPONENTS =================
+function Card({ title, children }) {
+  return (
+    <div style={styles.card}>
+      <h3 style={styles.cardTitle}>{title}</h3>
+      {children}
+    </div>
+  );
+}
 
+function Circle({ value, color }) {
+  return (
+    <div style={{
+      ...styles.circle,
+      border: `8px solid ${color}`
+    }}>
+      {value}%
+    </div>
+  );
+}
+
+// ================= STYLES =================
 const styles = {
   container: {
     padding: 30,
-    color: "#111827"
+    display: "flex",
+    flexDirection: "column",
+    gap: 20,
+    color: "var(--text)"
   },
 
   title: {
     fontSize: 28,
-    marginBottom: 5
+    color: "var(--text)"
   },
 
   subtitle: {
-    color: "#6b7280",
-    marginBottom: 20
+    color: "var(--text-muted)"
   },
 
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
     gap: 20
   },
 
   card: {
-    background: "#ffffff",
+    background: "rgba(255,255,255,0.05)",
+    backdropFilter: "blur(12px)",
+    border: "1px solid rgba(255,255,255,0.1)",
     padding: 20,
     borderRadius: 16,
-    border: "1px solid #e5e7eb",
-    textAlign: "center"
+    textAlign: "center",
+    transition: "0.3s"
   },
 
-  circleWrapper: {
-    display: "flex",
-    justifyContent: "center",
-    marginTop: 10,
-    marginBottom: 10
+  cardTitle: {
+    marginBottom: 10,
+    color: "var(--text)"
   },
 
   circle: {
-    width: 110,
-    height: 110,
+    width: 100,
+    height: 100,
     borderRadius: "50%",
-    border: "10px solid #16a34a",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 20,
+    margin: "10px auto",
     fontWeight: "bold",
-    color: "#111827"
-  },
-
-  // 🔵 NEW COLOR FOR ACTIVITIES
-  circleBlue: {
-    width: 110,
-    height: 110,
-    borderRadius: "50%",
-    border: "10px solid #3b82f6",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#111827"
-  },
-
-  subtext: {
-    color: "#6b7280"
+    fontSize: 18,
+    color: "#fff"
   },
 
   big: {
-    fontSize: 40,
+    fontSize: 42,
     fontWeight: "bold",
-    color: "#16a34a"
+    color: "#22c55e"
+  },
+
+  bigPurple: {
+    fontSize: 42,
+    fontWeight: "bold",
+    color: "#6366f1"
+  },
+
+  subtext: {
+    color: "var(--text-muted)"
   },
 
   date: {
     fontSize: 14,
-    color: "#374151"
+    color: "var(--text-muted)"
   }
 };
