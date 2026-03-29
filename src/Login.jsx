@@ -125,12 +125,13 @@ export default function Login({ onLogin }) {
 
 const styles = {
   container: {
-    height: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "var(--bg)"
-  },
+  display: "flex",
+  justifyContent: "center",   // ✅ CENTER HORIZONTALLY
+  alignItems: "center",       // ✅ CENTER VERTICALLY
+  height: "100vh",
+  width: "100vw",
+  background: "var(--bg)"
+ },
 
   card: {
     width: 340,

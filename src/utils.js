@@ -112,3 +112,60 @@ export const getTaskBreakdown = (tasks = []) => {
     .map(name => ({ name, value: totals[name] }))
     .sort((a, b) => b.value - a.value);
 };
+
+// ==================================================
+// 🔥 NEW: VERSION DIFF ENGINE
+// ==================================================
+
+export const compareVersions = (oldData = {}, newData = {}) => {
+  const changes = [];
+
+  // ================= TASKS =================
+  const oldTasks = oldData.tasks || [];
+  const newTasks = newData.tasks || [];
+
+  const oldNames = oldTasks.map(t => t.name);
+  const newNames = newTasks.map(t => t.name);
+
+  // added
+  newNames.forEach(name => {
+    if (!oldNames.includes(name)) {
+      changes.push(`🆕 Task added: "${name}"`);
+    }
+  });
+
+  // removed
+  oldNames.forEach(name => {
+    if (!newNames.includes(name)) {
+      changes.push(`❌ Task removed: "${name}"`);
+    }
+  });
+
+  // ================= GOAL =================
+  if (oldData.goal !== newData.goal) {
+    changes.push(`📈 Goal changed`);
+  }
+
+  // ================= ACTIVITIES =================
+  const oldItems = oldData.items || [];
+  const newItems = newData.items || [];
+
+  if (oldItems.length !== newItems.length) {
+    changes.push(`📊 Activities updated`);
+  }
+
+  // ================= LOGS =================
+  const oldLogs = Object.keys(oldData.logs || {}).length;
+  const newLogs = Object.keys(newData.logs || {}).length;
+
+  if (oldLogs !== newLogs) {
+    changes.push(`📝 Progress logs updated`);
+  }
+
+  // ================= FALLBACK =================
+  if (changes.length === 0) {
+    changes.push("No major changes detected");
+  }
+
+  return changes;
+};
