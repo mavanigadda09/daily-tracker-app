@@ -13,12 +13,43 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
+// ================= SMART GOAL PARSER =================
+const parseSmartGoal = (goal) => {
+  if (!goal) return null;
+
+  const num = goal.match(/\d+/);
+  const value = num ? Number(num[0]) : null;
+
+  const lower = goal.toLowerCase();
+
+  let unit = "count";
+
+  if (lower.includes("hour") || lower.includes("hr")) {
+    unit = "minutes";
+  } else if (lower.includes("min")) {
+    unit = "minutes";
+  } else if (lower.includes("cal")) {
+    unit = "calories";
+  } else if (lower.includes("page")) {
+    unit = "pages";
+  }
+
+  let target = value;
+
+  if (unit === "minutes" && lower.includes("hour")) {
+    target = value * 60;
+  }
+
+  return { target, unit };
+};
+
 export default function Dashboard({ items = [], logs = {}, user }) {
   const navigate = useNavigate();
 
   const habits = items.filter(i => i?.type === "habit");
   const activities = items.filter(i => i?.type === "activity");
 
+  // ================= KPI =================
   const activityCompletionRate = activities.length
     ? Math.round(
         (activities.filter(a => a.value >= a.target).length /
@@ -44,6 +75,7 @@ export default function Dashboard({ items = [], logs = {}, user }) {
     (activityCompletionRate + habitCompletionRate) / 2
   );
 
+  // ================= WEEKLY =================
   const grouped = {};
   Object.values(logs || {}).flat().forEach(l => {
     if (!l?.date) return;
@@ -55,6 +87,16 @@ export default function Dashboard({ items = [], logs = {}, user }) {
     date: d,
     completed: grouped[d]
   }));
+
+  // ================= 🎯 GOAL =================
+  const goalData = parseSmartGoal(user?.goal);
+
+  const todayKey = new Date().toDateString();
+  const todayValue = grouped[todayKey] || 0;
+
+  const goalPercent = goalData?.target
+    ? Math.min(Math.round((todayValue / goalData.target) * 100), 100)
+    : 0;
 
   return (
     <div style={styles.container}>
@@ -78,12 +120,29 @@ export default function Dashboard({ items = [], logs = {}, user }) {
         </div>
       </div>
 
-      {/* 🎯 GOAL */}
+      {/* 🎯 GOAL CARD */}
       <div style={styles.card}>
         <h3>Your Goal</h3>
         <p style={styles.goalText}>
           {user?.goal || "No goal set yet"}
         </p>
+
+        {goalData && (
+          <>
+            <div style={styles.progressBg}>
+              <div
+                style={{
+                  ...styles.progressFill,
+                  width: `${goalPercent}%`
+                }}
+              />
+            </div>
+
+            <p style={styles.progressText}>
+              {todayValue} / {goalData.target} {goalData.unit} ({goalPercent}%)
+            </p>
+          </>
+        )}
       </div>
 
       {/* KPI */}
@@ -114,6 +173,7 @@ export default function Dashboard({ items = [], logs = {}, user }) {
         </Card>
       </div>
 
+      {/* CONSISTENCY */}
       <Card>
         <h3>Consistency</h3>
         <Heatmap logs={logs} />
@@ -144,7 +204,12 @@ function Donut({ value }) {
   return (
     <div style={{ textAlign: "center" }}>
       <PieChart width={180} height={180}>
-        <Pie data={[{ value }, { value: 100 - value }]} innerRadius={60} outerRadius={80} dataKey="value">
+        <Pie
+          data={[{ value }, { value: 100 - value }]}
+          innerRadius={60}
+          outerRadius={80}
+          dataKey="value"
+        >
           <Cell fill="var(--accent)" />
           <Cell fill="var(--border)" />
         </Pie>
@@ -169,13 +234,19 @@ function Heatmap({ logs }) {
     <div style={styles.heatmap}>
       {Object.keys(daily).slice(-35).map((d, i) => {
         const val = daily[d];
+
         const color =
           val === 0 ? "#1f2937" :
           val < 2 ? "#4ade80" :
           val < 4 ? "#22c55e" :
           "#16a34a";
 
-        return <div key={i} style={{ ...styles.box, background: color }} />;
+        return (
+          <div
+            key={i}
+            style={{ ...styles.box, background: color }}
+          />
+        );
       })}
     </div>
   );
@@ -184,9 +255,37 @@ function Heatmap({ logs }) {
 // ================= STYLES =================
 const styles = {
   container: { display: "flex", flexDirection: "column", gap: 24 },
+
   header: { display: "flex", justifyContent: "space-between" },
+
+  title: { fontSize: 28 },
+
   subtitle: { color: "var(--text-muted)" },
-  goalText: { color: "var(--accent)", fontWeight: "bold" },
+
+  goalText: {
+    color: "var(--accent)",
+    fontWeight: "bold",
+    marginBottom: 10
+  },
+
+  progressBg: {
+    height: 10,
+    background: "var(--border)",
+    borderRadius: 10
+  },
+
+  progressFill: {
+    height: 10,
+    background: "var(--accent)",
+    borderRadius: 10
+  },
+
+  progressText: {
+    marginTop: 6,
+    fontSize: 13,
+    color: "var(--text-muted)"
+  },
+
   profile: {
     background: "var(--card)",
     padding: 10,
@@ -194,11 +293,47 @@ const styles = {
     cursor: "pointer",
     border: "1px solid var(--border)"
   },
-  kpiGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 16 },
-  mainGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16 },
-  card: { background: "var(--card)", padding: 20, borderRadius: 16, border: "1px solid var(--border)" },
-  kpiCard: { background: "var(--card)", padding: 16, borderRadius: 16, border: "1px solid var(--border)" },
-  highlight: { background: "var(--accent)", color: "#fff" },
-  heatmap: { display: "grid", gridTemplateColumns: "repeat(10,1fr)", gap: 6 },
-  box: { width: 18, height: 18, borderRadius: 4 }
+
+  kpiGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))",
+    gap: 16
+  },
+
+  mainGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))",
+    gap: 16
+  },
+
+  card: {
+    background: "var(--card)",
+    padding: 20,
+    borderRadius: 16,
+    border: "1px solid var(--border)"
+  },
+
+  kpiCard: {
+    background: "var(--card)",
+    padding: 16,
+    borderRadius: 16,
+    border: "1px solid var(--border)"
+  },
+
+  highlight: {
+    background: "var(--accent)",
+    color: "#fff"
+  },
+
+  heatmap: {
+    display: "grid",
+    gridTemplateColumns: "repeat(10,1fr)",
+    gap: 6
+  },
+
+  box: {
+    width: 18,
+    height: 18,
+    borderRadius: 4
+  }
 };

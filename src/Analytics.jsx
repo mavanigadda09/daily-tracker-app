@@ -12,6 +12,37 @@ import {
 
 import { motion } from "framer-motion";
 
+// ================= SMART GOAL PARSER =================
+const parseSmartGoal = (goal) => {
+  if (!goal) return null;
+
+  const numMatch = goal.match(/\d+/);
+  const value = numMatch ? Number(numMatch[0]) : null;
+
+  const lower = goal.toLowerCase();
+
+  let unit = "count";
+
+  if (lower.includes("hour") || lower.includes("hr")) {
+    unit = "minutes";
+  } else if (lower.includes("min")) {
+    unit = "minutes";
+  } else if (lower.includes("cal")) {
+    unit = "calories";
+  } else if (lower.includes("page")) {
+    unit = "pages";
+  }
+
+  let target = value;
+
+  // convert hours → minutes
+  if (unit === "minutes" && lower.includes("hour")) {
+    target = value * 60;
+  }
+
+  return { target, unit };
+};
+
 export default function Analytics({ logs = {}, tasks = [], user }) {
 
   if ((!logs || typeof logs !== "object") && !tasks.length) {
@@ -53,6 +84,7 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
   // ================= METRICS =================
   const values = chartData.map(d => d.value);
+
   const total = values.reduce((a, b) => a + b, 0);
   const avg = Math.round(total / values.length);
 
@@ -81,7 +113,16 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
       ? "📈 Good progress!"
       : "⚡ Stay consistent!";
 
-  // ================= 🎯 GOAL =================
+  // ================= 🎯 SMART GOAL =================
+  const goalData = parseSmartGoal(user?.goal);
+
+  const todayKey = new Date().toDateString();
+  const todayValue = daily[todayKey] || 0;
+
+  const goalPercent = goalData?.target
+    ? Math.min(Math.round((todayValue / goalData.target) * 100), 100)
+    : 0;
+
   const goalInsight = user?.goal
     ? `🎯 Goal: ${user.goal}`
     : "Set a goal to stay focused";
@@ -156,6 +197,26 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
       {/* INSIGHTS */}
       <div style={styles.insight}>{insight}</div>
       <div style={styles.insight}>{goalInsight}</div>
+
+      {/* 🎯 GOAL PROGRESS */}
+      {goalData && (
+        <div style={styles.card}>
+          <h3>🎯 Goal Progress</h3>
+
+          <div style={styles.progressBg}>
+            <div
+              style={{
+                ...styles.progressFill,
+                width: `${goalPercent}%`
+              }}
+            />
+          </div>
+
+          <p style={styles.subtitle}>
+            {todayValue} / {goalData.target} {goalData.unit} ({goalPercent}%)
+          </p>
+        </div>
+      )}
 
       {/* DAILY */}
       <div style={styles.card}>
@@ -232,17 +293,9 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
 // ================= STYLES =================
 const styles = {
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 20
-  },
-
+  container: { display: "flex", flexDirection: "column", gap: 20 },
   title: { fontSize: 28 },
-
-  subtitle: {
-    color: "var(--text-muted)"
-  },
+  subtitle: { color: "var(--text-muted)" },
 
   kpiGrid: {
     display: "grid",
@@ -257,9 +310,7 @@ const styles = {
     border: "1px solid var(--border)"
   },
 
-  kpiTitle: {
-    color: "var(--text-muted)"
-  },
+  kpiTitle: { color: "var(--text-muted)" },
 
   card: {
     background: "var(--card)",
@@ -273,6 +324,19 @@ const styles = {
     padding: 12,
     borderRadius: 10,
     border: "1px solid var(--border)"
+  },
+
+  progressBg: {
+    height: 10,
+    background: "var(--border)",
+    borderRadius: 10,
+    marginTop: 10
+  },
+
+  progressFill: {
+    height: 10,
+    background: "var(--accent)",
+    borderRadius: 10
   },
 
   heatmap: {
