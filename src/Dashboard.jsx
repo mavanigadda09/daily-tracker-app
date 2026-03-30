@@ -20,7 +20,9 @@ export default function Dashboard({
   logs = {},
   tasks = [],
   user,
-  setGoal
+  setGoal,
+  weightLogs = [],      // 🔥 NEW
+  weightGoal = null     // 🔥 NEW
 }) {
   const navigate = useNavigate();
 
@@ -33,6 +35,23 @@ export default function Dashboard({
 
   const goalData = parseSmartGoal(user?.goal);
   const consistency = 0.5;
+
+  // ================= WEIGHT =================
+  const sorted = [...weightLogs].sort(
+    (a, b) => new Date(a.date) - new Date(b.date)
+  );
+
+  const startWeight = sorted[0]?.weight || 0;
+  const currentWeight = sorted[sorted.length - 1]?.weight || 0;
+  const targetWeight = weightGoal || 0;
+
+  const totalDiff = startWeight - targetWeight;
+  const currentDiff = startWeight - currentWeight;
+
+  const weightPercent =
+    totalDiff > 0
+      ? Math.min(Math.round((currentDiff / totalDiff) * 100), 100)
+      : 0;
 
   // ================= AI =================
   const insight = getAIInsight({
@@ -89,6 +108,45 @@ export default function Dashboard({
           👤
         </motion.div>
       </div>
+
+      {/* 🏋️ WEIGHT CARD */}
+      {weightLogs.length > 0 && (
+        <div
+          style={styles.weightCard}
+          onClick={() => navigate("/weight")}
+        >
+          <h3>🏋️ Weight Progress</h3>
+
+          <div style={styles.weightGrid}>
+            <div>
+              <p>Start</p>
+              <h4>{startWeight}</h4>
+            </div>
+
+            <div>
+              <p>Current</p>
+              <h4>{currentWeight}</h4>
+            </div>
+
+            <div>
+              <p>Target</p>
+              <h4>{targetWeight || "-"}</h4>
+            </div>
+          </div>
+
+          {/* PROGRESS BAR */}
+          <div style={styles.progressBar}>
+            <div
+              style={{
+                ...styles.progressFill,
+                width: `${weightPercent}%`
+              }}
+            />
+          </div>
+
+          <p>{weightPercent}% completed</p>
+        </div>
+      )}
 
       {/* AI COACH */}
       <div style={styles.aiCard}>{insight}</div>
@@ -149,6 +207,31 @@ const styles = {
     padding: 10,
     borderRadius: "50%",
     cursor: "pointer"
+  },
+
+  weightCard: {
+    background: "#1f2937",
+    padding: 16,
+    borderRadius: 12,
+    cursor: "pointer"
+  },
+
+  weightGrid: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: 10
+  },
+
+  progressBar: {
+    height: 8,
+    background: "#374151",
+    borderRadius: 10,
+    overflow: "hidden"
+  },
+
+  progressFill: {
+    height: "100%",
+    background: "#22c55e"
   },
 
   aiCard: {

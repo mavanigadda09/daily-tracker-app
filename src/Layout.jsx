@@ -10,7 +10,8 @@ import {
   BarChart3,
   Lightbulb,
   User,
-  Menu
+  Menu,
+  Dumbbell   // 🔥 NEW ICON
 } from "lucide-react";
 
 export default function Layout({ children, user, onLogout }) {
@@ -22,6 +23,9 @@ export default function Layout({ children, user, onLogout }) {
     { path: "/habits", label: "Habits", icon: CheckSquare },
     { path: "/tasks", label: "Tasks", icon: ListTodo },
     { path: "/activities", label: "Activities", icon: Activity },
+
+    { path: "/weight", label: "Weight", icon: Dumbbell }, // 🔥 ADDED
+
     { path: "/analytics", label: "Analytics", icon: BarChart3 },
     { path: "/insights", label: "Insights", icon: Lightbulb },
     { path: "/profile", label: "Profile", icon: User }
@@ -106,7 +110,7 @@ const styles = {
     flexDirection: "column",
     justifyContent: "space-between",
     borderRight: "1px solid var(--border)",
-    position: "sticky",   // ✅ FIXED
+    position: "sticky",
     top: 0,
     height: "100vh"
   },
@@ -177,6 +181,6 @@ const styles = {
     padding: 24,
     width: "100%",
     minWidth: 0,
-    overflowX: "hidden"   // ✅ FIXES RIGHT EMPTY SPACE BUG
+    overflowX: "hidden"
   }
 };
