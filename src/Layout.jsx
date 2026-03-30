@@ -11,7 +11,8 @@ import {
   Lightbulb,
   User,
   Menu,
-  Dumbbell   // 🔥 NEW ICON
+  Dumbbell,
+  MessageCircle   // 🔥 NEW (AI Chat)
 } from "lucide-react";
 
 export default function Layout({ children, user, onLogout }) {
@@ -24,7 +25,9 @@ export default function Layout({ children, user, onLogout }) {
     { path: "/tasks", label: "Tasks", icon: ListTodo },
     { path: "/activities", label: "Activities", icon: Activity },
 
-    { path: "/weight", label: "Weight", icon: Dumbbell }, // 🔥 ADDED
+    { path: "/weight", label: "Weight", icon: Dumbbell },
+
+    { path: "/chat", label: "AI Chat", icon: MessageCircle }, // 🔥 NEW
 
     { path: "/analytics", label: "Analytics", icon: BarChart3 },
     { path: "/insights", label: "Insights", icon: Lightbulb },

@@ -12,6 +12,7 @@ import Activities from "./Activities";
 import Profile from "./Profile";
 import ProtectedRoute from "./ProtectedRoute";
 import Weight from "./Weight";
+import Chat from "./Chat"; // 🔥 NEW
 
 import { queueSave, subscribeToData, loadData } from "./cloud";
 
@@ -56,7 +57,7 @@ export default function App() {
   const [items, setItems] = useState([]);
   const [goal, setGoal] = useState({});
   const [weightLogs, setWeightLogs] = useState([]);
-  const [weightGoal, setWeightGoal] = useState(null); // 🔥 NEW
+  const [weightGoal, setWeightGoal] = useState(null);
   const [logs, setLogs] = useState({});
   const [tasks, setTasks] = useState([]);
 
@@ -73,7 +74,7 @@ export default function App() {
       setItems(data.items);
       setLogs(data.logs);
       setWeightLogs(data.weightLogs || []);
-      setWeightGoal(data.weightGoal || null); // 🔥 NEW
+      setWeightGoal(data.weightGoal || null);
       setTasks(data.tasks);
       setGoal(data.goal);
     };
@@ -89,7 +90,7 @@ export default function App() {
       setItems(data.items);
       setLogs(data.logs);
       setWeightLogs(data.weightLogs || []);
-      setWeightGoal(data.weightGoal || null); // 🔥 NEW
+      setWeightGoal(data.weightGoal || null);
       setTasks(data.tasks);
       setGoal(data.goal);
 
@@ -107,7 +108,7 @@ export default function App() {
       items,
       logs,
       weightLogs,
-      weightGoal, // 🔥 NEW
+      weightGoal,
       tasks,
       goal
     };
@@ -203,8 +204,8 @@ export default function App() {
               tasks={tasks}
               user={user}
               setGoal={setGoal}
-              weightLogs={weightLogs}     // 🔥 FIX
-              weightGoal={weightGoal}     // 🔥 FIX
+              weightLogs={weightLogs}
+              weightGoal={weightGoal}
             />
           } />
 
@@ -214,8 +215,21 @@ export default function App() {
                 weightLogs={weightLogs}
                 addWeight={addWeight}
                 deleteWeight={deleteWeight}
-                weightGoal={weightGoal}       // 🔥 FIX
-                setWeightGoal={setWeightGoal} // 🔥 FIX
+                weightGoal={weightGoal}
+                setWeightGoal={setWeightGoal}
+                items={items}
+              />
+            </ProtectedRoute>
+          } />
+
+          {/* 🔥 NEW CHAT ROUTE */}
+          <Route path="/chat" element={
+            <ProtectedRoute user={user} firebaseUser={firebaseUser}>
+              <Chat
+                items={items}
+                tasks={tasks}
+                weightLogs={weightLogs}
+                user={user}
               />
             </ProtectedRoute>
           } />

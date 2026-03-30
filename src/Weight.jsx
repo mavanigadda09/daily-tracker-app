@@ -9,12 +9,21 @@ import {
   CartesianGrid
 } from "recharts";
 
+// 🔥 AI IMPORTS
+import {
+  detectPlateau,
+  predictWeight,
+  getWeightAdvice,
+  analyzeWeightWithHabits
+} from "./ai";
+
 export default function Weight({
   weightLogs = [],
   addWeight,
   deleteWeight,
   weightGoal,
-  setWeightGoal
+  setWeightGoal,
+  items = [] // 🔥 NEW (for habit connection)
 }) {
   const [value, setValue] = useState("");
   const [goalInput, setGoalInput] = useState("");
@@ -27,8 +36,6 @@ export default function Weight({
   const current = sorted[sorted.length - 1]?.weight || 0;
   const target = weightGoal || 0;
 
-  const change = current - start;
-
   // ================= PROGRESS =================
   const totalDiff = start - target;
   const currentDiff = start - current;
@@ -38,7 +45,7 @@ export default function Weight({
       ? Math.min(Math.round((currentDiff / totalDiff) * 100), 100)
       : 0;
 
-  // ================= AI =================
+  // ================= BASIC AI =================
   let insight = "";
 
   if (!target) {
@@ -53,6 +60,20 @@ export default function Weight({
     insight = "⚠️ No progress yet. Start today.";
   }
 
+  // ================= 🔥 ADVANCED AI =================
+  const plateau = detectPlateau(sorted);
+  const prediction = predictWeight(sorted);
+  const advice = getWeightAdvice(sorted, target);
+
+  // ================= 🔥 HABIT CONNECTION =================
+  const habits = items.filter(i => i.type === "habit");
+
+  const habitInsight = analyzeWeightWithHabits({
+    weightLogs: sorted,
+    habits
+  });
+
+  // ================= CHART =================
   const chartData = sorted.map((w) => ({
     date: new Date(w.date).toLocaleDateString("en-US", {
       month: "short",
@@ -142,10 +163,27 @@ export default function Weight({
         <p>{percent}% completed</p>
       </div>
 
-      {/* AI */}
+      {/* BASIC AI */}
       <div style={styles.aiCard}>
         {insight}
       </div>
+
+      {/* 🔥 ADVANCED AI */}
+      <div style={styles.card}>
+        <h3>AI Analysis</h3>
+
+        {plateau && <p>{plateau}</p>}
+        {prediction && <p>{prediction}</p>}
+        {advice && <p>{advice}</p>}
+      </div>
+
+      {/* 🔥 HABIT IMPACT */}
+      {habitInsight && (
+        <div style={styles.card}>
+          <h3>Habit Impact</h3>
+          <p>{habitInsight}</p>
+        </div>
+      )}
 
       {/* CHART */}
       <div style={styles.card}>

@@ -9,10 +9,10 @@ import {
 } from "./utils";
 
 import {
-  getAIInsight,
   getHabitSuggestions,
   predictPerformance,
-  getAdaptiveGoal
+  getAdaptiveGoal,
+  getUnifiedAI // 🔥 NEW
 } from "./ai";
 
 export default function Dashboard({
@@ -21,8 +21,8 @@ export default function Dashboard({
   tasks = [],
   user,
   setGoal,
-  weightLogs = [],      // 🔥 NEW
-  weightGoal = null     // 🔥 NEW
+  weightLogs = [],
+  weightGoal = null
 }) {
   const navigate = useNavigate();
 
@@ -53,17 +53,17 @@ export default function Dashboard({
       ? Math.min(Math.round((currentDiff / totalDiff) * 100), 100)
       : 0;
 
-  // ================= AI =================
-  const insight = getAIInsight({
-    goalPercent: 0,
-    trend: 0,
-    consistency,
-    todayValue: 0,
+  // ================= 🧠 UNIFIED AI =================
+  const unifiedAI = getUnifiedAI({
+    habits,
+    tasks,
+    weightLogs,
+    goal: goalData,
     streak,
-    heatmap,
-    habits
+    consistency
   });
 
+  // ================= OTHER AI =================
   const suggestions = getHabitSuggestions(items);
 
   const forecast = predictPerformance({
@@ -134,7 +134,6 @@ export default function Dashboard({
             </div>
           </div>
 
-          {/* PROGRESS BAR */}
           <div style={styles.progressBar}>
             <div
               style={{
@@ -148,8 +147,11 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* AI COACH */}
-      <div style={styles.aiCard}>{insight}</div>
+      {/* 🧠 UNIFIED AI COACH */}
+      <div style={styles.aiCard}>
+        <h3>🧠 AI Coach</h3>
+        <p>{unifiedAI}</p>
+      </div>
 
       {/* FORECAST */}
       <div style={styles.forecastCard}>{forecast}</div>
@@ -237,7 +239,8 @@ const styles = {
   aiCard: {
     padding: 16,
     borderRadius: 12,
-    background: "#1f2937"
+    background: "#0ea5e9", // 🔥 upgraded highlight
+    color: "#fff"
   },
 
   forecastCard: {
