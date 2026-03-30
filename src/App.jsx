@@ -11,6 +11,7 @@ import Routines from "./Routines";
 import Activities from "./Activities";
 import Profile from "./Profile";
 import ProtectedRoute from "./ProtectedRoute";
+import Weight from "./Weight"; // 🔥 NEW
 
 import { queueSave, subscribeToData, loadData } from "./cloud";
 
@@ -54,7 +55,7 @@ export default function App() {
   // ================= DATA =================
   const [items, setItems] = useState([]);
   const [goal, setGoal] = useState({});
-  const [weightLogs, setWeightLogs] = useState([]);
+  const [weightLogs, setWeightLogs] = useState([]); // 🔥 important
   const [logs, setLogs] = useState({});
   const [tasks, setTasks] = useState([]);
 
@@ -70,7 +71,7 @@ export default function App() {
 
       setItems(data.items);
       setLogs(data.logs);
-      setWeightLogs(data.weightLogs);
+      setWeightLogs(data.weightLogs || []);
       setTasks(data.tasks);
       setGoal(data.goal);
     };
@@ -85,7 +86,7 @@ export default function App() {
     const unsub = subscribeToData((data) => {
       setItems(data.items);
       setLogs(data.logs);
-      setWeightLogs(data.weightLogs);
+      setWeightLogs(data.weightLogs || []);
       setTasks(data.tasks);
       setGoal(data.goal);
 
@@ -110,6 +111,32 @@ export default function App() {
     queueSave(data);
 
   }, [items, logs, weightLogs, tasks, goal, firebaseUser, initialLoad]);
+
+  // ================= 🏋️ WEIGHT LOGIC =================
+
+  const addWeight = (value) => {
+    if (!value) return;
+
+    const today = new Date().toDateString();
+
+    setWeightLogs((prev) => {
+      const exists = prev.find((w) => w.date === today);
+
+      if (exists) {
+        return prev.map((w) =>
+          w.date === today ? { ...w, weight: value } : w
+        );
+      }
+
+      return [...prev, { date: today, weight: value }];
+    });
+  };
+
+  const deleteWeight = (date) => {
+    setWeightLogs((prev) =>
+      prev.filter((w) => w.date !== date)
+    );
+  };
 
   // ================= TASK LOGIC =================
   const addTask = (name) => {
@@ -174,6 +201,17 @@ export default function App() {
               user={user}
               setGoal={setGoal}
             />
+          } />
+
+          {/* 🔥 NEW WEIGHT ROUTE */}
+          <Route path="/weight" element={
+            <ProtectedRoute user={user} firebaseUser={firebaseUser}>
+              <Weight
+                weightLogs={weightLogs}
+                addWeight={addWeight}
+                deleteWeight={deleteWeight}
+              />
+            </ProtectedRoute>
           } />
 
           <Route path="/habits" element={

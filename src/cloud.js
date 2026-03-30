@@ -9,24 +9,22 @@ import {
 const LOCAL_KEY = "tracker_backup";
 const QUEUE_KEY = "tracker_queue";
 
-// ================= 🧠 SAVE QUEUE =================
+// ================= 💾 SAVE QUEUE =================
 export const queueSave = (data) => {
   try {
-    // 🔥 ADD HISTORY SNAPSHOT
-    const withHistory = addHistory(data);
-
-    // ✅ save latest locally
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(withHistory));
+    // ✅ save locally first (offline support)
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
 
     // ✅ push to queue
     const queue = getQueue();
     queue.push({
-      data: withHistory,
+      data,
       timestamp: Date.now()
     });
 
     localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 
+    // 🚀 try sync
     processQueue();
 
   } catch (err) {
@@ -57,6 +55,7 @@ const processQueue = async () => {
 
       await setDoc(docRef, merged, { merge: true });
 
+      // ✅ remove synced item
       queue.shift();
       localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 
@@ -79,6 +78,7 @@ export const loadData = async () => {
     if (snap.exists()) {
       const data = snap.data();
 
+      // ✅ update local backup
       localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
 
       return safeData(data);
@@ -110,8 +110,10 @@ export const subscribeToData = (callback) => {
       const remote = safeData(snapshot.data());
       const local = getLocalBackup();
 
+      // 🔥 merge remote + local
       const merged = mergeData(remote, local);
 
+      // update local cache
       localStorage.setItem(LOCAL_KEY, JSON.stringify(merged));
 
       callback(merged);
@@ -135,70 +137,29 @@ window.addEventListener("online", () => {
   processQueue();
 });
 
-// ================= 🧠 HELPERS =================
+// ================= 🧠 SAFE DATA =================
 const safeData = (data = {}) => ({
   items: data.items || [],
   logs: data.logs || {},
   weightLogs: data.weightLogs || [],
+  weightGoal: data.weightGoal || null, // 🔥 NEW
   tasks: data.tasks || [],
-  goal: data.goal || {},
-  history: data.history || []
+  goal: data.goal || {}
 });
 
-// ================= 🕒 HISTORY =================
-const addHistory = (data) => {
-  const current = getLocalBackup();
-
-  const history = current.history || [];
-
-  const snapshot = {
-    timestamp: Date.now(),
-    data: {
-      items: data.items,
-      logs: data.logs,
-      weightLogs: data.weightLogs,
-      tasks: data.tasks,
-      goal: data.goal
-    }
-  };
-
-  const updated = [...history, snapshot].slice(-20); // 🔥 limit to 20
-
-  return {
-    ...data,
-    history: updated
-  };
-};
-
-// ================= 🔥 MERGE =================
+// ================= 🔥 MERGE (CONFLICT RESOLUTION) =================
 const mergeData = (remote, local) => {
   return {
     items: mergeArray(remote.items, local.items),
     logs: { ...remote.logs, ...local.logs },
     weightLogs: mergeArray(remote.weightLogs, local.weightLogs),
+    weightGoal: local.weightGoal ?? remote.weightGoal, // 🔥 NEW
     tasks: mergeArray(remote.tasks, local.tasks),
-    goal: local.goal || remote.goal,
-
-    // 🔥 merge history safely
-    history: mergeHistory(remote.history, local.history)
+    goal: local.goal || remote.goal
   };
 };
 
-const mergeHistory = (a = [], b = []) => {
-  const combined = [...a, ...b];
-
-  const map = new Map();
-
-  combined.forEach((h) => {
-    map.set(h.timestamp, h);
-  });
-
-  return Array.from(map.values())
-    .sort((x, y) => x.timestamp - y.timestamp)
-    .slice(-20);
-};
-
-// merge arrays
+// ================= 🔄 ARRAY MERGE =================
 const mergeArray = (a = [], b = []) => {
   const map = new Map();
 
@@ -209,6 +170,7 @@ const mergeArray = (a = [], b = []) => {
   return Array.from(map.values());
 };
 
+// ================= 📦 LOCAL BACKUP =================
 const getLocalBackup = () => {
   try {
     const local = localStorage.getItem(LOCAL_KEY);
@@ -218,6 +180,7 @@ const getLocalBackup = () => {
   }
 };
 
+// ================= 📋 QUEUE =================
 const getQueue = () => {
   try {
     const q = localStorage.getItem(QUEUE_KEY);
