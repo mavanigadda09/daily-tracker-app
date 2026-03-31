@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { generateAIResponse, getSuggestionPrompts } from "./aiCoach";
-
 // ===== INITIAL MESSAGES =====
 const getInitialMessages = (history = []) => {
   if (history.length) return history;
