@@ -25,7 +25,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 export default function App() {
 
   // ===== AUTH =====
-  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [firebaseUser, setFirebaseUser] = useState(undefined); // 🔥 FIX
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function App() {
   const handleLogout = async () => {
     await signOut(auth);
     localStorage.clear();
-    window.location.href = "/login"; // ✅ FIX
+    window.location.href = "/login";
   };
 
   // ===== USER =====
@@ -135,18 +135,24 @@ export default function App() {
   };
 
   // ===== LOADING =====
-  if (loadingAuth) return <div>Loading...</div>;
+  if (loadingAuth) {
+    return (
+      <div style={{ color: "white", padding: 20 }}>
+        Loading App...
+      </div>
+    );
+  }
 
   // ===== ROUTES =====
   return (
     <BrowserRouter>
       <Routes>
 
-        {/* PUBLIC ROUTES */}
+        {/* PUBLIC */}
         <Route path="/login" element={<Login onLogin={handleLoginUser} />} />
         <Route path="/onboarding" element={<Onboarding />} />
 
-        {/* PROTECTED ROUTES */}
+        {/* PROTECTED */}
         <Route path="/" element={
           <ProtectedRoute user={user} firebaseUser={firebaseUser}>
             <Layout user={user} onLogout={handleLogout} />
@@ -154,6 +160,7 @@ export default function App() {
         }>
 
           <Route index element={<Dashboard />} />
+
           <Route path="chat" element={
             <Chat
               items={items}

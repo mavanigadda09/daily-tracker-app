@@ -46,7 +46,7 @@ export default function Layout({ user, onLogout }) {
 
             <button
               style={styles.menuBtn}
-              onClick={() => setCollapsed(!collapsed)}
+              onClick={() => setCollapsed((prev) => !prev)}
             >
               <Menu size={20} />
             </button>
@@ -55,7 +55,10 @@ export default function Layout({ user, onLogout }) {
           {/* NAV */}
           <div style={styles.nav}>
             {navItems.map((item) => {
-              const active = location.pathname === item.path;
+              const active =
+                location.pathname === item.path ||
+                location.pathname.startsWith(item.path + "/"); // 🔥 FIX
+
               const Icon = item.icon;
 
               return (
@@ -78,7 +81,9 @@ export default function Layout({ user, onLogout }) {
         {/* BOTTOM */}
         <div style={styles.bottom}>
           {!collapsed && (
-            <p style={styles.user}>👤 {user?.name}</p>
+            <p style={styles.user}>
+              👤 {user?.name || "User"} {/* 🔥 SAFE */}
+            </p>
           )}
 
           <button style={styles.logout} onClick={onLogout}>
@@ -89,7 +94,7 @@ export default function Layout({ user, onLogout }) {
 
       {/* MAIN */}
       <main style={styles.main}>
-        <Outlet /> {/* 🔥 THIS FIXES EVERYTHING */}
+        <Outlet /> {/* ✅ REQUIRED FOR ROUTING */}
       </main>
 
     </div>
@@ -102,6 +107,7 @@ const styles = {
     width: "100%",
     minHeight: "100vh"
   },
+
   sidebar: {
     background: "var(--sidebar)",
     padding: 16,
@@ -113,27 +119,32 @@ const styles = {
     top: 0,
     height: "100vh"
   },
+
   topRow: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20
   },
+
   logo: {
     fontWeight: "bold",
     color: "var(--text)"
   },
+
   menuBtn: {
     background: "transparent",
     border: "none",
     color: "var(--text)",
     cursor: "pointer"
   },
+
   nav: {
     display: "flex",
     flexDirection: "column",
     gap: 8
   },
+
   link: {
     display: "flex",
     alignItems: "center",
@@ -141,21 +152,26 @@ const styles = {
     padding: "10px 12px",
     borderRadius: 8,
     textDecoration: "none",
-    color: "var(--text-muted)"
+    color: "var(--text-muted)",
+    transition: "0.2s"
   },
+
   active: {
     background: "var(--accent)",
     color: "#fff"
   },
+
   bottom: {
     display: "flex",
     flexDirection: "column",
     gap: 10
   },
+
   user: {
     fontSize: 14,
     color: "var(--text)"
   },
+
   logout: {
     background: "#ef4444",
     border: "none",
@@ -164,6 +180,7 @@ const styles = {
     color: "#fff",
     cursor: "pointer"
   },
+
   main: {
     flex: 1,
     padding: 24,
