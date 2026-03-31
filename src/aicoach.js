@@ -1,4 +1,91 @@
 const normalize = (value) => String(value || "").toLowerCase();
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+const parseWeightLogs = (weightLogs = []) =>
+  weightLogs
+    .map((entry) => {
+      const dateValue = entry?.date ? new Date(entry.date).getTime() : Number.NaN;
+      const weightValue = Number(entry?.weight);
+
+      if (!Number.isFinite(dateValue) || !Number.isFinite(weightValue)) {
+        return null;
+      }
+
+      return {
+        date: entry.date,
+        dateMs: dateValue,
+        weight: weightValue
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.dateMs - b.dateMs);
+
+export const analyzeWeightTrend = (weightLogs = []) => {
+  const logs = parseWeightLogs(weightLogs);
+
+  if (logs.length < 3) {
+    return {
+      trend: "insufficient_data",
+      slopePerDay: 0,
+      message: "Weight trend needs more entries. Add 3+ consistent logs for better coaching."
+    };
+  }
+
+  const first = logs[0];
+  const last = logs[logs.length - 1];
+  const spanDays = Math.max((last.dateMs - first.dateMs) / DAY_IN_MS, 1);
+  const slopePerDay = (last.weight - first.weight) / spanDays;
+  const STABLE_THRESHOLD = 0.05; // ~0.35kg weekly movement
+
+  if (slopePerDay > STABLE_THRESHOLD) {
+    return {
+      trend: "increasing",
+      slopePerDay,
+      message: "Your weight is increasing steadily."
+    };
+  }
+
+  if (slopePerDay < -STABLE_THRESHOLD) {
+    return {
+      trend: "decreasing",
+      slopePerDay,
+      message: "Your weight is decreasing steadily."
+    };
+  }
+
+  return {
+    trend: "stable",
+    slopePerDay,
+    message: "Your weight pattern is stable."
+  };
+};
+
+export const predictWeight = (weightLogs = [], days = 7) => {
+  const logs = parseWeightLogs(weightLogs);
+
+  if (!logs.length) {
+    return [];
+  }
+
+  if (logs.length === 1) {
+    const base = logs[0];
+    return Array.from({ length: days }, (_, index) => ({
+      date: new Date(base.dateMs + DAY_IN_MS * (index + 1)).toISOString().slice(0, 10),
+      weight: Number(base.weight.toFixed(1))
+    }));
+  }
+
+  const { slopePerDay } = analyzeWeightTrend(logs);
+  const last = logs[logs.length - 1];
+
+  return Array.from({ length: days }, (_, index) => {
+    const projected = last.weight + slopePerDay * (index + 1);
+    return {
+      date: new Date(last.dateMs + DAY_IN_MS * (index + 1)).toISOString().slice(0, 10),
+      weight: Number(projected.toFixed(1))
+    };
+  });
+};
 
 const getHabitInsight = (habits = []) => {
   if (!habits.length) return "No habit data yet. Start logging your daily habits.";
@@ -44,29 +131,31 @@ const getTaskInsight = (tasks = []) => {
 };
 
 const getWeightInsight = (weightLogs = []) => {
-  if (weightLogs.length < 3) {
-    return "Weight trend needs more entries. Add 3+ consistent logs for better coaching.";
+  const logs = parseWeightLogs(weightLogs);
+  if (!logs.length) {
+    return "Weight records are incomplete. Keep numeric entries to unlock richer analysis.";
   }
 
-  const recent = weightLogs.slice(-5);
-  const first = recent[0]?.weight;
-  const latest = recent[recent.length - 1]?.weight;
+  const trendAnalysis = analyzeWeightTrend(logs);
+  const predictions = predictWeight(logs, 7);
+  const day7Weight = predictions[predictions.length - 1]?.weight;
+  const trendMessage = trendAnalysis.message;
 
-  if (typeof first !== "number" || typeof latest !== "number") {
-    return "Weight records are incomplete. Keep numeric entries to unlock richer analysis.";
+  if (trendAnalysis.trend === "insufficient_data") {
+    return trendMessage;
   }
 
   const diff = latest - first;
 
-  if (diff > 0.8) {
-    return "Weight trend is up. Add a light evening walk and keep hydration consistent.";
+  if (trendAnalysis.trend === "increasing") {
+    return `${trendMessage} You may reach ${day7Weight} kg in 7 days. Consider improving consistency in habits, movement, and sleep.`;
   }
 
-  if (diff < -0.8) {
-    return "Weight trend is moving in a good direction. Maintain your current nutrition and sleep routine.";
+  if (trendAnalysis.trend === "decreasing") {
+    return `${trendMessage} You may reach ${day7Weight} kg in 7 days. Keep your nutrition and activity routine consistent.`;
   }
 
-  return "Weight trend is stable. Improve consistency in activity for stronger movement.";
+   return `${trendMessage} You may remain around ${day7Weight} kg in 7 days. Consider improving consistency in habits for clearer progress.`;
 };
 
 const getFinanceInsight = (financeData = {}) => {
@@ -154,6 +243,14 @@ export const generateAIResponse = async (userInput, contextData = {}) => {
 
   if (!responseParts.length && moduleSuggestion) {
     responseParts.push(moduleSuggestion);
+  }
+
+   const shouldAutoIncludeWeightInsight =
+    !responseParts.some((part) => part.includes("weight") || part.includes("kg")) &&
+    parseWeightLogs(weightLogs).length >= 2;
+
+  if (shouldAutoIncludeWeightInsight) {
+    responseParts.push(getWeightInsight(weightLogs));
   }
 
   if (!responseParts.length) {
