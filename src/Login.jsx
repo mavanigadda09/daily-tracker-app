@@ -4,8 +4,11 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword
 } from "firebase/auth";
+import { useNavigate } from "react-router-dom"; // 🔥 NEW
 
 export default function Login({ onLogin }) {
+  const navigate = useNavigate(); // 🔥 NEW
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isRegister, setIsRegister] = useState(false);
@@ -45,6 +48,9 @@ export default function Login({ onLogin }) {
       localStorage.setItem("user", JSON.stringify(userData));
       onLogin(userData);
 
+      // 🔥 CRITICAL FIX: redirect after login
+      navigate("/");
+
     } catch (err) {
       setError(err.message);
     }
@@ -52,7 +58,6 @@ export default function Login({ onLogin }) {
     setLoading(false);
   };
 
-  // ✅ ENTER KEY SUPPORT
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       handleSubmit();
@@ -125,13 +130,13 @@ export default function Login({ onLogin }) {
 
 const styles = {
   container: {
-  display: "flex",
-  justifyContent: "center",   // ✅ CENTER HORIZONTALLY
-  alignItems: "center",       // ✅ CENTER VERTICALLY
-  height: "100vh",
-  width: "100vw",
-  background: "var(--bg)"
- },
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    height: "100vh",
+    width: "100vw",
+    background: "var(--bg)"
+  },
 
   card: {
     width: 340,

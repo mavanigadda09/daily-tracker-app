@@ -154,7 +154,7 @@ export default function App() {
 
         {/* PROTECTED */}
         <Route path="/" element={
-          <ProtectedRoute user={user} firebaseUser={firebaseUser}>
+          <ProtectedRoute firebaseUser={firebaseUser}>
             <Layout user={user} onLogout={handleLogout} />
           </ProtectedRoute>
         }>
