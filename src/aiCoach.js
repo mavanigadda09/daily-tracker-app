@@ -41,39 +41,6 @@ const getWeightSlopePerDay = (logs = []) => {
   return (n * sumXY - sumX * sumY) / denom;
 };
 
-// ===== WEIGHT ANALYSIS =====
-export const analyzeWeightTrend = (weightLogs = []) => {
-  const logs = parseWeightLogs(weightLogs);
-
-  if (logs.length < 3) {
-    return {
-      trend: "insufficient",
-      message: "Log weight consistently (3+ entries) to unlock trend insights."
-    };
-  }
-
-  const slope = getWeightSlopePerDay(logs);
-
-  if (slope > 0.05) return { trend: "up", message: "📈 Your weight is increasing." };
-  if (slope < -0.05) return { trend: "down", message: "📉 Your weight is decreasing." };
-
-  return { trend: "stable", message: "⚖️ Your weight is stable." };
-};
-
-// ===== PREDICTION =====
-export const predictWeight = (weightLogs = [], days = 7) => {
-  const logs = parseWeightLogs(weightLogs);
-  if (!logs.length) return [];
-
-  const slope = getWeightSlopePerDay(logs);
-  const last = logs[logs.length - 1];
-
-  return Array.from({ length: days }, (_, i) => ({
-    date: new Date(last.dateMs + DAY_IN_MS * (i + 1)).toISOString().slice(0, 10),
-    weight: Number((last.weight + slope * (i + 1)).toFixed(1))
-  }));
-};
-
 // ===== HABITS =====
 const getHabitInsight = (habits = []) => {
   if (!habits.length) return "Start tracking habits to build consistency.";
@@ -94,10 +61,10 @@ const getHabitInsight = (habits = []) => {
   if (!weakest) return "Your habit system looks stable.";
 
   if (weakest.rate < 0.5) {
-    return `⚠️ You're inconsistent with "${weakest.name}". Simplify it (2-min rule).`;
+    return `⚠️ You're inconsistent with "${weakest.name}".`;
   }
 
-  return `✅ "${weakest.name}" is improving. Keep going.`;
+  return `✅ "${weakest.name}" is improving.`;
 };
 
 // ===== TASKS =====
@@ -107,58 +74,61 @@ const getTaskInsight = (tasks = []) => {
   const total = tasks.length;
   const done = tasks.filter((t) => t.done).length;
 
-  if (done === 0) return "⚠️ No tasks completed yet. Start small.";
+  if (done === 0) return "⚠️ No tasks completed yet.";
 
-  const ratio = done / total;
-
-  if (ratio < 0.5) {
-    return `⚠️ Only ${done}/${total} tasks done. Focus on finishing.`;
+  if (done < total / 2) {
+    return `⚠️ Only ${done}/${total} tasks done.`;
   }
 
-  return `✅ Strong execution: ${done}/${total} tasks completed.`;
+  return `✅ ${done}/${total} tasks completed.`;
 };
 
-// ===== FINANCE =====
-const getFinanceInsight = (data = []) => {
-  if (!data.length) return "Track your spending for better insights.";
+// ===== WEIGHT GOAL =====
+const getWeightGoalPlan = (text) => {
+  const weightMatch = text.match(/(\d+)\s*kg/g);
+  if (!weightMatch || weightMatch.length < 2) return null;
 
-  let income = 0;
-  let expense = 0;
+  const numbers = weightMatch.map(v => Number(v.replace("kg", "").trim()));
 
-  data.forEach((e) => {
-    const amt = Number(e.amount || 0);
-    if (amt >= 0) income += amt;
-    else expense += Math.abs(amt);
-  });
+  const current = numbers[0];
+  const target = numbers[1];
 
-  const diff = income - expense;
+  const monthsMatch = text.match(/(\d+)\s*month/);
+  const months = monthsMatch ? Number(monthsMatch[1]) : 6;
 
-  if (diff < 0) {
-    return `⚠️ Overspending by ${Math.abs(diff)}. Reduce non-essential expenses.`;
+  const totalLoss = current - target;
+  const weeklyLoss = totalLoss / (months * 4);
+
+  let feasibility;
+
+  if (weeklyLoss > 1.5) {
+    feasibility = "⚠️ This goal is very aggressive.";
+  } else if (weeklyLoss > 1) {
+    feasibility = "⚠️ Challenging but possible.";
+  } else {
+    feasibility = "✅ Healthy goal.";
   }
 
-  return `💰 You saved ${diff}. Consider investing a portion.`;
-};
-
-// ===== WEIGHT INSIGHT =====
-const getWeightInsight = (logs = []) => {
-  const parsed = parseWeightLogs(logs);
-  if (!parsed.length) return "No weight data available.";
-
-  const trend = analyzeWeightTrend(parsed);
-  const prediction = predictWeight(parsed, 7);
-  const next = prediction.at(-1)?.weight;
-
-  return `${trend.message} Projected: ${next} kg in 7 days.`;
+  return [
+    `🎯 Goal: ${current}kg → ${target}kg in ${months} months`,
+    `📊 ${weeklyLoss.toFixed(2)} kg/week required`,
+    feasibility,
+    `\n📅 Plan:
+• Walk 8–10k steps daily
+• Calorie deficit (300–500 kcal)
+• High protein diet
+• Strength training 3x/week
+• Sleep 7–8 hours`
+  ].join("\n");
 };
 
 // ===== PROMPTS =====
 export const getSuggestionPrompts = () => [
   "What should I improve today?",
   "Analyze my habits",
-  "How is my weight trend?",
-  "Am I overspending?",
-  "Give me a weekly plan"
+  "Add habit: drink water",
+  "Add task: go to gym",
+  "How is my weight trend?"
 ];
 
 // ===== MAIN AI =====
@@ -167,37 +137,52 @@ export const generateAIResponse = async (input, context = {}) => {
 
   const {
     habits = [],
-    tasks = [],
-    weightLogs = [],
-    financeData = [],
-    module = "general"
+    tasks = []
   } = context;
 
-  const responses = [];
+  // ===== COMMAND: ADD HABIT =====
+  if (text.startsWith("add habit")) {
+    const name = input.replace(/add habit:?/i, "").trim();
 
-  if (text.includes("habit") || module === "habits") {
-    responses.push(getHabitInsight(habits));
+    if (name) {
+      return {
+        type: "add_habit",
+        payload: { name },
+        message: `✅ Habit "${name}" added!`
+      };
+    }
   }
 
-  if (text.includes("task") || text.includes("focus")) {
-    responses.push(getTaskInsight(tasks));
+  // ===== COMMAND: ADD TASK =====
+  if (text.startsWith("add task")) {
+    const name = input.replace(/add task:?/i, "").trim();
+
+    if (name) {
+      return {
+        type: "add_task",
+        payload: { name },
+        message: `✅ Task "${name}" added!`
+      };
+    }
   }
 
-  if (text.includes("weight") || module === "health") {
-    responses.push(getWeightInsight(weightLogs));
+  // ===== WEIGHT GOAL =====
+  const goalPlan = getWeightGoalPlan(text);
+  if (goalPlan) {
+    return {
+      type: "text",
+      message: "🤖 " + goalPlan
+    };
   }
 
-  if (text.includes("finance") || text.includes("money")) {
-    responses.push(getFinanceInsight(financeData));
-  }
-
-  // 🔥 SMART DEFAULT
-  if (!responses.length) {
-    responses.push(getHabitInsight(habits));
-    responses.push(getTaskInsight(tasks));
-  }
+  // ===== DEFAULT =====
+  const response =
+    getHabitInsight(habits) + " " + getTaskInsight(tasks);
 
   await new Promise((r) => setTimeout(r, 400));
 
-  return "🤖 " + responses.slice(0, 2).join(" ");
+  return {
+    type: "text",
+    message: "🤖 " + response
+  };
 };

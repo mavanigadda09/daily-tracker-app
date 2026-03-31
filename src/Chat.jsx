@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { generateAIResponse, getSuggestionPrompts } from "./aiCoach";
+
 // ===== INITIAL MESSAGES =====
 const getInitialMessages = (history = []) => {
   if (history.length) return history;
@@ -22,10 +23,11 @@ export default function Chat({
   user,
   module = "general",
   chatHistory = [],
-  onHistoryChange
+  onHistoryChange,
+  onAddHabit,
+  onAddTask
 }) {
 
-  // ===== STATE =====
   const [messages, setMessages] = useState(() =>
     getInitialMessages(chatHistory)
   );
@@ -34,7 +36,6 @@ export default function Chat({
 
   const bottomRef = useRef(null);
 
-  // ===== MEMOIZED DATA =====
   const habits = useMemo(
     () => items.filter((item) => item.type === "habit"),
     [items]
@@ -59,7 +60,7 @@ export default function Chat({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  // ===== SAVE MESSAGES =====
+  // ===== SAVE =====
   const saveMessages = (updater) => {
     setMessages((prev) => {
       const next =
@@ -87,7 +88,7 @@ export default function Chat({
     setIsTyping(true);
 
     try {
-      const aiText = await generateAIResponse(text, {
+      const aiResult = await generateAIResponse(text, {
         habits,
         tasks,
         weightLogs,
@@ -95,6 +96,25 @@ export default function Chat({
         user,
         module
       });
+
+      let aiText = "⚠️ Unexpected AI response.";
+
+      // ===== SAFE HANDLING =====
+      if (aiResult && typeof aiResult === "object") {
+
+        if (aiResult.type === "add_habit" && aiResult.payload?.name) {
+          onAddHabit?.(aiResult.payload.name);
+        }
+
+        if (aiResult.type === "add_task" && aiResult.payload?.name) {
+          onAddTask?.(aiResult.payload.name);
+        }
+
+        aiText = aiResult.message || aiText;
+
+      } else if (typeof aiResult === "string") {
+        aiText = aiResult;
+      }
 
       const aiMsg = {
         id: `${Date.now()}-ai`,
@@ -104,6 +124,7 @@ export default function Chat({
       };
 
       saveMessages((prev) => [...prev, aiMsg]);
+
     } catch (err) {
       console.error(err);
 
@@ -121,7 +142,7 @@ export default function Chat({
     }
   };
 
-  // ===== ENTER KEY SUPPORT =====
+  // ===== ENTER =====
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -129,7 +150,6 @@ export default function Chat({
     }
   };
 
-  // ===== UI =====
   return (
     <div style={styles.container}>
 

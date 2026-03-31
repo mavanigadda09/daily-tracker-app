@@ -25,7 +25,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 export default function App() {
 
   // ===== AUTH =====
-  const [firebaseUser, setFirebaseUser] = useState(undefined); // 🔥 FIX
+  const [firebaseUser, setFirebaseUser] = useState(undefined);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
@@ -134,13 +134,24 @@ export default function App() {
     setWeightLogs((prev) => prev.filter((w) => w.date !== date));
   };
 
+  // ===== 🔥 AI ACTION HANDLERS =====
+  const handleAddHabit = (name) => {
+    setItems((prev) => [
+      ...prev,
+      { name, type: "habit", completed: {} }
+    ]);
+  };
+
+  const handleAddTask = (name) => {
+    setTasks((prev) => [
+      ...prev,
+      { title: name, done: false }
+    ]);
+  };
+
   // ===== LOADING =====
   if (loadingAuth) {
-    return (
-      <div style={{ color: "white", padding: 20 }}>
-        Loading App...
-      </div>
-    );
+    return <div style={{ color: "white", padding: 20 }}>Loading App...</div>;
   }
 
   // ===== ROUTES =====
@@ -171,6 +182,10 @@ export default function App() {
               module="general"
               chatHistory={chatHistory}
               onHistoryChange={setChatHistory}
+
+              // 🔥 NEW
+              onAddHabit={handleAddHabit}
+              onAddTask={handleAddTask}
             />
           } />
 
