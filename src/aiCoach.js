@@ -20,6 +20,27 @@ const parseWeightLogs = (weightLogs = []) =>
     .filter(Boolean)
     .sort((a, b) => a.dateMs - b.dateMs);
 
+const getWeightSlopePerDay = (logs = []) => {
+  if (logs.length < 2) return 0;
+
+  const firstDay = logs[0].dateMs;
+  const points = logs.map((entry) => ({
+    x: (entry.dateMs - firstDay) / DAY_IN_MS,
+    y: entry.weight
+  }));
+
+  const count = points.length;
+  const sumX = points.reduce((acc, point) => acc + point.x, 0);
+  const sumY = points.reduce((acc, point) => acc + point.y, 0);
+  const sumXY = points.reduce((acc, point) => acc + point.x * point.y, 0);
+  const sumXX = points.reduce((acc, point) => acc + point.x * point.x, 0);
+  const denominator = count * sumXX - sumX * sumX;
+
+  if (denominator === 0) return 0;
+
+  return (count * sumXY - sumX * sumY) / denominator;
+};
+
 export const analyzeWeightTrend = (weightLogs = []) => {
   const logs = parseWeightLogs(weightLogs);
 
@@ -31,10 +52,7 @@ export const analyzeWeightTrend = (weightLogs = []) => {
     };
   }
 
-  const first = logs[0];
-  const last = logs[logs.length - 1];
-  const spanDays = Math.max((last.dateMs - first.dateMs) / DAY_IN_MS, 1);
-  const slopePerDay = (last.weight - first.weight) / spanDays;
+  const slopePerDay = getWeightSlopePerDay(logs);
   const STABLE_THRESHOLD = 0.05; // ~0.35kg weekly movement
 
   if (slopePerDay > STABLE_THRESHOLD) {
@@ -75,7 +93,7 @@ export const predictWeight = (weightLogs = [], days = 7) => {
     }));
   }
 
-  const { slopePerDay } = analyzeWeightTrend(logs);
+  const slopePerDay = getWeightSlopePerDay(logs);
   const last = logs[logs.length - 1];
 
   return Array.from({ length: days }, (_, index) => {
@@ -145,8 +163,6 @@ const getWeightInsight = (weightLogs = []) => {
     return trendMessage;
   }
 
-  const diff = latest - first;
-
   if (trendAnalysis.trend === "increasing") {
     return `${trendMessage} You may reach ${day7Weight} kg in 7 days. Consider improving consistency in habits, movement, and sleep.`;
   }
@@ -155,7 +171,7 @@ const getWeightInsight = (weightLogs = []) => {
     return `${trendMessage} You may reach ${day7Weight} kg in 7 days. Keep your nutrition and activity routine consistent.`;
   }
 
-   return `${trendMessage} You may remain around ${day7Weight} kg in 7 days. Consider improving consistency in habits for clearer progress.`;
+  return `${trendMessage} You may remain around ${day7Weight} kg in 7 days. Consider improving consistency in habits for clearer progress.`;
 };
 
 const getFinanceInsight = (financeData = {}) => {
@@ -245,7 +261,7 @@ export const generateAIResponse = async (userInput, contextData = {}) => {
     responseParts.push(moduleSuggestion);
   }
 
-   const shouldAutoIncludeWeightInsight =
+  const shouldAutoIncludeWeightInsight =
     !responseParts.some((part) => part.includes("weight") || part.includes("kg")) &&
     parseWeightLogs(weightLogs).length >= 2;
 
