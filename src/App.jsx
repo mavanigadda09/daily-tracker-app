@@ -12,7 +12,7 @@ import Activities from "./Activities";
 import Profile from "./Profile";
 import ProtectedRoute from "./ProtectedRoute";
 import Weight from "./Weight";
-import Chat from "./Chat"; // 🔥 NEW
+import Chat from "./Chat";
 
 import { queueSave, subscribeToData, loadData } from "./cloud";
 
@@ -60,6 +60,8 @@ export default function App() {
   const [weightGoal, setWeightGoal] = useState(null);
   const [logs, setLogs] = useState({});
   const [tasks, setTasks] = useState([]);
+  const [financeData, setFinanceData] = useState([]);
+  const [chatHistory, setChatHistory] = useState([]);
 
   const [initialLoad, setInitialLoad] = useState(true);
 
@@ -71,12 +73,14 @@ export default function App() {
       const data = await loadData();
       if (!data) return;
 
-      setItems(data.items);
-      setLogs(data.logs);
+      setItems(data.items || []);
+      setLogs(data.logs || {});
       setWeightLogs(data.weightLogs || []);
       setWeightGoal(data.weightGoal || null);
-      setTasks(data.tasks);
-      setGoal(data.goal);
+      setTasks(data.tasks || []);
+      setGoal(data.goal || {});
+      setFinanceData(data.financeData || []);
+      setChatHistory(data.chatHistory || []);
     };
 
     init();
@@ -87,12 +91,14 @@ export default function App() {
     if (!firebaseUser) return;
 
     const unsub = subscribeToData((data) => {
-      setItems(data.items);
-      setLogs(data.logs);
+      setItems(data.items || []);
+      setLogs(data.logs || {});
       setWeightLogs(data.weightLogs || []);
       setWeightGoal(data.weightGoal || null);
-      setTasks(data.tasks);
-      setGoal(data.goal);
+      setTasks(data.tasks || []);
+      setGoal(data.goal || {});
+      setFinanceData(data.financeData || []);
+      setChatHistory(data.chatHistory || []);
 
       setInitialLoad(false);
     });
@@ -110,14 +116,16 @@ export default function App() {
       weightLogs,
       weightGoal,
       tasks,
-      goal
+      goal,
+      financeData,
+      chatHistory
     };
 
     queueSave(data);
 
-  }, [items, logs, weightLogs, weightGoal, tasks, goal, firebaseUser, initialLoad]);
+  }, [items, logs, weightLogs, weightGoal, tasks, goal, financeData, chatHistory, firebaseUser, initialLoad]);
 
-  // ================= 🏋️ WEIGHT LOGIC =================
+  // ================= WEIGHT =================
   const addWeight = (value) => {
     if (!value) return;
 
@@ -142,71 +150,31 @@ export default function App() {
     );
   };
 
-  // ================= TASK LOGIC =================
-  const addTask = (name) => {
-    if (!name) return;
-
-    setTasks((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        name,
-        running: false,
-        start: null,
-        end: null,
-        duration: 0,
-        logs: []
-      }
-    ]);
-  };
-
-  const startTask = (id) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? { ...t, running: true, start: Date.now(), end: null }
-          : t
-      )
-    );
-  };
-
-  const endTask = (id, duration, date) => {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== id) return t;
-
-        return {
-          ...t,
-          running: false,
-          end: Date.now(),
-          duration,
-          logs: [...(t.logs || []), { date, duration }]
-        };
-      })
-    );
-  };
-
-  // ================= AUTH FLOW =================
-  if (loadingAuth) return <div style={{ padding: 40 }}>Loading...</div>;
-  if (!firebaseUser) return <Login onLogin={handleLoginUser} />;
-  if (!user || !user.name) return <Onboarding onComplete={setUser} />;
-
-  // ================= MAIN =================
+  // ================= ROUTES =================
   return (
     <BrowserRouter>
       <Layout user={user} onLogout={handleLogout}>
         <Routes>
 
           <Route path="/" element={
-            <Dashboard
-              items={items}
-              logs={logs}
-              tasks={tasks}
-              user={user}
-              setGoal={setGoal}
-              weightLogs={weightLogs}
-              weightGoal={weightGoal}
-            />
+            <ProtectedRoute user={user} firebaseUser={firebaseUser}>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/chat" element={
+            <ProtectedRoute user={user} firebaseUser={firebaseUser}>
+              <Chat
+                items={items}
+                tasks={tasks}
+                weightLogs={weightLogs}
+                user={user}
+                financeData={financeData}
+                module="general"
+                chatHistory={chatHistory}
+                onHistoryChange={setChatHistory}
+              />
+            </ProtectedRoute>
           } />
 
           <Route path="/weight" element={
@@ -218,18 +186,6 @@ export default function App() {
                 weightGoal={weightGoal}
                 setWeightGoal={setWeightGoal}
                 items={items}
-              />
-            </ProtectedRoute>
-          } />
-
-          {/* 🔥 NEW CHAT ROUTE */}
-          <Route path="/chat" element={
-            <ProtectedRoute user={user} firebaseUser={firebaseUser}>
-              <Chat
-                items={items}
-                tasks={tasks}
-                weightLogs={weightLogs}
-                user={user}
               />
             </ProtectedRoute>
           } />
@@ -248,12 +204,7 @@ export default function App() {
 
           <Route path="/tasks" element={
             <ProtectedRoute user={user} firebaseUser={firebaseUser}>
-              <Tasks
-                tasks={tasks}
-                addTask={addTask}
-                startTask={startTask}
-                endTask={endTask}
-              />
+              <Tasks tasks={tasks} />
             </ProtectedRoute>
           } />
 

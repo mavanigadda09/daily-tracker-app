@@ -119,7 +119,7 @@ export const subscribeToData = (callback) => {
       callback(merged);
     },
     (error) => {
-      console.error("🔥 Realtime error:", error);
+       console.error("🔥 Realtime error:", error);
       callback(getLocalBackup());
     }
   );
@@ -144,7 +144,9 @@ const safeData = (data = {}) => ({
   weightLogs: data.weightLogs || [],
   weightGoal: data.weightGoal || null, // 🔥 NEW
   tasks: data.tasks || [],
-  goal: data.goal || {}
+  goal: data.goal || {},
+  financeData: data.financeData || [],
+  chatHistory: data.chatHistory || []
 });
 
 // ================= 🔥 MERGE (CONFLICT RESOLUTION) =================
@@ -155,7 +157,9 @@ const mergeData = (remote, local) => {
     weightLogs: mergeArray(remote.weightLogs, local.weightLogs),
     weightGoal: local.weightGoal ?? remote.weightGoal, // 🔥 NEW
     tasks: mergeArray(remote.tasks, local.tasks),
-    goal: local.goal || remote.goal
+    goal: local.goal || remote.goal,
+    financeData: mergeArray(remote.financeData, local.financeData),
+    chatHistory: mergeArray(remote.chatHistory, local.chatHistory)
   };
 };
 
@@ -181,6 +185,7 @@ const getLocalBackup = () => {
 };
 
 // ================= 📋 QUEUE =================
+
 const getQueue = () => {
   try {
     const q = localStorage.getItem(QUEUE_KEY);
