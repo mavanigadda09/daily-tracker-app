@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 
 import Dashboard from "./Dashboard";
@@ -7,25 +7,24 @@ import Tasks from "./Tasks";
 import Habits from "./Habits";
 import Insights from "./Insights";
 import Goals from "./Goals";
-import Routines from "./Routines";
 import Activities from "./Activities";
 import Profile from "./Profile";
-import ProtectedRoute from "./ProtectedRoute";
 import Weight from "./Weight";
 import Chat from "./Chat";
 
-import { queueSave, subscribeToData, loadData } from "./cloud";
-
-import Onboarding from "./Onboarding";
-import Login from "./Login";
 import Layout from "./Layout";
+import ProtectedRoute from "./ProtectedRoute";
+import Login from "./Login";
+import Onboarding from "./Onboarding";
+
+import { queueSave, subscribeToData, loadData } from "./cloud";
 
 import { auth } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
 export default function App() {
 
-  // ================= AUTH =================
+  // ===== AUTH =====
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
@@ -40,10 +39,10 @@ export default function App() {
   const handleLogout = async () => {
     await signOut(auth);
     localStorage.clear();
-    window.location.reload();
+    window.location.href = "/login"; // ✅ FIX
   };
 
-  // ================= USER =================
+  // ===== USER =====
   const [user, setUser] = useState(() =>
     JSON.parse(localStorage.getItem("user")) || null
   );
@@ -53,7 +52,7 @@ export default function App() {
     setUser(userData);
   };
 
-  // ================= DATA =================
+  // ===== DATA =====
   const [items, setItems] = useState([]);
   const [goal, setGoal] = useState({});
   const [weightLogs, setWeightLogs] = useState([]);
@@ -62,15 +61,13 @@ export default function App() {
   const [tasks, setTasks] = useState([]);
   const [financeData, setFinanceData] = useState([]);
   const [chatHistory, setChatHistory] = useState([]);
-
   const [initialLoad, setInitialLoad] = useState(true);
 
-  // ================= LOAD =================
+  // ===== LOAD =====
   useEffect(() => {
     if (!firebaseUser) return;
 
-    const init = async () => {
-      const data = await loadData();
+    loadData().then((data) => {
       if (!data) return;
 
       setItems(data.items || []);
@@ -81,12 +78,10 @@ export default function App() {
       setGoal(data.goal || {});
       setFinanceData(data.financeData || []);
       setChatHistory(data.chatHistory || []);
-    };
-
-    init();
+    });
   }, [firebaseUser]);
 
-  // ================= REALTIME =================
+  // ===== REALTIME =====
   useEffect(() => {
     if (!firebaseUser) return;
 
@@ -99,18 +94,17 @@ export default function App() {
       setGoal(data.goal || {});
       setFinanceData(data.financeData || []);
       setChatHistory(data.chatHistory || []);
-
       setInitialLoad(false);
     });
 
     return () => unsub && unsub();
   }, [firebaseUser]);
 
-  // ================= SAVE =================
+  // ===== SAVE =====
   useEffect(() => {
     if (!firebaseUser || initialLoad) return;
 
-    const data = {
+    queueSave({
       items,
       logs,
       weightLogs,
@@ -119,126 +113,85 @@ export default function App() {
       goal,
       financeData,
       chatHistory
-    };
-
-    queueSave(data);
+    });
 
   }, [items, logs, weightLogs, weightGoal, tasks, goal, financeData, chatHistory, firebaseUser, initialLoad]);
 
-  // ================= WEIGHT =================
+  // ===== WEIGHT =====
   const addWeight = (value) => {
     if (!value) return;
-
     const today = new Date().toDateString();
 
     setWeightLogs((prev) => {
       const exists = prev.find((w) => w.date === today);
-
-      if (exists) {
-        return prev.map((w) =>
-          w.date === today ? { ...w, weight: value } : w
-        );
-      }
-
-      return [...prev, { date: today, weight: value }];
+      return exists
+        ? prev.map((w) => w.date === today ? { ...w, weight: value } : w)
+        : [...prev, { date: today, weight: value }];
     });
   };
 
   const deleteWeight = (date) => {
-    setWeightLogs((prev) =>
-      prev.filter((w) => w.date !== date)
-    );
+    setWeightLogs((prev) => prev.filter((w) => w.date !== date));
   };
 
-  // ================= ROUTES =================
+  // ===== LOADING =====
+  if (loadingAuth) return <div>Loading...</div>;
+
+  // ===== ROUTES =====
   return (
     <BrowserRouter>
-      <Layout user={user} onLogout={handleLogout}>
-        <Routes>
+      <Routes>
 
-          <Route path="/" element={
-            <ProtectedRoute user={user} firebaseUser={firebaseUser}>
-              <Dashboard />
-            </ProtectedRoute>
+        {/* PUBLIC ROUTES */}
+        <Route path="/login" element={<Login onLogin={handleLoginUser} />} />
+        <Route path="/onboarding" element={<Onboarding />} />
+
+        {/* PROTECTED ROUTES */}
+        <Route path="/" element={
+          <ProtectedRoute user={user} firebaseUser={firebaseUser}>
+            <Layout user={user} onLogout={handleLogout} />
+          </ProtectedRoute>
+        }>
+
+          <Route index element={<Dashboard />} />
+          <Route path="chat" element={
+            <Chat
+              items={items}
+              tasks={tasks}
+              weightLogs={weightLogs}
+              user={user}
+              financeData={financeData}
+              module="general"
+              chatHistory={chatHistory}
+              onHistoryChange={setChatHistory}
+            />
           } />
 
-          <Route path="/chat" element={
-            <ProtectedRoute user={user} firebaseUser={firebaseUser}>
-              <Chat
-                items={items}
-                tasks={tasks}
-                weightLogs={weightLogs}
-                user={user}
-                financeData={financeData}
-                module="general"
-                chatHistory={chatHistory}
-                onHistoryChange={setChatHistory}
-              />
-            </ProtectedRoute>
+          <Route path="weight" element={
+            <Weight
+              weightLogs={weightLogs}
+              addWeight={addWeight}
+              deleteWeight={deleteWeight}
+              weightGoal={weightGoal}
+              setWeightGoal={setWeightGoal}
+              items={items}
+            />
           } />
 
-          <Route path="/weight" element={
-            <ProtectedRoute user={user} firebaseUser={firebaseUser}>
-              <Weight
-                weightLogs={weightLogs}
-                addWeight={addWeight}
-                deleteWeight={deleteWeight}
-                weightGoal={weightGoal}
-                setWeightGoal={setWeightGoal}
-                items={items}
-              />
-            </ProtectedRoute>
-          } />
+          <Route path="habits" element={<Habits items={items} setItems={setItems} />} />
+          <Route path="tasks" element={<Tasks tasks={tasks} />} />
+          <Route path="activities" element={<Activities items={items} setItems={setItems} />} />
+          <Route path="analytics" element={<Analytics logs={logs} tasks={tasks} user={user} />} />
+          <Route path="insights" element={<Insights items={items} />} />
+          <Route path="goals" element={<Goals goal={goal} setGoal={setGoal} logs={weightLogs} setLogs={setWeightLogs} />} />
+          <Route path="profile" element={<Profile user={user} />} />
 
-          <Route path="/habits" element={
-            <ProtectedRoute user={user} firebaseUser={firebaseUser}>
-              <Habits items={items} setItems={setItems} />
-            </ProtectedRoute>
-          } />
+        </Route>
 
-          <Route path="/analytics" element={
-            <ProtectedRoute user={user} firebaseUser={firebaseUser}>
-              <Analytics logs={logs} tasks={tasks} user={user} />
-            </ProtectedRoute>
-          } />
+        {/* FALLBACK */}
+        <Route path="*" element={<Navigate to="/" />} />
 
-          <Route path="/tasks" element={
-            <ProtectedRoute user={user} firebaseUser={firebaseUser}>
-              <Tasks tasks={tasks} />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/activities" element={
-            <ProtectedRoute user={user} firebaseUser={firebaseUser}>
-              <Activities items={items} setItems={setItems} />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/insights" element={
-            <ProtectedRoute user={user} firebaseUser={firebaseUser}>
-              <Insights items={items} />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/goals" element={
-            <ProtectedRoute user={user} firebaseUser={firebaseUser}>
-              <Goals
-                goal={goal}
-                setGoal={setGoal}
-                logs={weightLogs}
-                setLogs={setWeightLogs}
-              />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/profile" element={
-            <ProtectedRoute user={user} firebaseUser={firebaseUser}>
-              <Profile user={user} />
-            </ProtectedRoute>
-          } />
-
-        </Routes>
-      </Layout>
+      </Routes>
     </BrowserRouter>
   );
 }

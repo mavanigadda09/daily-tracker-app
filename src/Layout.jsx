@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, Outlet } from "react-router-dom";
 import { useState } from "react";
 import { motion } from "framer-motion";
 
@@ -12,10 +12,10 @@ import {
   User,
   Menu,
   Dumbbell,
-  MessageCircle   // 🔥 NEW (AI Chat)
+  MessageCircle
 } from "lucide-react";
 
-export default function Layout({ children, user, onLogout }) {
+export default function Layout({ user, onLogout }) {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -24,11 +24,8 @@ export default function Layout({ children, user, onLogout }) {
     { path: "/habits", label: "Habits", icon: CheckSquare },
     { path: "/tasks", label: "Tasks", icon: ListTodo },
     { path: "/activities", label: "Activities", icon: Activity },
-
     { path: "/weight", label: "Weight", icon: Dumbbell },
-
-    { path: "/chat", label: "AI Chat", icon: MessageCircle }, // 🔥 NEW
-
+    { path: "/chat", label: "AI Chat", icon: MessageCircle },
     { path: "/analytics", label: "Analytics", icon: BarChart3 },
     { path: "/insights", label: "Insights", icon: Lightbulb },
     { path: "/profile", label: "Profile", icon: User }
@@ -92,7 +89,7 @@ export default function Layout({ children, user, onLogout }) {
 
       {/* MAIN */}
       <main style={styles.main}>
-        {children}
+        <Outlet /> {/* 🔥 THIS FIXES EVERYTHING */}
       </main>
 
     </div>
@@ -105,7 +102,6 @@ const styles = {
     width: "100%",
     minHeight: "100vh"
   },
-
   sidebar: {
     background: "var(--sidebar)",
     padding: 16,
@@ -117,32 +113,27 @@ const styles = {
     top: 0,
     height: "100vh"
   },
-
   topRow: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20
   },
-
   logo: {
     fontWeight: "bold",
     color: "var(--text)"
   },
-
   menuBtn: {
     background: "transparent",
     border: "none",
     color: "var(--text)",
     cursor: "pointer"
   },
-
   nav: {
     display: "flex",
     flexDirection: "column",
     gap: 8
   },
-
   link: {
     display: "flex",
     alignItems: "center",
@@ -150,26 +141,21 @@ const styles = {
     padding: "10px 12px",
     borderRadius: 8,
     textDecoration: "none",
-    color: "var(--text-muted)",
-    transition: "0.2s"
+    color: "var(--text-muted)"
   },
-
   active: {
     background: "var(--accent)",
     color: "#fff"
   },
-
   bottom: {
     display: "flex",
     flexDirection: "column",
     gap: 10
   },
-
   user: {
     fontSize: 14,
     color: "var(--text)"
   },
-
   logout: {
     background: "#ef4444",
     border: "none",
@@ -178,7 +164,6 @@ const styles = {
     color: "#fff",
     cursor: "pointer"
   },
-
   main: {
     flex: 1,
     padding: 24,
