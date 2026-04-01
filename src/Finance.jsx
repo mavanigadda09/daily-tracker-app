@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { addFinance, deleteFinance } from "./cloud";
 
-export default function Finance({ data }) {
-  const finance = data?.financeData || [];
+export default function Finance({ financeData }) {
+  const finance = financeData || [];
 
   const [amount, setAmount] = useState("");
   const [type, setType] = useState("expense");
@@ -10,10 +10,14 @@ export default function Finance({ data }) {
   const [note, setNote] = useState("");
 
   const handleAdd = () => {
-    if (!amount) return;
+    const numAmount = Number(amount);
+    if (!amount || isNaN(numAmount) || numAmount <= 0) {
+      alert("Please enter a valid positive amount");
+      return;
+    }
 
     addFinance({
-      amount,
+      amount: numAmount,
       type,
       category: category || "Other",
       note
@@ -25,11 +29,21 @@ export default function Finance({ data }) {
   };
 
   // ===== CALCULATIONS =====
-  const income = finance
+  const validFinance = finance.filter(f =>
+    f &&
+    typeof f.amount === 'number' &&
+    !isNaN(f.amount) &&
+    f.amount > 0 &&
+    ['income', 'expense'].includes(f.type) &&
+    f.id &&
+    typeof f.date === 'number'
+  );
+
+  const income = validFinance
     .filter(f => f.type === "income")
     .reduce((sum, f) => sum + f.amount, 0);
 
-  const expense = finance
+  const expense = validFinance
     .filter(f => f.type === "expense")
     .reduce((sum, f) => sum + f.amount, 0);
 
@@ -38,7 +52,7 @@ export default function Finance({ data }) {
   // ===== CATEGORY BREAKDOWN =====
   const categoryMap = {};
 
-  finance.forEach((f) => {
+  validFinance.forEach((f) => {
     if (f.type !== "expense") return;
 
     if (!categoryMap[f.category]) {
@@ -76,6 +90,7 @@ export default function Finance({ data }) {
       {/* ===== ADD FORM ===== */}
       <div style={styles.form}>
         <input
+          type="number"
           placeholder="Amount"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
@@ -119,7 +134,7 @@ export default function Finance({ data }) {
       <div style={styles.section}>
         <h3>Transactions</h3>
 
-        {finance.map((f) => (
+        {validFinance.map((f) => (
           <div key={f.id} style={styles.tx}>
             <div>
               <b>{f.type.toUpperCase()}</b> ₹{f.amount}

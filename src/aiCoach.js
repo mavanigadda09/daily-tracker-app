@@ -83,33 +83,54 @@ const getTaskInsight = (tasks = []) => {
   return `✅ ${done}/${total} tasks completed.`;
 };
 
-// ===== EXPENSE PARSER (NEW 🔥) =====
+// ===== EXPENSE PARSER (PRODUCTION READY) =====
 const extractExpense = (input) => {
-  const text = input.toLowerCase();
+  const text = input.toLowerCase().trim();
 
-  // match amount like 200, 200rs, 200 rupees
-  const amountMatch = text.match(/(\d+)\s*(rs|rupees|₹)?/);
+  // Improved regex: handles commas, decimals, various currency symbols
+  const amountMatch = text.match(/(?:₹|rs|rupees?|\$|usd|eur|£|gbp)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)\s*(?:₹|rs|rupees?|\$|usd|eur|£|gbp)?/i);
   if (!amountMatch) return null;
 
-  const amount = Number(amountMatch[1]);
+  // Clean the amount string: remove commas
+  const amountStr = amountMatch[1].replace(/,/g, '');
+  const amount = parseFloat(amountStr);
+  if (isNaN(amount) || amount <= 0 || amount > 10000000) return null; // Reasonable upper limit
 
-  // detect category
-  let category = "General";
-  if (text.includes("food") || text.includes("eat")) category = "Food";
-  if (text.includes("travel") || text.includes("uber")) category = "Travel";
-  if (text.includes("shopping")) category = "Shopping";
+  // Determine type: expense or income
+  const isIncome = /\b(earned|received|income|salary|deposit|credit|refund|bonus|payment)\b/i.test(text);
+  const type = isIncome ? "income" : "expense";
 
-  // detect title
-  let title = "Expense";
-  if (category === "Food") title = "Food";
-  if (category === "Travel") title = "Travel";
-  if (category === "Shopping") title = "Shopping";
+  // Enhanced category detection with more keywords
+  let category = "Other";
+  const categoryMap = {
+    "Food": /\b(food|eat|lunch|dinner|breakfast|snack|restaurant|cafe|coffee|meal|grocery|supermarket|shopping.*food)\b/i,
+    "Travel": /\b(travel|uber|taxi|bus|train|flight|plane|hotel|accommodation|gas|petrol|fuel|transport|commute|ride)\b/i,
+    "Shopping": /\b(shopping|clothes|clothing|shoes|buy|purchase|store|mall|online|amazon|flipkart|electronics|gadget)\b/i,
+    "Entertainment": /\b(movie|cinema|game|gaming|party|event|concert|show|subscription|netflix|spotify|music|book|reading)\b/i,
+    "Health": /\b(health|medical|doctor|hospital|pharmacy|medicine|gym|fitness|workout|supplement|therapy)\b/i,
+    "Education": /\b(education|course|book|study|school|college|university|training|workshop|seminar|fee|tution)\b/i,
+    "Utilities": /\b(utility|electricity|water|gas|internet|phone|mobile|bill|rent|maintenance|repair)\b/i,
+    "Salary": /\b(salary|wage|payroll|income|earning|bonus|commission)\b/i
+  };
+
+  for (const [cat, regex] of Object.entries(categoryMap)) {
+    if (regex.test(text)) {
+      category = cat;
+      break;
+    }
+  }
+
+  // Extract meaningful note: remove common phrases, keep the essence
+  let note = input.trim();
+  note = note.replace(/\b(i\s+)?spent\b/i, '').replace(/\b(i\s+)?earned\b/i, '').replace(/\b(on|for|at)\b/i, '').trim();
+  if (note.length > 100) note = note.substring(0, 100) + "...";
+  if (!note || note.length < 3) note = `${type === "expense" ? "Expense" : "Income"}: ${category}`;
 
   return {
-    title,
     amount,
+    type,
     category,
-    date: new Date().toISOString()
+    note
   };
 };
 
@@ -159,7 +180,9 @@ export const getSuggestionPrompts = () => [
   "Add habit: drink water",
   "Add task: go to gym",
   "How is my weight trend?",
-  "I spent 200 on food" // 👈 NEW suggestion
+  "I spent 250 on lunch",
+  "I earned 5000 salary",
+  "Expense: 1000 for groceries"
 ];
 
 // ===== MAIN AI =====
@@ -171,15 +194,21 @@ export const generateAIResponse = async (input, context = {}) => {
     tasks = []
   } = context;
 
-  // ===== ADD EXPENSE (NEW 🔥) =====
-  if (text.includes("spent") || text.includes("expense")) {
-    const expense = extractExpense(input);
+  // ===== ADD EXPENSE/INCOME (PRODUCTION READY) =====
+  if (text.includes("spent") || text.includes("expense") || text.includes("earned") || text.includes("income") || text.includes("received")) {
+    const transaction = extractExpense(input);
 
-    if (expense) {
+    if (transaction) {
+      const action = transaction.type === "expense" ? "added" : "recorded";
       return {
-        type: "add_expense",
-        payload: expense,
-        message: `💸 Expense added: ${expense.title} ₹${expense.amount}`
+        type: "add_expense", // Keep same type for handler
+        payload: transaction,
+        message: `💸 ${transaction.type.toUpperCase()} ${action}: ₹${transaction.amount.toLocaleString()} for ${transaction.category}`
+      };
+    } else {
+      return {
+        type: "text",
+        message: "🤖 I couldn't parse that transaction. Try: 'I spent 500 on food' or 'I earned 10000 salary'"
       };
     }
   }

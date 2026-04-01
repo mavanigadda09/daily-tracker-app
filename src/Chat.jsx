@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { generateAIResponse, getSuggestionPrompts } from "./aiCoach";
-import Papa from "papaparse"; // install this
 
 // ===== INITIAL MESSAGES =====
 const getInitialMessages = (history = []) => {
@@ -16,6 +15,72 @@ const getInitialMessages = (history = []) => {
   ];
 };
 
+// ===== STYLES =====
+const styles = {
+  container: {
+    padding: 24,
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+    height: "100%"
+  },
+  headerRow: {
+    display: "flex",
+    justifyContent: "space-between"
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#fff"
+  },
+  chatBox: {
+    flex: 1,
+    background: "#030712",
+    padding: 16,
+    borderRadius: 14,
+    overflowY: "auto"
+  },
+  msg: {
+    padding: "10px 12px",
+    borderRadius: 12,
+    maxWidth: "80%",
+    color: "#fff",
+    marginBottom: 8,
+    wordWrap: "break-word"
+  },
+  typing: {
+    padding: "10px 12px",
+    color: "#888",
+    fontStyle: "italic",
+    alignSelf: "flex-start"
+  },
+  inputRow: {
+    display: "flex",
+    gap: 10
+  },
+  input: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 10,
+    background: "#020617",
+    color: "#fff",
+    border: "1px solid #333",
+    resize: "vertical",
+    fontFamily: "inherit",
+    fontSize: 14
+  },
+  button: {
+    padding: "10px 14px",
+    background: "#6366f1",
+    color: "#fff",
+    border: "none",
+    borderRadius: 8,
+    fontSize: 14,
+    fontWeight: 500,
+    transition: "opacity 0.2s"
+  }
+};
+
 export default function Chat({
   items = [],
   tasks = [],
@@ -26,7 +91,8 @@ export default function Chat({
   chatHistory = [],
   onHistoryChange,
   onAddHabit,
-  onAddTask
+  onAddTask,
+  onAddExpense
 }) {
 
   const [messages, setMessages] = useState(() =>
@@ -34,9 +100,6 @@ export default function Chat({
   );
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-
-  // ✅ NEW: Expenses state
-  const [expenses, setExpenses] = useState([]);
 
   const bottomRef = useRef(null);
 
@@ -50,45 +113,26 @@ export default function Chat({
     [module]
   );
 
-  // ===== FETCH EXPENSES =====
-  const fetchExpenses = async () => {
-    try {
-      const res = await fetch("http://localhost:5000/api/expenses");
-      const data = await res.json();
-      setExpenses(data);
-    } catch (err) {
-      console.error("Fetch error:", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchExpenses();
-  }, []);
-
-  // ===== EXPORT CSV =====
-  const exportCSV = () => {
-    const csv = Papa.unparse(expenses);
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "expenses.csv";
-    a.click();
-  };
-
   // ===== SYNC HISTORY =====
   useEffect(() => {
-    if (!chatHistory.length) return;
+    if (!chatHistory || chatHistory.length === 0) {
+      setMessages(getInitialMessages([]));
+      return;
+    }
 
-    setMessages((prev) =>
-      prev.length === chatHistory.length ? prev : chatHistory
-    );
+    setMessages(chatHistory);
   }, [chatHistory]);
 
   // ===== AUTO SCROLL =====
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (bottomRef.current) {
+      // Use setTimeout to ensure DOM has updated
+      const timeoutId = setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+
+      return () => clearTimeout(timeoutId);
+    }
   }, [messages, isTyping]);
 
   // ===== SAVE =====
@@ -102,30 +146,13 @@ export default function Chat({
     });
   };
 
-  // ===== ADD EXPENSE (NEW) =====
-  const addExpense = async (expense) => {
-    try {
-      await fetch("http://localhost:5000/api/expenses", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(expense)
-      });
-
-      fetchExpenses(); // refresh list
-    } catch (err) {
-      console.error("Add expense error:", err);
-    }
-  };
-
   // ===== SEND MESSAGE =====
   const sendMessage = async (rawInput) => {
     const text = rawInput.trim();
-    if (!text || isTyping) return;
+    if (!text || isTyping || text.length > 2000) return;
 
     const userMsg = {
-      id: `${Date.now()}-user`,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       role: "user",
       text,
       timestamp: Date.now()
@@ -160,7 +187,10 @@ export default function Chat({
 
         // ✅ NEW: HANDLE EXPENSE
         if (aiResult.type === "add_expense" && aiResult.payload) {
-          await addExpense(aiResult.payload);
+          const success = onAddExpense?.(aiResult.payload);
+          if (success === false) {
+            aiText = "⚠️ Failed to add transaction. Please try again.";
+          }
         }
 
         aiText = aiResult.message || aiText;
@@ -170,7 +200,7 @@ export default function Chat({
       }
 
       const aiMsg = {
-        id: `${Date.now()}-ai`,
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         role: "ai",
         text: aiText,
         timestamp: Date.now()
@@ -179,17 +209,18 @@ export default function Chat({
       saveMessages((prev) => [...prev, aiMsg]);
 
     } catch (err) {
-      console.error(err);
+      console.error("AI Response Error:", err);
 
-      saveMessages((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}-error`,
-          role: "ai",
-          text: "⚠️ Something went wrong. Try again.",
-          timestamp: Date.now()
-        }
-      ]);
+      const errorMsg = {
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        role: "ai",
+        text: err.message?.includes("network") || err.message?.includes("fetch")
+          ? "⚠️ Network error. Check your connection and try again."
+          : "⚠️ Something went wrong. Please try again.",
+        timestamp: Date.now()
+      };
+
+      saveMessages((prev) => [...prev, errorMsg]);
     } finally {
       setIsTyping(false);
     }
@@ -197,7 +228,7 @@ export default function Chat({
 
   // ===== ENTER =====
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
       e.preventDefault();
       sendMessage(input);
     }
@@ -209,23 +240,20 @@ export default function Chat({
       {/* HEADER */}
       <div style={styles.headerRow}>
         <h1 style={styles.title}>🤖 AI Coach</h1>
-        <button onClick={exportCSV} style={styles.exportBtn}>
-          Export CSV
-        </button>
       </div>
 
       {/* CHAT */}
       <div style={styles.chatBox}>
         {messages.map((msg) => (
           <div
-            key={msg.id}
+            key={msg.id || `msg-${Date.now()}`}
             style={{
               ...styles.msg,
               alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
               background: msg.role === "user" ? "#4f46e5" : "#111827"
             }}
           >
-            {msg.text}
+            {msg.text || "Message content unavailable"}
           </div>
         ))}
 
@@ -243,69 +271,27 @@ export default function Chat({
           style={styles.input}
           rows={2}
           disabled={isTyping}
+          aria-label="Chat message input"
+          aria-describedby="chat-instructions"
         />
 
         <button
-          style={styles.button}
+          style={{
+            ...styles.button,
+            opacity: isTyping || !input.trim() ? 0.5 : 1,
+            cursor: isTyping || !input.trim() ? 'not-allowed' : 'pointer'
+          }}
           onClick={() => sendMessage(input)}
           disabled={isTyping || !input.trim()}
+          aria-label={isTyping ? "AI is responding" : "Send message"}
         >
           {isTyping ? "Thinking..." : "Send"}
         </button>
       </div>
+
+      <div id="chat-instructions" style={{ display: 'none' }}>
+        Press Enter to send, Shift+Enter for new line
+      </div>
     </div>
   );
 }
-
-// ===== STYLES =====
-const styles = {
-  container: {
-    padding: 24,
-    display: "flex",
-    flexDirection: "column",
-    gap: 16,
-    height: "100%"
-  },
-  headerRow: {
-    display: "flex",
-    justifyContent: "space-between"
-  },
-  exportBtn: {
-    background: "#10b981",
-    border: "none",
-    padding: "8px 12px",
-    borderRadius: 8,
-    color: "#fff",
-    cursor: "pointer"
-  },
-  chatBox: {
-    flex: 1,
-    background: "#030712",
-    padding: 16,
-    borderRadius: 14,
-    overflowY: "auto"
-  },
-  msg: {
-    padding: "10px 12px",
-    borderRadius: 12,
-    maxWidth: "80%",
-    color: "#fff"
-  },
-  inputRow: {
-    display: "flex",
-    gap: 10
-  },
-  input: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 10,
-    background: "#020617",
-    color: "#fff"
-  },
-  button: {
-    padding: "10px 14px",
-    background: "#6366f1",
-    color: "#fff",
-    border: "none"
-  }
-};

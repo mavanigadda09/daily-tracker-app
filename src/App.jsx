@@ -18,7 +18,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import Login from "./Login";
 import Onboarding from "./Onboarding";
 
-import { queueSave, subscribeToData, loadData } from "./cloud";
+import { queueSave, subscribeToData, loadData, addFinance } from "./cloud";
 
 import { auth } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -161,6 +161,14 @@ export default function App() {
     ]);
   };
 
+  const handleAddExpense = (expense) => {
+    const success = addFinance(expense);
+    if (!success) {
+      console.error("Failed to add expense:", expense);
+    }
+    return success;
+  };
+
   // ===== LOADING =====
   if (loadingAuth) {
     return <div style={{ color: "white", padding: 20 }}>Loading App...</div>;
@@ -204,6 +212,7 @@ export default function App() {
               onHistoryChange={setChatHistory}
               onAddHabit={handleAddHabit}
               onAddTask={handleAddTask}
+              onAddExpense={handleAddExpense}
             />
           } />
 

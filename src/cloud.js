@@ -201,21 +201,61 @@ const getQueue = () => {
 
 // ADD
 export const addFinance = (entry) => {
-  const newEntry = {
-    id: crypto.randomUUID(),
-    type: entry.type,
-    amount: Number(entry.amount),
-    category: entry.category || "",
-    note: entry.note || "",
-    date: Date.now(), // consistent numeric timestamp
-    createdAt: Date.now()
-  };
+  try {
+    // Validate input
+    if (!entry || typeof entry !== 'object') {
+      console.error("🔥 addFinance: Invalid entry object");
+      return false;
+    }
 
-  const current = getLocalBackup();
+    const numAmount = Number(entry.amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      console.error("🔥 addFinance: Invalid amount", entry.amount);
+      return false;
+    }
 
-  updateData({
-    financeData: [...current.financeData, newEntry]
-  });
+    if (!['income', 'expense'].includes(entry.type)) {
+      console.error("🔥 addFinance: Invalid type", entry.type);
+      return false;
+    }
+
+    const newEntry = {
+      id: crypto.randomUUID(),
+      type: entry.type,
+      amount: numAmount,
+      category: String(entry.category || "Other").substring(0, 50), // Limit length
+      note: String(entry.note || "").substring(0, 200), // Limit length
+      date: Date.now(),
+      createdAt: Date.now()
+    };
+
+    const current = getLocalBackup();
+
+    // Check for potential duplicates (same amount, category, within last 5 minutes)
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    const recentEntries = current.financeData.filter(f =>
+      f.amount === numAmount &&
+      f.category === entry.category &&
+      f.type === entry.type &&
+      f.createdAt > fiveMinutesAgo
+    );
+
+    if (recentEntries.length > 0) {
+      console.warn("⚠️ Potential duplicate entry detected, skipping");
+      return false;
+    }
+
+    updateData({
+      financeData: [...current.financeData, newEntry]
+    });
+
+    console.log("✅ Finance entry added:", newEntry);
+    return true;
+
+  } catch (err) {
+    console.error("🔥 addFinance error:", err);
+    return false;
+  }
 };
 
 // DELETE
