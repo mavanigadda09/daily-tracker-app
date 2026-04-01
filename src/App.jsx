@@ -11,6 +11,7 @@ import Activities from "./Activities";
 import Profile from "./Profile";
 import Weight from "./Weight";
 import Chat from "./Chat";
+import Finance from "./Finance"; // ✅ NEW
 
 import Layout from "./Layout";
 import ProtectedRoute from "./ProtectedRoute";
@@ -59,7 +60,7 @@ export default function App() {
   const [weightGoal, setWeightGoal] = useState(null);
   const [logs, setLogs] = useState({});
   const [tasks, setTasks] = useState([]);
-  const [financeData, setFinanceData] = useState([]);
+  const [financeData, setFinanceData] = useState([]); // ✅ already exists
   const [chatHistory, setChatHistory] = useState([]);
   const [initialLoad, setInitialLoad] = useState(true);
 
@@ -76,7 +77,7 @@ export default function App() {
       setWeightGoal(data.weightGoal || null);
       setTasks(data.tasks || []);
       setGoal(data.goal || {});
-      setFinanceData(data.financeData || []);
+      setFinanceData(data.financeData || []); // ✅ finance load
       setChatHistory(data.chatHistory || []);
     });
   }, [firebaseUser]);
@@ -92,7 +93,7 @@ export default function App() {
       setWeightGoal(data.weightGoal || null);
       setTasks(data.tasks || []);
       setGoal(data.goal || {});
-      setFinanceData(data.financeData || []);
+      setFinanceData(data.financeData || []); // ✅ finance realtime
       setChatHistory(data.chatHistory || []);
       setInitialLoad(false);
     });
@@ -111,11 +112,22 @@ export default function App() {
       weightGoal,
       tasks,
       goal,
-      financeData,
+      financeData, // ✅ finance auto-save
       chatHistory
     });
 
-  }, [items, logs, weightLogs, weightGoal, tasks, goal, financeData, chatHistory, firebaseUser, initialLoad]);
+  }, [
+    items,
+    logs,
+    weightLogs,
+    weightGoal,
+    tasks,
+    goal,
+    financeData, // ✅ triggers save
+    chatHistory,
+    firebaseUser,
+    initialLoad
+  ]);
 
   // ===== WEIGHT =====
   const addWeight = (value) => {
@@ -172,18 +184,24 @@ export default function App() {
 
           <Route index element={<Dashboard />} />
 
+          {/* ✅ FINANCE ROUTE */}
+          <Route path="finance" element={
+            <Finance
+              financeData={financeData}
+              setFinanceData={setFinanceData}
+            />
+          } />
+
           <Route path="chat" element={
             <Chat
               items={items}
               tasks={tasks}
               weightLogs={weightLogs}
               user={user}
-              financeData={financeData}
+              financeData={financeData} // ✅ AI can use finance
               module="general"
               chatHistory={chatHistory}
               onHistoryChange={setChatHistory}
-
-              // 🔥 NEW
               onAddHabit={handleAddHabit}
               onAddTask={handleAddTask}
             />

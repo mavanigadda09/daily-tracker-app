@@ -12,7 +12,8 @@ import {
   User,
   Menu,
   Dumbbell,
-  MessageCircle
+  MessageCircle,
+  Wallet // ✅ NEW
 } from "lucide-react";
 
 export default function Layout({ user, onLogout }) {
@@ -25,6 +26,10 @@ export default function Layout({ user, onLogout }) {
     { path: "/tasks", label: "Tasks", icon: ListTodo },
     { path: "/activities", label: "Activities", icon: Activity },
     { path: "/weight", label: "Weight", icon: Dumbbell },
+
+    // 🔥 NEW FINANCE MODULE
+    { path: "/finance", label: "Finance", icon: Wallet },
+
     { path: "/chat", label: "AI Chat", icon: MessageCircle },
     { path: "/analytics", label: "Analytics", icon: BarChart3 },
     { path: "/insights", label: "Insights", icon: Lightbulb },
@@ -57,7 +62,7 @@ export default function Layout({ user, onLogout }) {
             {navItems.map((item) => {
               const active =
                 location.pathname === item.path ||
-                location.pathname.startsWith(item.path + "/"); // 🔥 FIX
+                location.pathname.startsWith(item.path + "/");
 
               const Icon = item.icon;
 
@@ -82,7 +87,7 @@ export default function Layout({ user, onLogout }) {
         <div style={styles.bottom}>
           {!collapsed && (
             <p style={styles.user}>
-              👤 {user?.name || "User"} {/* 🔥 SAFE */}
+              👤 {user?.name || "User"}
             </p>
           )}
 
@@ -94,7 +99,7 @@ export default function Layout({ user, onLogout }) {
 
       {/* MAIN */}
       <main style={styles.main}>
-        <Outlet /> {/* ✅ REQUIRED FOR ROUTING */}
+        <Outlet />
       </main>
 
     </div>

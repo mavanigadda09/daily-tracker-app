@@ -3,19 +3,27 @@ import {
   doc,
   setDoc,
   getDoc,
-  onSnapshot
+  onSnapshot,
+  serverTimestamp
 } from "firebase/firestore";
 
 const LOCAL_KEY = "tracker_backup";
 const QUEUE_KEY = "tracker_queue";
 
+// ================= 💾 GENERIC UPDATE (NEW - IMPORTANT) =================
+export const updateData = (partial) => {
+  const current = getLocalBackup();
+
+  const updated = mergeData(current, partial);
+
+  queueSave(updated);
+};
+
 // ================= 💾 SAVE QUEUE =================
 export const queueSave = (data) => {
   try {
-    // ✅ save locally first (offline support)
     localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
 
-    // ✅ push to queue
     const queue = getQueue();
     queue.push({
       data,
@@ -24,7 +32,6 @@ export const queueSave = (data) => {
 
     localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 
-    // 🚀 try sync
     processQueue();
 
   } catch (err) {
@@ -55,7 +62,6 @@ const processQueue = async () => {
 
       await setDoc(docRef, merged, { merge: true });
 
-      // ✅ remove synced item
       queue.shift();
       localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 
@@ -78,7 +84,6 @@ export const loadData = async () => {
     if (snap.exists()) {
       const data = snap.data();
 
-      // ✅ update local backup
       localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
 
       return safeData(data);
@@ -110,16 +115,14 @@ export const subscribeToData = (callback) => {
       const remote = safeData(snapshot.data());
       const local = getLocalBackup();
 
-      // 🔥 merge remote + local
       const merged = mergeData(remote, local);
 
-      // update local cache
       localStorage.setItem(LOCAL_KEY, JSON.stringify(merged));
 
       callback(merged);
     },
     (error) => {
-       console.error("🔥 Realtime error:", error);
+      console.error("🔥 Realtime error:", error);
       callback(getLocalBackup());
     }
   );
@@ -142,20 +145,20 @@ const safeData = (data = {}) => ({
   items: data.items || [],
   logs: data.logs || {},
   weightLogs: data.weightLogs || [],
-  weightGoal: data.weightGoal || null, // 🔥 NEW
+  weightGoal: data.weightGoal || null,
   tasks: data.tasks || [],
   goal: data.goal || {},
   financeData: data.financeData || [],
   chatHistory: data.chatHistory || []
 });
 
-// ================= 🔥 MERGE (CONFLICT RESOLUTION) =================
+// ================= 🔥 MERGE =================
 const mergeData = (remote, local) => {
   return {
     items: mergeArray(remote.items, local.items),
     logs: { ...remote.logs, ...local.logs },
     weightLogs: mergeArray(remote.weightLogs, local.weightLogs),
-    weightGoal: local.weightGoal ?? remote.weightGoal, // 🔥 NEW
+    weightGoal: local.weightGoal ?? remote.weightGoal,
     tasks: mergeArray(remote.tasks, local.tasks),
     goal: local.goal || remote.goal,
     financeData: mergeArray(remote.financeData, local.financeData),
@@ -168,7 +171,7 @@ const mergeArray = (a = [], b = []) => {
   const map = new Map();
 
   [...a, ...b].forEach((item) => {
-    map.set(item.id || JSON.stringify(item), item);
+    map.set(item.id, item);
   });
 
   return Array.from(map.values());
@@ -185,7 +188,6 @@ const getLocalBackup = () => {
 };
 
 // ================= 📋 QUEUE =================
-
 const getQueue = () => {
   try {
     const q = localStorage.getItem(QUEUE_KEY);
@@ -193,4 +195,34 @@ const getQueue = () => {
   } catch {
     return [];
   }
+};
+
+// ================= 💰 FINANCE HELPERS =================
+
+// ADD
+export const addFinance = (entry) => {
+  const newEntry = {
+    id: crypto.randomUUID(),
+    type: entry.type,
+    amount: Number(entry.amount),
+    category: entry.category || "",
+    note: entry.note || "",
+    date: Date.now(), // consistent numeric timestamp
+    createdAt: Date.now()
+  };
+
+  const current = getLocalBackup();
+
+  updateData({
+    financeData: [...current.financeData, newEntry]
+  });
+};
+
+// DELETE
+export const deleteFinance = (id) => {
+  const current = getLocalBackup();
+
+  updateData({
+    financeData: current.financeData.filter(f => f.id !== id)
+  });
 };
