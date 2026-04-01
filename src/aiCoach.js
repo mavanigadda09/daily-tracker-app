@@ -83,6 +83,36 @@ const getTaskInsight = (tasks = []) => {
   return `✅ ${done}/${total} tasks completed.`;
 };
 
+// ===== EXPENSE PARSER (NEW 🔥) =====
+const extractExpense = (input) => {
+  const text = input.toLowerCase();
+
+  // match amount like 200, 200rs, 200 rupees
+  const amountMatch = text.match(/(\d+)\s*(rs|rupees|₹)?/);
+  if (!amountMatch) return null;
+
+  const amount = Number(amountMatch[1]);
+
+  // detect category
+  let category = "General";
+  if (text.includes("food") || text.includes("eat")) category = "Food";
+  if (text.includes("travel") || text.includes("uber")) category = "Travel";
+  if (text.includes("shopping")) category = "Shopping";
+
+  // detect title
+  let title = "Expense";
+  if (category === "Food") title = "Food";
+  if (category === "Travel") title = "Travel";
+  if (category === "Shopping") title = "Shopping";
+
+  return {
+    title,
+    amount,
+    category,
+    date: new Date().toISOString()
+  };
+};
+
 // ===== WEIGHT GOAL =====
 const getWeightGoalPlan = (text) => {
   const weightMatch = text.match(/(\d+)\s*kg/g);
@@ -128,7 +158,8 @@ export const getSuggestionPrompts = () => [
   "Analyze my habits",
   "Add habit: drink water",
   "Add task: go to gym",
-  "How is my weight trend?"
+  "How is my weight trend?",
+  "I spent 200 on food" // 👈 NEW suggestion
 ];
 
 // ===== MAIN AI =====
@@ -139,6 +170,19 @@ export const generateAIResponse = async (input, context = {}) => {
     habits = [],
     tasks = []
   } = context;
+
+  // ===== ADD EXPENSE (NEW 🔥) =====
+  if (text.includes("spent") || text.includes("expense")) {
+    const expense = extractExpense(input);
+
+    if (expense) {
+      return {
+        type: "add_expense",
+        payload: expense,
+        message: `💸 Expense added: ${expense.title} ₹${expense.amount}`
+      };
+    }
+  }
 
   // ===== COMMAND: ADD HABIT =====
   if (text.startsWith("add habit")) {

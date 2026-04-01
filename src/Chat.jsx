@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { generateAIResponse, getSuggestionPrompts } from "./aiCoach";
+import Papa from "papaparse"; // install this
+
 // ===== INITIAL MESSAGES =====
 const getInitialMessages = (history = []) => {
   if (history.length) return history;
@@ -33,6 +35,9 @@ export default function Chat({
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
 
+  // ✅ NEW: Expenses state
+  const [expenses, setExpenses] = useState([]);
+
   const bottomRef = useRef(null);
 
   const habits = useMemo(
@@ -44,6 +49,33 @@ export default function Chat({
     () => getSuggestionPrompts(module),
     [module]
   );
+
+  // ===== FETCH EXPENSES =====
+  const fetchExpenses = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/expenses");
+      const data = await res.json();
+      setExpenses(data);
+    } catch (err) {
+      console.error("Fetch error:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
+
+  // ===== EXPORT CSV =====
+  const exportCSV = () => {
+    const csv = Papa.unparse(expenses);
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "expenses.csv";
+    a.click();
+  };
 
   // ===== SYNC HISTORY =====
   useEffect(() => {
@@ -68,6 +100,23 @@ export default function Chat({
       onHistoryChange?.(next);
       return next;
     });
+  };
+
+  // ===== ADD EXPENSE (NEW) =====
+  const addExpense = async (expense) => {
+    try {
+      await fetch("http://localhost:5000/api/expenses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(expense)
+      });
+
+      fetchExpenses(); // refresh list
+    } catch (err) {
+      console.error("Add expense error:", err);
+    }
   };
 
   // ===== SEND MESSAGE =====
@@ -98,7 +147,7 @@ export default function Chat({
 
       let aiText = "⚠️ Unexpected AI response.";
 
-      // ===== SAFE HANDLING =====
+      // ===== HANDLE AI ACTIONS =====
       if (aiResult && typeof aiResult === "object") {
 
         if (aiResult.type === "add_habit" && aiResult.payload?.name) {
@@ -107,6 +156,11 @@ export default function Chat({
 
         if (aiResult.type === "add_task" && aiResult.payload?.name) {
           onAddTask?.(aiResult.payload.name);
+        }
+
+        // ✅ NEW: HANDLE EXPENSE
+        if (aiResult.type === "add_expense" && aiResult.payload) {
+          await addExpense(aiResult.payload);
         }
 
         aiText = aiResult.message || aiText;
@@ -155,7 +209,9 @@ export default function Chat({
       {/* HEADER */}
       <div style={styles.headerRow}>
         <h1 style={styles.title}>🤖 AI Coach</h1>
-        <p style={styles.subtitle}>Module: {module}</p>
+        <button onClick={exportCSV} style={styles.exportBtn}>
+          Export CSV
+        </button>
       </div>
 
       {/* CHAT */}
@@ -175,20 +231,6 @@ export default function Chat({
 
         {isTyping && <div style={styles.typing}>AI is typing...</div>}
         <div ref={bottomRef} />
-      </div>
-
-      {/* SUGGESTIONS */}
-      <div style={styles.suggestionsRow}>
-        {suggestionPrompts.slice(0, 3).map((prompt) => (
-          <button
-            key={prompt}
-            style={styles.suggestionButton}
-            onClick={() => sendMessage(prompt)}
-            disabled={isTyping}
-          >
-            {prompt}
-          </button>
-        ))}
       </div>
 
       {/* INPUT */}
@@ -222,59 +264,32 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 16,
-    height: "100%",
-    minHeight: 0
+    height: "100%"
   },
   headerRow: {
     display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-end"
+    justifyContent: "space-between"
   },
-  title: {
-    margin: 0,
-    fontSize: "1.6rem"
-  },
-  subtitle: {
-    margin: 0,
-    color: "#9ca3af"
+  exportBtn: {
+    background: "#10b981",
+    border: "none",
+    padding: "8px 12px",
+    borderRadius: 8,
+    color: "#fff",
+    cursor: "pointer"
   },
   chatBox: {
     flex: 1,
-    minHeight: 300,
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
     background: "#030712",
     padding: 16,
     borderRadius: 14,
-    border: "1px solid #1f2937",
     overflowY: "auto"
   },
   msg: {
     padding: "10px 12px",
     borderRadius: 12,
     maxWidth: "80%",
-    color: "#fff",
-    whiteSpace: "pre-wrap",
-    lineHeight: 1.4
-  },
-  typing: {
-    color: "#9ca3af",
-    fontSize: 14
-  },
-  suggestionsRow: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 8
-  },
-  suggestionButton: {
-    background: "#111827",
-    border: "1px solid #374151",
-    color: "#d1d5db",
-    borderRadius: 999,
-    padding: "6px 12px",
-    cursor: "pointer",
-    fontSize: 13
+    color: "#fff"
   },
   inputRow: {
     display: "flex",
@@ -284,19 +299,13 @@ const styles = {
     flex: 1,
     padding: 12,
     borderRadius: 10,
-    border: "1px solid #374151",
     background: "#020617",
-    color: "#fff",
-    resize: "none"
+    color: "#fff"
   },
   button: {
-    minWidth: 110,
     padding: "10px 14px",
-    borderRadius: 10,
-    border: "none",
     background: "#6366f1",
     color: "#fff",
-    fontWeight: 600,
-    cursor: "pointer"
+    border: "none"
   }
 };
