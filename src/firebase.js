@@ -18,8 +18,10 @@ const firebaseConfig = {
   measurementId: "G-DZRYRMVNPR"
 };
 
-// 🚀 Initialize App
+// 🚀 Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// ================= SERVICES =================
 
 // 🔐 Auth
 export const auth = getAuth(app);
@@ -30,23 +32,20 @@ export const db = getFirestore(app);
 // 🔵 Google Provider
 const provider = new GoogleAuthProvider();
 
-// ================= GOOGLE LOGIN =================
+// ================= AUTH HELPERS =================
+
+// 🔥 Google Login (Reusable)
 export const signInWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, provider);
-
-    const user = result.user;
-
-    console.log("✅ Google User:", user);
-
-    return user;
+    return result.user;
   } catch (error) {
     console.error("❌ Google Login Error:", error);
     throw error;
   }
 };
 
-// ================= LOGOUT =================
+// 🔥 Logout
 export const logoutUser = async () => {
   try {
     await signOut(auth);
