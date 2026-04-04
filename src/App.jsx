@@ -11,7 +11,7 @@ import Activities from "./Activities";
 import Profile from "./Profile";
 import Weight from "./Weight";
 import Chat from "./Chat";
-import Finance from "./Finance"; // ✅ NEW
+import Finance from "./Finance";
 
 import Layout from "./Layout";
 import ProtectedRoute from "./ProtectedRoute";
@@ -60,7 +60,7 @@ export default function App() {
   const [weightGoal, setWeightGoal] = useState(null);
   const [logs, setLogs] = useState({});
   const [tasks, setTasks] = useState([]);
-  const [financeData, setFinanceData] = useState([]); // ✅ already exists
+  const [financeData, setFinanceData] = useState([]);
   const [chatHistory, setChatHistory] = useState([]);
   const [initialLoad, setInitialLoad] = useState(true);
 
@@ -77,7 +77,7 @@ export default function App() {
       setWeightGoal(data.weightGoal || null);
       setTasks(data.tasks || []);
       setGoal(data.goal || {});
-      setFinanceData(data.financeData || []); // ✅ finance load
+      setFinanceData(data.financeData || []);
       setChatHistory(data.chatHistory || []);
     });
   }, [firebaseUser]);
@@ -93,7 +93,7 @@ export default function App() {
       setWeightGoal(data.weightGoal || null);
       setTasks(data.tasks || []);
       setGoal(data.goal || {});
-      setFinanceData(data.financeData || []); // ✅ finance realtime
+      setFinanceData(data.financeData || []);
       setChatHistory(data.chatHistory || []);
       setInitialLoad(false);
     });
@@ -112,7 +112,7 @@ export default function App() {
       weightGoal,
       tasks,
       goal,
-      financeData, // ✅ finance auto-save
+      financeData,
       chatHistory
     });
 
@@ -123,7 +123,7 @@ export default function App() {
     weightGoal,
     tasks,
     goal,
-    financeData, // ✅ triggers save
+    financeData,
     chatHistory,
     firebaseUser,
     initialLoad
@@ -146,27 +146,17 @@ export default function App() {
     setWeightLogs((prev) => prev.filter((w) => w.date !== date));
   };
 
-  // ===== 🔥 AI ACTION HANDLERS =====
+  // ===== AI ACTIONS =====
   const handleAddHabit = (name) => {
-    setItems((prev) => [
-      ...prev,
-      { name, type: "habit", completed: {} }
-    ]);
+    setItems((prev) => [...prev, { name, type: "habit", completed: {} }]);
   };
 
   const handleAddTask = (name) => {
-    setTasks((prev) => [
-      ...prev,
-      { title: name, done: false }
-    ]);
+    setTasks((prev) => [...prev, { title: name, done: false }]);
   };
 
   const handleAddExpense = (expense) => {
-    const success = addFinance(expense);
-    if (!success) {
-      console.error("Failed to add expense:", expense);
-    }
-    return success;
+    return addFinance(expense);
   };
 
   // ===== LOADING =====
@@ -184,20 +174,33 @@ export default function App() {
         <Route path="/onboarding" element={<Onboarding />} />
 
         {/* PROTECTED */}
-        <Route path="/" element={
-          <ProtectedRoute firebaseUser={firebaseUser}>
-            <Layout user={user} onLogout={handleLogout} />
-          </ProtectedRoute>
-        }>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute firebaseUser={firebaseUser}>
+              <Layout user={user} onLogout={handleLogout} />
+            </ProtectedRoute>
+          }
+        >
 
-          <Route index element={<Dashboard />} />
+          {/* 🔥 FIXED: PASS DATA INTO DASHBOARD */}
+          <Route
+            index
+            element={
+              <Dashboard
+                items={items}
+                logs={logs}
+                tasks={tasks}
+                user={user}
+                setGoal={setGoal}
+                weightLogs={weightLogs}
+                weightGoal={weightGoal}
+              />
+            }
+          />
 
-          {/* ✅ FINANCE ROUTE */}
           <Route path="finance" element={
-            <Finance
-              financeData={financeData}
-              setFinanceData={setFinanceData}
-            />
+            <Finance financeData={financeData} setFinanceData={setFinanceData} />
           } />
 
           <Route path="chat" element={
@@ -206,7 +209,7 @@ export default function App() {
               tasks={tasks}
               weightLogs={weightLogs}
               user={user}
-              financeData={financeData} // ✅ AI can use finance
+              financeData={financeData}
               module="general"
               chatHistory={chatHistory}
               onHistoryChange={setChatHistory}

@@ -12,7 +12,7 @@ import {
   getHabitSuggestions,
   predictPerformance,
   getAdaptiveGoal,
-  getUnifiedAI // 🔥 NEW
+  getUnifiedAI
 } from "./ai";
 
 export default function Dashboard({
@@ -28,7 +28,6 @@ export default function Dashboard({
 
   const habits = items.filter(i => i?.type === "habit");
 
-  // ================= DATA =================
   const daily = getDailyData(logs, tasks);
   const heatmap = getHeatmapData(daily);
   const streak = getStreak(heatmap);
@@ -36,7 +35,6 @@ export default function Dashboard({
   const goalData = parseSmartGoal(user?.goal);
   const consistency = 0.5;
 
-  // ================= WEIGHT =================
   const sorted = [...weightLogs].sort(
     (a, b) => new Date(a.date) - new Date(b.date)
   );
@@ -53,7 +51,6 @@ export default function Dashboard({
       ? Math.min(Math.round((currentDiff / totalDiff) * 100), 100)
       : 0;
 
-  // ================= 🧠 UNIFIED AI =================
   const unifiedAI = getUnifiedAI({
     habits,
     tasks,
@@ -63,7 +60,6 @@ export default function Dashboard({
     consistency
   });
 
-  // ================= OTHER AI =================
   const suggestions = getHabitSuggestions(items);
 
   const forecast = predictPerformance({
@@ -82,15 +78,7 @@ export default function Dashboard({
 
   const applyGoal = () => {
     if (!adaptive || !adaptive.suggestion) return;
-
-    const unit = goalData?.unit || "units";
-
-    const newGoalText =
-      unit === "minutes"
-        ? `${Math.round(adaptive.suggestion / 60)} hours`
-        : `${adaptive.suggestion} ${unit}`;
-
-    setGoal(newGoalText);
+    setGoal(`${adaptive.suggestion}`);
   };
 
   return (
@@ -101,7 +89,7 @@ export default function Dashboard({
         <h1>Welcome, {user?.name} 👋</h1>
 
         <motion.div
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.1 }}
           style={styles.profile}
           onClick={() => navigate("/profile")}
         >
@@ -109,113 +97,126 @@ export default function Dashboard({
         </motion.div>
       </div>
 
-      {/* 🏋️ WEIGHT CARD */}
-      {weightLogs.length > 0 && (
-        <div
-          style={styles.weightCard}
-          onClick={() => navigate("/weight")}
-        >
-          <h3>🏋️ Weight Progress</h3>
+      {/* GRID */}
+      <div style={styles.grid}>
 
-          <div style={styles.weightGrid}>
-            <div>
-              <p>Start</p>
-              <h4>{startWeight}</h4>
+        {/* WEIGHT */}
+        {weightLogs.length > 0 && (
+          <div style={styles.card}>
+            <h3>🏋️ Weight Progress</h3>
+
+            <div style={styles.weightGrid}>
+              <div>
+                <p>Start</p>
+                <h4>{startWeight}</h4>
+              </div>
+
+              <div>
+                <p>Current</p>
+                <h4>{currentWeight}</h4>
+              </div>
+
+              <div>
+                <p>Target</p>
+                <h4>{targetWeight || "-"}</h4>
+              </div>
             </div>
 
-            <div>
-              <p>Current</p>
-              <h4>{currentWeight}</h4>
+            <div style={styles.progressBar}>
+              <div
+                style={{
+                  ...styles.progressFill,
+                  width: `${weightPercent}%`
+                }}
+              />
             </div>
 
-            <div>
-              <p>Target</p>
-              <h4>{targetWeight || "-"}</h4>
-            </div>
+            <p>{weightPercent}% completed</p>
           </div>
+        )}
 
-          <div style={styles.progressBar}>
-            <div
-              style={{
-                ...styles.progressFill,
-                width: `${weightPercent}%`
-              }}
-            />
+        {/* AI COACH */}
+        <div style={styles.highlightCard}>
+          <h3>🧠 AI Coach</h3>
+          <p>{unifiedAI}</p>
+        </div>
+
+        {/* FORECAST */}
+        <div style={styles.card}>
+          <h3>📊 Forecast</h3>
+          <p>{forecast}</p>
+        </div>
+
+        {/* ADAPTIVE */}
+        {adaptive && (
+          <div style={styles.card}>
+            <h3>🎯 Adaptive Goal</h3>
+            <p>{adaptive.message}</p>
+            <p><b>{adaptive.suggestion}</b></p>
+
+            {adaptive.change !== "same" && (
+              <button style={styles.primaryBtn} onClick={applyGoal}>
+                Apply Goal
+              </button>
+            )}
           </div>
+        )}
 
-          <p>{weightPercent}% completed</p>
+        {/* SUGGESTIONS */}
+        <div style={styles.card}>
+          <h3>💡 Suggestions</h3>
+          {suggestions.map((s, i) => (
+            <p key={i}>• {s}</p>
+          ))}
         </div>
-      )}
 
-      {/* 🧠 UNIFIED AI COACH */}
-      <div style={styles.aiCard}>
-        <h3>🧠 AI Coach</h3>
-        <p>{unifiedAI}</p>
       </div>
-
-      {/* FORECAST */}
-      <div style={styles.forecastCard}>{forecast}</div>
-
-      {/* ADAPTIVE GOAL */}
-      {adaptive && (
-        <div style={styles.adaptiveCard}>
-          <h3>Adaptive Goal Suggestion</h3>
-
-          <p style={styles.adaptiveText}>
-            {adaptive.message}
-          </p>
-
-          <p style={styles.adaptiveValue}>
-            Suggested: {adaptive.suggestion}
-          </p>
-
-          {adaptive.change !== "same" && (
-            <button style={styles.applyBtn} onClick={applyGoal}>
-              Apply Goal
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* AI SUGGESTIONS */}
-      <div style={styles.card}>
-        <h3>AI Suggestions</h3>
-        {suggestions.map((s, i) => (
-          <p key={i}>• {s}</p>
-        ))}
-      </div>
-
     </div>
   );
 }
 
-// ================= STYLES =================
 const styles = {
   container: {
-    padding: 24,
-    display: "flex",
-    flexDirection: "column",
-    gap: 16
+    minHeight: "100vh",
+    padding: 30,
+    background: "linear-gradient(135deg, #0f2027, #203a43, #2c5364)",
+    color: "#fff",
+    fontFamily: "Poppins, sans-serif"
   },
 
   header: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center"
+    alignItems: "center",
+    marginBottom: 20
   },
 
   profile: {
-    background: "#1f2937",
-    padding: 10,
+    background: "linear-gradient(135deg, #2e7d32, #66bb6a)",
+    padding: 12,
     borderRadius: "50%",
     cursor: "pointer"
   },
 
-  weightCard: {
-    background: "#1f2937",
-    padding: 16,
-    borderRadius: 12,
-    cursor: "pointer"
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: 20
+  },
+
+  card: {
+    background: "rgba(255,255,255,0.05)",
+    backdropFilter: "blur(10px)",
+    padding: 20,
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.1)"
+  },
+
+  highlightCard: {
+    background: "linear-gradient(135deg, #2e7d32, #66bb6a)",
+    padding: 20,
+    borderRadius: 16,
+    color: "#fff"
   },
 
   weightGrid: {
@@ -226,7 +227,7 @@ const styles = {
 
   progressBar: {
     height: 8,
-    background: "#374151",
+    background: "#1e293b",
     borderRadius: 10,
     overflow: "hidden"
   },
@@ -236,48 +237,13 @@ const styles = {
     background: "#22c55e"
   },
 
-  aiCard: {
-    padding: 16,
-    borderRadius: 12,
-    background: "#0ea5e9", // 🔥 upgraded highlight
-    color: "#fff"
-  },
-
-  forecastCard: {
-    padding: 16,
-    borderRadius: 12,
-    background: "#0284c7",
-    color: "#fff"
-  },
-
-  adaptiveCard: {
-    padding: 16,
-    borderRadius: 12,
-    background: "#065f46",
-    color: "#fff"
-  },
-
-  adaptiveText: {
-    marginBottom: 8
-  },
-
-  adaptiveValue: {
-    fontWeight: "bold",
-    marginBottom: 10
-  },
-
-  applyBtn: {
-    background: "#22c55e",
+  primaryBtn: {
+    marginTop: 10,
+    padding: 10,
     border: "none",
-    padding: "10px 14px",
-    borderRadius: 8,
+    borderRadius: 10,
+    background: "#22c55e",
     color: "#fff",
     cursor: "pointer"
-  },
-
-  card: {
-    padding: 16,
-    borderRadius: 12,
-    background: "#1f2937"
   }
 };
