@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
-import { auth, db } from "./firebase";
+import { auth, db, signInWithGoogle } from "./firebase";
 import {
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup
+  createUserWithEmailAndPassword
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
@@ -21,7 +19,6 @@ export default function Login({ onLogin }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ Auto-login if user exists
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
     if (savedUser) {
@@ -30,17 +27,16 @@ export default function Login({ onLogin }) {
     }
   }, []);
 
-  // ✅ Email login / register
   const handleSubmit = async () => {
     if (!email || !password) return;
 
     if (isRegister && (!fullName || !username)) {
-      setError("Please fill all required fields");
+      setError("Please fill all fields");
       return;
     }
 
-    setError("");
     setLoading(true);
+    setError("");
 
     try {
       let userCredential;
@@ -52,16 +48,11 @@ export default function Login({ onLogin }) {
           password
         );
 
-        const user = userCredential.user;
-
-        // 🔥 Save to Firestore
-        await setDoc(doc(db, "users", user.uid), {
+        await setDoc(doc(db, "users", userCredential.user.uid), {
           fullName,
           username,
-          email,
-          createdAt: new Date()
+          email
         });
-
       } else {
         userCredential = await signInWithEmailAndPassword(
           auth,
@@ -70,145 +61,90 @@ export default function Login({ onLogin }) {
         );
       }
 
-      const firebaseUser = userCredential.user;
+      const user = userCredential.user;
 
       const userData = {
-        name: fullName || firebaseUser.email.split("@")[0],
-        email: firebaseUser.email
+        name: fullName || user.email.split("@")[0],
+        email: user.email
       };
 
       localStorage.setItem("user", JSON.stringify(userData));
       onLogin(userData);
-
       navigate("/");
 
-    } catch (err) {
-      setError(err.message);
+    } catch {
+      setError("Invalid credentials");
     }
 
     setLoading(false);
   };
 
-  // ✅ Google login
   const handleGoogleLogin = async () => {
     try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-
-      const user = result.user;
+      const user = await signInWithGoogle();
 
       await setDoc(doc(db, "users", user.uid), {
         fullName: user.displayName,
-        email: user.email,
-        photo: user.photoURL,
-        createdAt: new Date()
+        email: user.email
       }, { merge: true });
 
       const userData = {
         name: user.displayName,
-        email: user.email,
-        photo: user.photoURL
+        email: user.email
       };
 
       localStorage.setItem("user", JSON.stringify(userData));
       onLogin(userData);
-
       navigate("/");
-    } catch (err) {
-      setError(err.message);
+    } catch {
+      setError("Google login failed");
     }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") handleSubmit();
   };
 
   return (
     <div style={styles.container}>
-      <div style={styles.card}>
+      <div style={{
+        ...styles.wrapper,
+        transform: isRegister ? "translateX(-50%)" : "translateX(0)"
+      }}>
+        
+        {/* LEFT PANEL */}
+        <div style={styles.left}>
+          <h2>Welcome Back!</h2>
+          <p>To keep connected with us login with your info</p>
+          <button onClick={() => setIsRegister(false)} style={styles.ghostBtn}>
+            SIGN IN
+          </button>
+        </div>
 
-        {/* 🔥 LOGO */}
-        <img src="/logo.png" alt="logo" style={styles.logo} />
+        {/* RIGHT PANEL */}
+        <div style={styles.right}>
+          <h2>{isRegister ? "Create Account" : "Sign In"}</h2>
 
-        <h1 style={styles.title}>
-          {isRegister ? "Create Account" : "Welcome Back"}
-        </h1>
+          {isRegister && (
+            <>
+              <input placeholder="Full Name" onChange={(e) => setFullName(e.target.value)} style={styles.input} />
+              <input placeholder="Username" onChange={(e) => setUsername(e.target.value)} style={styles.input} />
+            </>
+          )}
 
-        <p style={styles.subtitle}>
-          {isRegister
-            ? "Sign up to get started"
-            : "Login to continue"}
-        </p>
+          <input placeholder="Email" onChange={(e) => setEmail(e.target.value)} style={styles.input} />
+          <input type="password" placeholder="Password" onChange={(e) => setPassword(e.target.value)} style={styles.input} />
 
-        {isRegister && (
-          <>
-            <input
-              placeholder="Full Name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              style={styles.input}
-            />
+          {error && <p style={styles.error}>{error}</p>}
 
-            <input
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              style={styles.input}
-            />
-          </>
-        )}
+          <button onClick={handleSubmit} style={styles.primaryBtn}>
+            {loading ? "Loading..." : isRegister ? "REGISTER" : "LOGIN"}
+          </button>
 
-        <input
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onKeyDown={handleKeyDown}
-          style={styles.input}
-        />
+          <button onClick={handleGoogleLogin} style={styles.googleBtn}>
+            Continue with Google
+          </button>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={handleKeyDown}
-          style={styles.input}
-        />
-
-        {error && <p style={styles.error}>{error}</p>}
-
-        <button
-          style={styles.button}
-          onClick={handleSubmit}
-          disabled={loading}
-        >
-          {loading
-            ? "Please wait..."
-            : isRegister
-            ? "Create Account"
-            : "Login"}
-        </button>
-
-        {/* 🔥 Divider */}
-        <div style={styles.divider}>— OR —</div>
-
-        {/* 🔥 Google Login */}
-        <button style={styles.googleBtn} onClick={handleGoogleLogin}>
-          Continue with Google
-        </button>
-
-        <p
-          style={styles.switch}
-          onClick={() => {
-            setIsRegister(!isRegister);
-            setError("");
-          }}
-        >
-          {isRegister
-            ? "Already have an account? Login"
-            : "Don't have an account? Sign up"}
-        </p>
-
+          <p style={styles.switch} onClick={() => setIsRegister(!isRegister)}>
+            {isRegister ? "Already have account? Login" : "Create new account"}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -216,56 +152,56 @@ export default function Login({ onLogin }) {
 
 const styles = {
   container: {
+    height: "100vh",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    height: "100vh",
-    width: "100vw",
-    background: "#020617"
+    background: "linear-gradient(135deg, #0f2027, #203a43, #2c5364)"
   },
 
-  card: {
-    width: 360,
-    background: "#0f172a",
-    padding: 30,
-    borderRadius: 16,
-    border: "1px solid #1e293b",
+  wrapper: {
+    width: 800,
+    height: 500,
+    display: "flex",
+    borderRadius: 20,
+    overflow: "hidden",
+    transition: "0.5s ease",
+    boxShadow: "0 20px 50px rgba(0,0,0,0.4)"
+  },
+
+  left: {
+    flex: 1,
+    background: "linear-gradient(135deg, #1b5e20, #66bb6a)",
+    color: "#fff",
     display: "flex",
     flexDirection: "column",
-    gap: 14
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 40,
+    textAlign: "center"
   },
 
-  logo: {
-    width: 60,
-    margin: "0 auto"
-  },
-
-  title: {
-    textAlign: "center",
-    fontSize: 24,
-    color: "#fff"
-  },
-
-  subtitle: {
-    textAlign: "center",
-    fontSize: 14,
-    color: "#94a3b8"
+  right: {
+    flex: 1,
+    background: "#fff",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    padding: 40,
+    gap: 12
   },
 
   input: {
     padding: 12,
-    borderRadius: 8,
-    border: "1px solid #1e293b",
-    background: "#020617",
-    color: "#fff",
-    outline: "none"
+    borderRadius: 10,
+    border: "1px solid #ccc"
   },
 
-  button: {
+  primaryBtn: {
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     border: "none",
-    background: "#6366f1",
+    background: "#2e7d32",
     color: "#fff",
     fontWeight: "bold",
     cursor: "pointer"
@@ -273,29 +209,30 @@ const styles = {
 
   googleBtn: {
     padding: 12,
-    borderRadius: 8,
-    border: "1px solid #1e293b",
-    background: "#111827",
-    color: "#fff",
+    borderRadius: 10,
+    border: "1px solid #ccc",
+    background: "#fff",
     cursor: "pointer"
   },
 
-  divider: {
-    textAlign: "center",
-    color: "#64748b",
-    fontSize: 12
+  ghostBtn: {
+    marginTop: 20,
+    padding: "10px 20px",
+    border: "1px solid #fff",
+    background: "transparent",
+    color: "#fff",
+    borderRadius: 20,
+    cursor: "pointer"
   },
 
   switch: {
     textAlign: "center",
-    fontSize: 13,
-    color: "#6366f1",
-    cursor: "pointer"
+    cursor: "pointer",
+    color: "#2e7d32"
   },
 
   error: {
-    color: "#ef4444",
-    fontSize: 13,
-    textAlign: "center"
+    color: "red",
+    fontSize: 12
   }
 };
