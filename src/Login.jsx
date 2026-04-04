@@ -153,6 +153,7 @@ export default function Login({ onLogin }) {
 const styles = {
   container: {
     height: "100vh",
+    width: "100vw",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
@@ -160,13 +161,13 @@ const styles = {
   },
 
   wrapper: {
-    width: 800,
-    height: 500,
+    width: "900px",
+    height: "520px",
     display: "flex",
     borderRadius: 20,
     overflow: "hidden",
     transition: "0.5s ease",
-    boxShadow: "0 20px 50px rgba(0,0,0,0.4)"
+    boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
   },
 
   left: {
@@ -183,33 +184,36 @@ const styles = {
 
   right: {
     flex: 1,
-    background: "#fff",
+    background: "#ffffff",
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
     padding: 40,
-    gap: 12
+    gap: 14
   },
 
   input: {
-    padding: 12,
-    borderRadius: 10,
-    border: "1px solid #ccc"
+    padding: 14,
+    borderRadius: 12,
+    border: "1px solid #ddd",
+    fontSize: 14,
+    outline: "none"
   },
 
   primaryBtn: {
-    padding: 12,
-    borderRadius: 10,
+    padding: 14,
+    borderRadius: 12,
     border: "none",
-    background: "#2e7d32",
+    background: "linear-gradient(135deg, #2e7d32, #43a047)",
     color: "#fff",
     fontWeight: "bold",
-    cursor: "pointer"
+    cursor: "pointer",
+    marginTop: 10
   },
 
   googleBtn: {
-    padding: 12,
-    borderRadius: 10,
+    padding: 14,
+    borderRadius: 12,
     border: "1px solid #ccc",
     background: "#fff",
     cursor: "pointer"
@@ -217,22 +221,24 @@ const styles = {
 
   ghostBtn: {
     marginTop: 20,
-    padding: "10px 20px",
+    padding: "12px 28px",
     border: "1px solid #fff",
     background: "transparent",
     color: "#fff",
-    borderRadius: 20,
+    borderRadius: 30,
     cursor: "pointer"
   },
 
   switch: {
     textAlign: "center",
     cursor: "pointer",
-    color: "#2e7d32"
+    color: "#2e7d32",
+    marginTop: 8
   },
 
   error: {
     color: "red",
-    fontSize: 12
+    fontSize: 12,
+    textAlign: "center"
   }
 };
