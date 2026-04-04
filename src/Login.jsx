@@ -6,9 +6,13 @@ import {
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import { useNotification } from "./context/NotificationContext"; // ✅ ADD
 
 export default function Login({ onLogin }) {
   const navigate = useNavigate();
+
+  // 🔔 NOTIFICATION
+  const { showNotification } = useNotification();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,10 +32,13 @@ export default function Login({ onLogin }) {
   }, []);
 
   const handleSubmit = async () => {
-    if (!email || !password) return;
+    if (!email || !password) {
+      showNotification("Please enter email & password", "error");
+      return;
+    }
 
     if (isRegister && (!fullName || !username)) {
-      setError("Please fill all fields");
+      showNotification("Fill all required fields", "error");
       return;
     }
 
@@ -53,12 +60,16 @@ export default function Login({ onLogin }) {
           username,
           email
         });
+
+        showNotification("Account created successfully 🎉", "success");
       } else {
         userCredential = await signInWithEmailAndPassword(
           auth,
           email,
           password
         );
+
+        showNotification("Login successful 🚀", "success");
       }
 
       const user = userCredential.user;
@@ -74,6 +85,7 @@ export default function Login({ onLogin }) {
 
     } catch {
       setError("Invalid credentials");
+      showNotification("Invalid email or password ❌", "error");
     }
 
     setLoading(false);
@@ -95,9 +107,13 @@ export default function Login({ onLogin }) {
 
       localStorage.setItem("user", JSON.stringify(userData));
       onLogin(userData);
+
+      showNotification("Google login successful 🎉", "success");
+
       navigate("/");
     } catch {
       setError("Google login failed");
+      showNotification("Google login failed ❌", "error");
     }
   };
 
@@ -108,16 +124,16 @@ export default function Login({ onLogin }) {
         transform: isRegister ? "translateX(-50%)" : "translateX(0)"
       }}>
         
-        {/* LEFT PANEL */}
+        {/* LEFT */}
         <div style={styles.left}>
           <h2>Welcome Back!</h2>
-          <p>To keep connected with us login with your info</p>
+          <p>Login to continue your journey</p>
           <button onClick={() => setIsRegister(false)} style={styles.ghostBtn}>
             SIGN IN
           </button>
         </div>
 
-        {/* RIGHT PANEL */}
+        {/* RIGHT */}
         <div style={styles.right}>
           <h2>{isRegister ? "Create Account" : "Sign In"}</h2>
 
@@ -195,9 +211,7 @@ const styles = {
   input: {
     padding: 14,
     borderRadius: 12,
-    border: "1px solid #ddd",
-    fontSize: 14,
-    outline: "none"
+    border: "1px solid #ddd"
   },
 
   primaryBtn: {
@@ -207,8 +221,7 @@ const styles = {
     background: "linear-gradient(135deg, #2e7d32, #43a047)",
     color: "#fff",
     fontWeight: "bold",
-    cursor: "pointer",
-    marginTop: 10
+    cursor: "pointer"
   },
 
   googleBtn: {
@@ -231,9 +244,8 @@ const styles = {
 
   switch: {
     textAlign: "center",
-    cursor: "pointer",
     color: "#2e7d32",
-    marginTop: 8
+    cursor: "pointer"
   },
 
   error: {

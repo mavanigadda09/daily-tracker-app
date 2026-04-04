@@ -95,6 +95,66 @@ export const getStreak = (data) => {
   return streak;
 };
 
+// ================= 🔥 NEW: HABIT STREAK =================
+export const getHabitStreak = (items = []) => {
+  const today = new Date();
+
+  let streak = 0;
+
+  for (let i = 0; i < 30; i++) {
+    const d = new Date();
+    d.setDate(today.getDate() - i);
+    const key = d.toDateString();
+
+    const allDone = items.every(item => {
+      if (item.type !== "habit") return true;
+      return item.completed?.[key];
+    });
+
+    if (allDone) streak++;
+    else break;
+  }
+
+  return streak;
+};
+
+// ================= 🔥 NEW: CONSISTENCY SCORE =================
+export const getConsistencyScore = (heatmap = []) => {
+  if (!heatmap.length) return 0;
+
+  const activeDays = heatmap.filter(d => d.value > 0).length;
+
+  return Math.round((activeDays / heatmap.length) * 100);
+};
+
+// ================= 🔥 NEW: MOTIVATION ENGINE =================
+export const getMotivationMessage = ({
+  streak = 0,
+  consistency = 0
+}) => {
+  if (streak >= 7) {
+    return "🔥 Incredible consistency! You're unstoppable!";
+  }
+
+  if (streak >= 3) {
+    return "🚀 Great momentum! Keep pushing!";
+  }
+
+  if (streak === 0) {
+    return "💡 Start today. Small steps build big habits.";
+  }
+
+  if (consistency > 70) {
+    return "👏 You're doing amazing. Stay consistent!";
+  }
+
+  if (consistency < 30) {
+    return "⚠️ Let’s get back on track. You got this!";
+  }
+
+  return "💪 Keep going. Progress takes time!";
+};
+
 // ================= TASK BREAKDOWN =================
 export const getTaskBreakdown = (tasks = []) => {
   const totals = {};
@@ -114,55 +174,45 @@ export const getTaskBreakdown = (tasks = []) => {
 };
 
 // ==================================================
-// 🔥 NEW: VERSION DIFF ENGINE
+// 🔥 VERSION DIFF ENGINE
 // ==================================================
 
 export const compareVersions = (oldData = {}, newData = {}) => {
   const changes = [];
 
-  // ================= TASKS =================
   const oldTasks = oldData.tasks || [];
   const newTasks = newData.tasks || [];
 
   const oldNames = oldTasks.map(t => t.name);
   const newNames = newTasks.map(t => t.name);
 
-  // added
   newNames.forEach(name => {
     if (!oldNames.includes(name)) {
       changes.push(`🆕 Task added: "${name}"`);
     }
   });
 
-  // removed
   oldNames.forEach(name => {
     if (!newNames.includes(name)) {
       changes.push(`❌ Task removed: "${name}"`);
     }
   });
 
-  // ================= GOAL =================
   if (oldData.goal !== newData.goal) {
     changes.push(`📈 Goal changed`);
   }
 
-  // ================= ACTIVITIES =================
-  const oldItems = oldData.items || [];
-  const newItems = newData.items || [];
-
-  if (oldItems.length !== newItems.length) {
+  if ((oldData.items || []).length !== (newData.items || []).length) {
     changes.push(`📊 Activities updated`);
   }
 
-  // ================= LOGS =================
-  const oldLogs = Object.keys(oldData.logs || {}).length;
-  const newLogs = Object.keys(newData.logs || {}).length;
-
-  if (oldLogs !== newLogs) {
+  if (
+    Object.keys(oldData.logs || {}).length !==
+    Object.keys(newData.logs || {}).length
+  ) {
     changes.push(`📝 Progress logs updated`);
   }
 
-  // ================= FALLBACK =================
   if (changes.length === 0) {
     changes.push("No major changes detected");
   }

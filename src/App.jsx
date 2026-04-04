@@ -18,10 +18,16 @@ import ProtectedRoute from "./ProtectedRoute";
 import Login from "./Login";
 import Onboarding from "./Onboarding";
 
-import { queueSave, subscribeToData, loadData, addFinance } from "./cloud";
+import { queueSave, subscribeToData, loadData } from "./cloud";
 
 import { auth } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+
+// 🔔 NOTIFICATIONS
+import { NotificationProvider } from "./context/NotificationContext";
+
+// ⏰ SMART REMINDERS
+import ReminderSystem from "./system/ReminderSystem";
 
 export default function App() {
 
@@ -52,8 +58,8 @@ export default function App() {
   };
 
   // ===== USER =====
-  const [user, setUser] = useState(() =>
-    JSON.parse(localStorage.getItem("user")) || null
+  const [user, setUser] = useState(
+    () => JSON.parse(localStorage.getItem("user")) || null
   );
 
   const handleLoginUser = (userData) => {
@@ -72,7 +78,7 @@ export default function App() {
   const [chatHistory, setChatHistory] = useState([]);
   const [initialLoad, setInitialLoad] = useState(true);
 
-  // ===== LOAD =====
+  // ===== LOAD DATA =====
   useEffect(() => {
     if (!firebaseUser) return;
 
@@ -90,7 +96,7 @@ export default function App() {
     });
   }, [firebaseUser]);
 
-  // ===== REALTIME =====
+  // ===== REALTIME SYNC =====
   useEffect(() => {
     if (!firebaseUser) return;
 
@@ -109,7 +115,7 @@ export default function App() {
     return () => unsub && unsub();
   }, [firebaseUser]);
 
-  // ===== SAVE =====
+  // ===== SAVE DATA =====
   useEffect(() => {
     if (!firebaseUser || initialLoad) return;
 
@@ -139,57 +145,90 @@ export default function App() {
 
   // ===== LOADING =====
   if (loadingAuth) {
-    return <div style={{ color: "white", padding: 20 }}>Loading App...</div>;
+    return (
+      <div style={{ color: "white", padding: 20 }}>
+        Loading App...
+      </div>
+    );
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
+    <NotificationProvider>
 
-        <Route path="/login" element={<Login onLogin={handleLoginUser} />} />
-        <Route path="/onboarding" element={<Onboarding />} />
+      {/* 🔥 SMART REMINDER SYSTEM */}
+      <ReminderSystem
+        items={items}
+        tasks={tasks}
+        logs={logs}
+      />
 
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute firebaseUser={firebaseUser}>
-              <Layout
-                user={user}
-                onLogout={handleLogout}
-                theme={theme}
-                setTheme={setTheme}
-              />
-            </ProtectedRoute>
-          }
-        >
+      <BrowserRouter>
+        <Routes>
+
+          {/* PUBLIC ROUTES */}
           <Route
-            index
-            element={
-              <Dashboard
-                logs={logs}
-                tasks={tasks}
-                user={user}
-                weightLogs={weightLogs}
-              />
-            }
+            path="/login"
+            element={<Login onLogin={handleLoginUser} />}
           />
 
-          <Route path="finance" element={<Finance financeData={financeData} setFinanceData={setFinanceData} />} />
-          <Route path="chat" element={<Chat />} />
-          <Route path="weight" element={<Weight weightLogs={weightLogs} />} />
-          <Route path="habits" element={<Habits items={items} setItems={setItems} />} />
-          <Route path="tasks" element={<Tasks tasks={tasks} />} />
-          <Route path="activities" element={<Activities items={items} setItems={setItems} />} />
-          <Route path="analytics" element={<Analytics logs={logs} />} />
-          <Route path="insights" element={<Insights items={items} />} />
-          <Route path="goals" element={<Goals />} />
-          <Route path="profile" element={<Profile user={user} />} />
+          <Route path="/onboarding" element={<Onboarding />} />
 
-        </Route>
+          {/* PROTECTED ROUTES */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute firebaseUser={firebaseUser}>
+                <Layout
+                  user={user}
+                  onLogout={handleLogout}
+                  theme={theme}
+                  setTheme={setTheme}
+                />
+              </ProtectedRoute>
+            }
+          >
+            {/* DASHBOARD (FIXED WITH ITEMS) */}
+            <Route
+              index
+              element={
+                <Dashboard
+                  logs={logs}
+                  tasks={tasks}
+                  items={items}   // ✅ IMPORTANT FIX
+                  user={user}
+                  weightLogs={weightLogs}
+                />
+              }
+            />
 
-        <Route path="*" element={<Navigate to="/" />} />
+            <Route
+              path="finance"
+              element={
+                <Finance
+                  financeData={financeData}
+                  setFinanceData={setFinanceData}
+                />
+              }
+            />
 
-      </Routes>
-    </BrowserRouter>
+            <Route path="chat" element={<Chat />} />
+            <Route path="weight" element={<Weight weightLogs={weightLogs} />} />
+            <Route path="habits" element={<Habits items={items} setItems={setItems} />} />
+            <Route path="tasks" element={<Tasks tasks={tasks} />} />
+            <Route path="activities" element={<Activities items={items} setItems={setItems} />} />
+            <Route path="analytics" element={<Analytics logs={logs} />} />
+            <Route path="insights" element={<Insights items={items} />} />
+            <Route path="goals" element={<Goals />} />
+            <Route path="profile" element={<Profile user={user} />} />
+
+          </Route>
+
+          {/* FALLBACK */}
+          <Route path="*" element={<Navigate to="/" />} />
+
+        </Routes>
+      </BrowserRouter>
+
+    </NotificationProvider>
   );
 }
