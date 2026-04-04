@@ -1,173 +1,98 @@
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-
-import {
-  parseSmartGoal,
-  getDailyData,
-  getHeatmapData,
-  getStreak
-} from "./utils";
-
-import {
-  getHabitSuggestions,
-  predictPerformance,
-  getAdaptiveGoal,
-  getUnifiedAI
-} from "./ai";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function Dashboard({
-  items = [],
   logs = {},
-  tasks = [],
-  user,
-  setGoal,
   weightLogs = [],
-  weightGoal = null
+  user
 }) {
   const navigate = useNavigate();
 
-  const habits = items.filter(i => i?.type === "habit");
+  // ===== MOCK FITNESS DATA =====
+  const fitnessData = [
+    { day: "Mon", steps: 4000 },
+    { day: "Tue", steps: 6500 },
+    { day: "Wed", steps: 8000 },
+    { day: "Thu", steps: 7200 },
+    { day: "Fri", steps: 9000 },
+    { day: "Sat", steps: 11000 },
+    { day: "Sun", steps: 7000 }
+  ];
 
-  const daily = getDailyData(logs, tasks);
-  const heatmap = getHeatmapData(daily);
-  const streak = getStreak(heatmap);
-
-  const goalData = parseSmartGoal(user?.goal);
-  const consistency = 0.5;
-
-  const sorted = [...weightLogs].sort(
-    (a, b) => new Date(a.date) - new Date(b.date)
-  );
-
-  const startWeight = sorted[0]?.weight || 0;
-  const currentWeight = sorted[sorted.length - 1]?.weight || 0;
-  const targetWeight = weightGoal || 0;
-
-  const totalDiff = startWeight - targetWeight;
-  const currentDiff = startWeight - currentWeight;
-
-  const weightPercent =
-    totalDiff > 0
-      ? Math.min(Math.round((currentDiff / totalDiff) * 100), 100)
-      : 0;
-
-  const unifiedAI = getUnifiedAI({
-    habits,
-    tasks,
-    weightLogs,
-    goal: goalData,
-    streak,
-    consistency
-  });
-
-  const suggestions = getHabitSuggestions(items);
-
-  const forecast = predictPerformance({
-    daily,
-    goal: goalData,
-    streak,
-    consistency
-  });
-
-  const adaptive = getAdaptiveGoal({
-    daily,
-    goal: goalData,
-    streak,
-    consistency
-  });
-
-  const applyGoal = () => {
-    if (!adaptive || !adaptive.suggestion) return;
-    setGoal(`${adaptive.suggestion}`);
-  };
+  const weightData = weightLogs.map(w => ({
+    date: new Date(w.date).toLocaleDateString(),
+    weight: w.weight
+  }));
 
   return (
     <div style={styles.container}>
 
       {/* HEADER */}
       <div style={styles.header}>
-        <h1>Welcome, {user?.name} 👋</h1>
+        <h1>Welcome back, {user?.name} 👋</h1>
 
-        <motion.div
-          whileHover={{ scale: 1.1 }}
-          style={styles.profile}
-          onClick={() => navigate("/profile")}
-        >
+        <div style={styles.profile} onClick={() => navigate("/profile")}>
           👤
-        </motion.div>
+        </div>
       </div>
 
-      {/* GRID */}
+      {/* FITNESS CARDS */}
+      <div style={styles.stats}>
+
+        <div style={styles.statCard}>
+          <h3>🚶 Steps</h3>
+          <p>8,245</p>
+        </div>
+
+        <div style={styles.statCard}>
+          <h3>🔥 Calories</h3>
+          <p>1,230 kcal</p>
+        </div>
+
+        <div style={styles.statCard}>
+          <h3>⏱ Active Time</h3>
+          <p>75 min</p>
+        </div>
+
+      </div>
+
+      {/* CHARTS */}
       <div style={styles.grid}>
 
-        {/* WEIGHT */}
-        {weightLogs.length > 0 && (
+        {/* STEPS CHART */}
+        <div style={styles.card}>
+          <h3>📊 Weekly Steps</h3>
+
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={fitnessData}>
+              <XAxis dataKey="day" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
+              <Tooltip />
+              <Line type="monotone" dataKey="steps" stroke="#22c55e" strokeWidth={3} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* WEIGHT CHART */}
+        {weightData.length > 0 && (
           <div style={styles.card}>
             <h3>🏋️ Weight Progress</h3>
 
-            <div style={styles.weightGrid}>
-              <div>
-                <p>Start</p>
-                <h4>{startWeight}</h4>
-              </div>
-
-              <div>
-                <p>Current</p>
-                <h4>{currentWeight}</h4>
-              </div>
-
-              <div>
-                <p>Target</p>
-                <h4>{targetWeight || "-"}</h4>
-              </div>
-            </div>
-
-            <div style={styles.progressBar}>
-              <div
-                style={{
-                  ...styles.progressFill,
-                  width: `${weightPercent}%`
-                }}
-              />
-            </div>
-
-            <p>{weightPercent}% completed</p>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={weightData}>
+                <XAxis dataKey="date" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip />
+                <Line type="monotone" dataKey="weight" stroke="#4ade80" strokeWidth={3} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         )}
 
-        {/* AI COACH */}
+        {/* AI CARD */}
         <div style={styles.highlightCard}>
-          <h3>🧠 AI Coach</h3>
-          <p>{unifiedAI}</p>
-        </div>
-
-        {/* FORECAST */}
-        <div style={styles.card}>
-          <h3>📊 Forecast</h3>
-          <p>{forecast}</p>
-        </div>
-
-        {/* ADAPTIVE */}
-        {adaptive && (
-          <div style={styles.card}>
-            <h3>🎯 Adaptive Goal</h3>
-            <p>{adaptive.message}</p>
-            <p><b>{adaptive.suggestion}</b></p>
-
-            {adaptive.change !== "same" && (
-              <button style={styles.primaryBtn} onClick={applyGoal}>
-                Apply Goal
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* SUGGESTIONS */}
-        <div style={styles.card}>
-          <h3>💡 Suggestions</h3>
-          {suggestions.map((s, i) => (
-            <p key={i}>• {s}</p>
-          ))}
+          <h3>🧠 AI Insight</h3>
+          <p>You're consistent this week. Increase activity slightly 🚀</p>
         </div>
 
       </div>
@@ -179,7 +104,7 @@ const styles = {
   container: {
     minHeight: "100vh",
     padding: 30,
-    background: "linear-gradient(135deg, #0f2027, #203a43, #2c5364)",
+    background: "linear-gradient(135deg, #0f172a, #1e293b)",
     color: "#fff",
     fontFamily: "Poppins, sans-serif"
   },
@@ -187,63 +112,45 @@ const styles = {
   header: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20
+    marginBottom: 30
   },
 
   profile: {
-    background: "linear-gradient(135deg, #2e7d32, #66bb6a)",
-    padding: 12,
+    background: "#22c55e",
+    padding: 10,
     borderRadius: "50%",
     cursor: "pointer"
   },
 
+  stats: {
+    display: "flex",
+    gap: 20,
+    marginBottom: 30
+  },
+
+  statCard: {
+    flex: 1,
+    background: "rgba(255,255,255,0.05)",
+    padding: 20,
+    borderRadius: 16
+  },
+
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
     gap: 20
   },
 
   card: {
     background: "rgba(255,255,255,0.05)",
-    backdropFilter: "blur(10px)",
     padding: 20,
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.1)"
+    borderRadius: 16
   },
 
   highlightCard: {
-    background: "linear-gradient(135deg, #2e7d32, #66bb6a)",
+    background: "linear-gradient(135deg, #22c55e, #4ade80)",
     padding: 20,
     borderRadius: 16,
-    color: "#fff"
-  },
-
-  weightGrid: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: 10
-  },
-
-  progressBar: {
-    height: 8,
-    background: "#1e293b",
-    borderRadius: 10,
-    overflow: "hidden"
-  },
-
-  progressFill: {
-    height: "100%",
-    background: "#22c55e"
-  },
-
-  primaryBtn: {
-    marginTop: 10,
-    padding: 10,
-    border: "none",
-    borderRadius: 10,
-    background: "#22c55e",
-    color: "#fff",
-    cursor: "pointer"
+    color: "#022c22"
   }
 };

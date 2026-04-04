@@ -13,7 +13,7 @@ import {
   Menu,
   Dumbbell,
   MessageCircle,
-  Wallet // ✅ NEW
+  Wallet
 } from "lucide-react";
 
 export default function Layout({ user, onLogout }) {
@@ -26,10 +26,7 @@ export default function Layout({ user, onLogout }) {
     { path: "/tasks", label: "Tasks", icon: ListTodo },
     { path: "/activities", label: "Activities", icon: Activity },
     { path: "/weight", label: "Weight", icon: Dumbbell },
-
-    // 🔥 NEW FINANCE MODULE
     { path: "/finance", label: "Finance", icon: Wallet },
-
     { path: "/chat", label: "AI Chat", icon: MessageCircle },
     { path: "/analytics", label: "Analytics", icon: BarChart3 },
     { path: "/insights", label: "Insights", icon: Lightbulb },
@@ -41,13 +38,16 @@ export default function Layout({ user, onLogout }) {
 
       {/* SIDEBAR */}
       <motion.aside
-        animate={{ width: collapsed ? 70 : 230 }}
+        animate={{ width: collapsed ? 80 : 240 }}
+        transition={{ duration: 0.3 }}
         style={styles.sidebar}
       >
         {/* TOP */}
         <div>
           <div style={styles.topRow}>
-            {!collapsed && <h2 style={styles.logo}>🚀 Tracker</h2>}
+            {!collapsed && (
+              <h2 style={styles.logo}>🚀 Tracker</h2>
+            )}
 
             <button
               style={styles.menuBtn}
@@ -75,7 +75,11 @@ export default function Layout({ user, onLogout }) {
                     ...(active ? styles.active : {})
                   }}
                 >
+                  {/* ACTIVE BAR */}
+                  {active && <div style={styles.activeBar} />}
+
                   <Icon size={18} />
+
                   {!collapsed && <span>{item.label}</span>}
                 </Link>
               );
@@ -86,13 +90,17 @@ export default function Layout({ user, onLogout }) {
         {/* BOTTOM */}
         <div style={styles.bottom}>
           {!collapsed && (
-            <p style={styles.user}>
-              👤 {user?.name || "User"}
-            </p>
+            <div style={styles.userBox}>
+              <div style={styles.avatar}>👤</div>
+              <div>
+                <p style={styles.userName}>{user?.name || "User"}</p>
+                <p style={styles.userSub}>Active</p>
+              </div>
+            </div>
           )}
 
           <button style={styles.logout} onClick={onLogout}>
-            Logout
+            {collapsed ? "⏻" : "Logout"}
           </button>
         </div>
       </motion.aside>
@@ -109,20 +117,17 @@ export default function Layout({ user, onLogout }) {
 const styles = {
   container: {
     display: "flex",
-    width: "100%",
-    minHeight: "100vh"
+    minHeight: "100vh",
+    background: "#0f172a"
   },
 
   sidebar: {
-    background: "var(--sidebar)",
+    background: "linear-gradient(180deg, #020617, #020617)",
     padding: 16,
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
-    borderRight: "1px solid var(--border)",
-    position: "sticky",
-    top: 0,
-    height: "100vh"
+    borderRight: "1px solid rgba(255,255,255,0.05)"
   },
 
   topRow: {
@@ -133,55 +138,95 @@ const styles = {
   },
 
   logo: {
-    fontWeight: "bold",
-    color: "var(--text)"
+    fontWeight: "600",
+    color: "#fff"
   },
 
   menuBtn: {
-    background: "transparent",
+    background: "rgba(255,255,255,0.05)",
     border: "none",
-    color: "var(--text)",
-    cursor: "pointer"
+    color: "#fff",
+    cursor: "pointer",
+    padding: 6,
+    borderRadius: 8
   },
 
   nav: {
     display: "flex",
     flexDirection: "column",
-    gap: 8
+    gap: 6
   },
 
   link: {
+    position: "relative",
     display: "flex",
     alignItems: "center",
-    gap: 10,
-    padding: "10px 12px",
-    borderRadius: 8,
+    gap: 12,
+    padding: "10px 14px",
+    borderRadius: 10,
     textDecoration: "none",
-    color: "var(--text-muted)",
-    transition: "0.2s"
+    color: "#94a3b8",
+    transition: "0.2s",
+    fontSize: 14
   },
 
   active: {
-    background: "var(--accent)",
-    color: "#fff"
+    background: "rgba(34,197,94,0.15)",
+    color: "#4ade80"
+  },
+
+  activeBar: {
+    position: "absolute",
+    left: 0,
+    top: 8,
+    bottom: 8,
+    width: 4,
+    borderRadius: 4,
+    background: "#22c55e"
   },
 
   bottom: {
     display: "flex",
     flexDirection: "column",
-    gap: 10
+    gap: 12
   },
 
-  user: {
+  userBox: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: 10,
+    background: "rgba(255,255,255,0.04)",
+    borderRadius: 12
+  },
+
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: "50%",
+    background: "#22c55e",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+
+  userName: {
+    margin: 0,
     fontSize: 14,
-    color: "var(--text)"
+    color: "#fff"
+  },
+
+  userSub: {
+    margin: 0,
+    fontSize: 12,
+    color: "#94a3b8"
   },
 
   logout: {
-    background: "#ef4444",
-    border: "none",
     padding: 10,
-    borderRadius: 8,
+    borderRadius: 10,
+    border: "none",
+    background: "linear-gradient(135deg, #ef4444, #dc2626)",
     color: "#fff",
     cursor: "pointer"
   },
@@ -189,8 +234,6 @@ const styles = {
   main: {
     flex: 1,
     padding: 24,
-    width: "100%",
-    minWidth: 0,
     overflowX: "hidden"
   }
 };
