@@ -1,9 +1,16 @@
 import React from "react";
 
+const LOCAL_KEY = "tracker_backup";
+const QUEUE_KEY = "tracker_queue";
+
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = {
+      hasError: false,
+      error: null,
+      showDetails: false
+    };
   }
 
   static getDerivedStateFromError(error) {
@@ -11,27 +18,65 @@ export default class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    console.error("Error Boundary Caught:", error, info);
+    console.error("🔥 Error Boundary:", error, info);
   }
 
+  // ✅ SAFE RESET (only app data)
   handleReset = () => {
-    localStorage.clear(); // 🔥 auto-fix corrupted data
+    try {
+      localStorage.removeItem(LOCAL_KEY);
+      localStorage.removeItem(QUEUE_KEY);
+    } catch (err) {
+      console.error("Reset failed:", err);
+    }
+
     window.location.reload();
+  };
+
+  // ✅ SIMPLE RELOAD
+  handleReload = () => {
+    window.location.reload();
+  };
+
+  toggleDetails = () => {
+    this.setState((prev) => ({
+      showDetails: !prev.showDetails
+    }));
   };
 
   render() {
     if (this.state.hasError) {
       return (
         <div style={styles.container}>
+
           <h1 style={styles.title}>⚠️ Something went wrong</h1>
 
           <p style={styles.text}>
-            Your data might be corrupted. We can fix it.
+            Don't worry — your data is likely safe.
           </p>
 
-          <button style={styles.button} onClick={this.handleReset}>
-            Reset & Fix
+          {/* ACTIONS */}
+          <div style={styles.actions}>
+            <button style={styles.primaryBtn} onClick={this.handleReload}>
+              🔄 Reload App
+            </button>
+
+            <button style={styles.dangerBtn} onClick={this.handleReset}>
+              🧹 Reset App Data
+            </button>
+          </div>
+
+          {/* ERROR DETAILS */}
+          <button style={styles.linkBtn} onClick={this.toggleDetails}>
+            {this.state.showDetails ? "Hide Details" : "Show Details"}
           </button>
+
+          {this.state.showDetails && (
+            <pre style={styles.errorBox}>
+              {this.state.error?.toString()}
+            </pre>
+          )}
+
         </div>
       );
     }
@@ -40,6 +85,7 @@ export default class ErrorBoundary extends React.Component {
   }
 }
 
+// ================= STYLES =================
 const styles = {
   container: {
     height: "100vh",
@@ -48,7 +94,9 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
     background: "#020617",
-    color: "#fff"
+    color: "#fff",
+    padding: 20,
+    textAlign: "center"
   },
 
   title: {
@@ -61,12 +109,45 @@ const styles = {
     marginBottom: 20
   },
 
-  button: {
-    background: "#ef4444",
-    padding: "10px 20px",
+  actions: {
+    display: "flex",
+    gap: 10,
+    marginBottom: 15
+  },
+
+  primaryBtn: {
+    background: "#22c55e",
+    padding: "10px 16px",
     border: "none",
     borderRadius: 8,
     color: "#fff",
     cursor: "pointer"
+  },
+
+  dangerBtn: {
+    background: "#ef4444",
+    padding: "10px 16px",
+    border: "none",
+    borderRadius: 8,
+    color: "#fff",
+    cursor: "pointer"
+  },
+
+  linkBtn: {
+    background: "transparent",
+    border: "none",
+    color: "#60a5fa",
+    cursor: "pointer",
+    marginBottom: 10
+  },
+
+  errorBox: {
+    background: "#111827",
+    padding: 10,
+    borderRadius: 8,
+    maxWidth: 400,
+    overflowX: "auto",
+    fontSize: 12,
+    color: "#f87171"
   }
 };

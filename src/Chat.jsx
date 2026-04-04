@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { processUserInput } from "../ai/aiService";
 
 // ===== INITIAL =====
@@ -9,11 +9,18 @@ const getInitialMessages = (history = []) => {
     {
       id: "welcome",
       role: "ai",
-      text: "🤖 Hi! I am your AI coach. Ask me anything.",
-      timestamp: Date.now()
+      text: "🤖 Hi! I am your AI coach. Ask me anything."
     }
   ];
 };
+
+// ===== SUGGESTIONS =====
+const suggestions = [
+  "Analyze my habits",
+  "What should I improve today?",
+  "Add task: workout",
+  "I spent 200 on food"
+];
 
 export default function Chat({
   items = [],
@@ -22,7 +29,7 @@ export default function Chat({
   financeData = [],
   user,
   chatHistory = [],
-  onHistoryChange,
+  setChatHistory,
   onAddHabit,
   onAddTask,
   onAddExpense
@@ -42,12 +49,36 @@ export default function Chat({
       const next =
         typeof updater === "function" ? updater(prev) : updater;
 
-      onHistoryChange?.(next);
+      setChatHistory?.(next);
       return next;
     });
   };
 
-  // ===== SEND MESSAGE =====
+  // ===== TYPING EFFECT =====
+  const typeMessage = async (text) => {
+    let current = "";
+
+    const id = Date.now();
+
+    saveMessages((prev) => [
+      ...prev,
+      { id, role: "ai", text: "" }
+    ]);
+
+    for (let char of text) {
+      current += char;
+
+      await new Promise((r) => setTimeout(r, 15));
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === id ? { ...m, text: current } : m
+        )
+      );
+    }
+  };
+
+  // ===== SEND =====
   const sendMessage = async (rawInput) => {
     const text = rawInput.trim();
     if (!text || isTyping) return;
@@ -73,11 +104,8 @@ export default function Chat({
 
       let aiText = "⚠️ AI response failed";
 
-      // 🔥 EXECUTE ACTIONS
       if (aiResult?.type === "action") {
-
         switch (aiResult.action) {
-
           case "add_task":
             onAddTask?.(aiResult.data?.title || "New Task");
             break;
@@ -89,24 +117,14 @@ export default function Chat({
           case "add_expense":
             onAddExpense?.(aiResult.data);
             break;
-
-          default:
-            break;
         }
 
         aiText = aiResult.message || "Action completed ✅";
-
       } else {
         aiText = aiResult.message || "AI response";
       }
 
-      const aiMsg = {
-        id: Date.now() + 1,
-        role: "ai",
-        text: aiText
-      };
-
-      saveMessages((prev) => [...prev, aiMsg]);
+      await typeMessage(aiText);
 
     } catch (err) {
       console.error(err);
@@ -134,6 +152,19 @@ export default function Chat({
 
       <h1 style={styles.title}>🤖 AI Coach</h1>
 
+      {/* SUGGESTIONS */}
+      <div style={styles.suggestions}>
+        {suggestions.map((s, i) => (
+          <button
+            key={i}
+            style={styles.suggestionBtn}
+            onClick={() => sendMessage(s)}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+
       {/* CHAT */}
       <div style={styles.chatBox}>
         {messages.map((msg) => (
@@ -160,6 +191,9 @@ export default function Chat({
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask anything..."
           style={styles.input}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") sendMessage(input);
+          }}
         />
 
         <button onClick={() => sendMessage(input)} style={styles.button}>
@@ -182,6 +216,22 @@ const styles = {
   title: {
     fontSize: 22,
     marginBottom: 10
+  },
+
+  suggestions: {
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap",
+    marginBottom: 10
+  },
+
+  suggestionBtn: {
+    padding: "6px 10px",
+    background: "#1f2937",
+    border: "1px solid #333",
+    borderRadius: 8,
+    color: "#fff",
+    cursor: "pointer"
   },
 
   chatBox: {

@@ -1,35 +1,35 @@
+// ================= HELPERS =================
+
 const normalize = (value) => String(value || "").toLowerCase();
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
-// ===== PARSE WEIGHT =====
+// ================= WEIGHT =================
+
 const parseWeightLogs = (weightLogs = []) =>
   weightLogs
     .map((entry) => {
-      const dateValue = entry?.date ? new Date(entry.date).getTime() : Number.NaN;
-      const weightValue = Number(entry?.weight);
+      const dateMs = entry?.date ? new Date(entry.date).getTime() : NaN;
+      const weight = Number(entry?.weight);
 
-      if (!Number.isFinite(dateValue) || !Number.isFinite(weightValue)) return null;
+      if (!Number.isFinite(dateMs) || !Number.isFinite(weight)) return null;
 
-      return {
-        date: entry.date,
-        dateMs: dateValue,
-        weight: weightValue
-      };
+      return { date: entry.date, dateMs, weight };
     })
     .filter(Boolean)
     .sort((a, b) => a.dateMs - b.dateMs);
 
-// ===== WEIGHT TREND =====
 const getWeightSlopePerDay = (logs = []) => {
   if (logs.length < 2) return 0;
 
-  const firstDay = logs[0].dateMs;
+  const first = logs[0].dateMs;
+
   const points = logs.map((e) => ({
-    x: (e.dateMs - firstDay) / DAY_IN_MS,
+    x: (e.dateMs - first) / DAY_IN_MS,
     y: e.weight
   }));
 
   const n = points.length;
+
   const sumX = points.reduce((a, p) => a + p.x, 0);
   const sumY = points.reduce((a, p) => a + p.y, 0);
   const sumXY = points.reduce((a, p) => a + p.x * p.y, 0);
@@ -41,9 +41,10 @@ const getWeightSlopePerDay = (logs = []) => {
   return (n * sumXY - sumX * sumY) / denom;
 };
 
-// ===== HABITS =====
+// ================= HABITS =================
+
 const getHabitInsight = (habits = []) => {
-  if (!habits.length) return "Start tracking habits to build consistency.";
+  if (!habits.length) return "Start tracking habits.";
 
   let weakest = null;
 
@@ -58,23 +59,24 @@ const getHabitInsight = (habits = []) => {
     }
   });
 
-  if (!weakest) return "Your habit system looks stable.";
+  if (!weakest) return "Your habits look stable.";
 
   if (weakest.rate < 0.5) {
     return `⚠️ You're inconsistent with "${weakest.name}".`;
   }
 
-  return `✅ "${weakest.name}" is improving.`;
+  return `✅ "${weakest.name}" improving.`;
 };
 
-// ===== TASKS =====
+// ================= TASKS =================
+
 const getTaskInsight = (tasks = []) => {
-  if (!tasks.length) return "Add at least one meaningful task today.";
+  if (!tasks.length) return "Add at least one task.";
 
   const total = tasks.length;
   const done = tasks.filter((t) => t.done).length;
 
-  if (done === 0) return "⚠️ No tasks completed yet.";
+  if (done === 0) return "⚠️ No tasks completed.";
 
   if (done < total / 2) {
     return `⚠️ Only ${done}/${total} tasks done.`;
@@ -83,109 +85,70 @@ const getTaskInsight = (tasks = []) => {
   return `✅ ${done}/${total} tasks completed.`;
 };
 
-// ===== EXPENSE PARSER (PRODUCTION READY) =====
-const extractExpense = (input) => {
-  const text = input.toLowerCase().trim();
+// ================= EXPENSE =================
 
-  // Improved regex: handles commas, decimals, various currency symbols
-  const amountMatch = text.match(/(?:₹|rs|rupees?|\$|usd|eur|£|gbp)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)\s*(?:₹|rs|rupees?|\$|usd|eur|£|gbp)?/i);
+const extractExpense = (input) => {
+  const text = input.toLowerCase();
+
+  const amountMatch = text.match(
+    /(?:₹|rs|rupees?|\$)?\s*(\d+(?:,\d{3})*(?:\.\d+)?)/i
+  );
+
   if (!amountMatch) return null;
 
-  // Clean the amount string: remove commas
-  const amountStr = amountMatch[1].replace(/,/g, '');
-  const amount = parseFloat(amountStr);
-  if (isNaN(amount) || amount <= 0 || amount > 10000000) return null; // Reasonable upper limit
+  const amount = parseFloat(amountMatch[1].replace(/,/g, ""));
+  if (!amount || amount <= 0) return null;
 
-  // Determine type: expense or income
-  const isIncome = /\b(earned|received|income|salary|deposit|credit|refund|bonus|payment)\b/i.test(text);
+  const isIncome = /\b(earned|income|salary|received)\b/i.test(text);
+
   const type = isIncome ? "income" : "expense";
 
-  // Enhanced category detection with more keywords
   let category = "Other";
-  const categoryMap = {
-    "Food": /\b(food|eat|lunch|dinner|breakfast|snack|restaurant|cafe|coffee|meal|grocery|supermarket|shopping.*food)\b/i,
-    "Travel": /\b(travel|uber|taxi|bus|train|flight|plane|hotel|accommodation|gas|petrol|fuel|transport|commute|ride)\b/i,
-    "Shopping": /\b(shopping|clothes|clothing|shoes|buy|purchase|store|mall|online|amazon|flipkart|electronics|gadget)\b/i,
-    "Entertainment": /\b(movie|cinema|game|gaming|party|event|concert|show|subscription|netflix|spotify|music|book|reading)\b/i,
-    "Health": /\b(health|medical|doctor|hospital|pharmacy|medicine|gym|fitness|workout|supplement|therapy)\b/i,
-    "Education": /\b(education|course|book|study|school|college|university|training|workshop|seminar|fee|tution)\b/i,
-    "Utilities": /\b(utility|electricity|water|gas|internet|phone|mobile|bill|rent|maintenance|repair)\b/i,
-    "Salary": /\b(salary|wage|payroll|income|earning|bonus|commission)\b/i
-  };
 
-  for (const [cat, regex] of Object.entries(categoryMap)) {
-    if (regex.test(text)) {
-      category = cat;
-      break;
-    }
-  }
-
-  // Extract meaningful note: remove common phrases, keep the essence
-  let note = input.trim();
-  note = note.replace(/\b(i\s+)?spent\b/i, '').replace(/\b(i\s+)?earned\b/i, '').replace(/\b(on|for|at)\b/i, '').trim();
-  if (note.length > 100) note = note.substring(0, 100) + "...";
-  if (!note || note.length < 3) note = `${type === "expense" ? "Expense" : "Income"}: ${category}`;
+  if (/food|eat|lunch|dinner/.test(text)) category = "Food";
+  else if (/travel|uber|taxi|bus/.test(text)) category = "Travel";
+  else if (/shopping|buy|amazon/.test(text)) category = "Shopping";
+  else if (/health|gym/.test(text)) category = "Health";
 
   return {
     amount,
     type,
     category,
-    note
+    note: input
   };
 };
 
-// ===== WEIGHT GOAL =====
+// ================= WEIGHT GOAL =================
+
 const getWeightGoalPlan = (text) => {
-  const weightMatch = text.match(/(\d+)\s*kg/g);
-  if (!weightMatch || weightMatch.length < 2) return null;
+  const match = text.match(/(\d+)\s*kg/g);
+  if (!match || match.length < 2) return null;
 
-  const numbers = weightMatch.map(v => Number(v.replace("kg", "").trim()));
+  const [current, target] = match.map((v) =>
+    Number(v.replace("kg", ""))
+  );
 
-  const current = numbers[0];
-  const target = numbers[1];
+  const loss = current - target;
+  const weekly = loss / 24;
 
-  const monthsMatch = text.match(/(\d+)\s*month/);
-  const months = monthsMatch ? Number(monthsMatch[1]) : 6;
-
-  const totalLoss = current - target;
-  const weeklyLoss = totalLoss / (months * 4);
-
-  let feasibility;
-
-  if (weeklyLoss > 1.5) {
-    feasibility = "⚠️ This goal is very aggressive.";
-  } else if (weeklyLoss > 1) {
-    feasibility = "⚠️ Challenging but possible.";
-  } else {
-    feasibility = "✅ Healthy goal.";
-  }
-
-  return [
-    `🎯 Goal: ${current}kg → ${target}kg in ${months} months`,
-    `📊 ${weeklyLoss.toFixed(2)} kg/week required`,
-    feasibility,
-    `\n📅 Plan:
-• Walk 8–10k steps daily
-• Calorie deficit (300–500 kcal)
-• High protein diet
-• Strength training 3x/week
-• Sleep 7–8 hours`
-  ].join("\n");
+  return `🎯 ${current}kg → ${target}kg
+📉 ${weekly.toFixed(2)} kg/week
+💪 Stay consistent`;
 };
 
-// ===== PROMPTS =====
+// ================= PROMPTS =================
+
 export const getSuggestionPrompts = () => [
   "What should I improve today?",
   "Analyze my habits",
   "Add habit: drink water",
   "Add task: go to gym",
   "How is my weight trend?",
-  "I spent 250 on lunch",
-  "I earned 5000 salary",
-  "Expense: 1000 for groceries"
+  "I spent 250 on lunch"
 ];
 
-// ===== MAIN AI =====
+// ================= MAIN AI =================
+
 export const generateAIResponse = async (input, context = {}) => {
   const text = normalize(input);
 
@@ -194,57 +157,56 @@ export const generateAIResponse = async (input, context = {}) => {
     tasks = []
   } = context;
 
-  // ===== ADD EXPENSE/INCOME (PRODUCTION READY) =====
-  if (text.includes("spent") || text.includes("expense") || text.includes("earned") || text.includes("income") || text.includes("received")) {
+  // ===== EXPENSE =====
+  if (
+    text.includes("spent") ||
+    text.includes("earned") ||
+    text.includes("income")
+  ) {
     const transaction = extractExpense(input);
 
     if (transaction) {
-      const action = transaction.type === "expense" ? "added" : "recorded";
       return {
-        type: "add_expense", // Keep same type for handler
+        type: "add_expense",
         payload: transaction,
-        message: `💸 ${transaction.type.toUpperCase()} ${action}: ₹${transaction.amount.toLocaleString()} for ${transaction.category}`
-      };
-    } else {
-      return {
-        type: "text",
-        message: "🤖 I couldn't parse that transaction. Try: 'I spent 500 on food' or 'I earned 10000 salary'"
+        message: `💸 ₹${transaction.amount} ${transaction.category}`
       };
     }
+
+    return {
+      type: "text",
+      message: "Couldn't understand transaction."
+    };
   }
 
-  // ===== COMMAND: ADD HABIT =====
+  // ===== ADD HABIT =====
   if (text.startsWith("add habit")) {
     const name = input.replace(/add habit:?/i, "").trim();
 
-    if (name) {
-      return {
-        type: "add_habit",
-        payload: { name },
-        message: `✅ Habit "${name}" added!`
-      };
-    }
+    return {
+      type: "add_habit",
+      payload: { name },
+      message: `✅ Habit "${name}" added`
+    };
   }
 
-  // ===== COMMAND: ADD TASK =====
+  // ===== ADD TASK =====
   if (text.startsWith("add task")) {
     const name = input.replace(/add task:?/i, "").trim();
 
-    if (name) {
-      return {
-        type: "add_task",
-        payload: { name },
-        message: `✅ Task "${name}" added!`
-      };
-    }
+    return {
+      type: "add_task",
+      payload: { name },
+      message: `✅ Task "${name}" added`
+    };
   }
 
   // ===== WEIGHT GOAL =====
-  const goalPlan = getWeightGoalPlan(text);
-  if (goalPlan) {
+  const goal = getWeightGoalPlan(text);
+  if (goal) {
     return {
       type: "text",
-      message: "🤖 " + goalPlan
+      message: "🤖 " + goal
     };
   }
 
@@ -252,7 +214,7 @@ export const generateAIResponse = async (input, context = {}) => {
   const response =
     getHabitInsight(habits) + " " + getTaskInsight(tasks);
 
-  await new Promise((r) => setTimeout(r, 400));
+  await new Promise((r) => setTimeout(r, 300));
 
   return {
     type: "text",

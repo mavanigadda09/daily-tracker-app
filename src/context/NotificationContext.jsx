@@ -1,46 +1,57 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const NotificationContext = createContext();
+const NotificationContext = createContext(null);
 
-export const useNotification = () => useContext(NotificationContext);
+export const useNotification = () => {
+  const context = useContext(NotificationContext);
+  if (!context) {
+    throw new Error("useNotification must be used within NotificationProvider");
+  }
+  return context;
+};
 
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
+  const timeouts = useRef(new Map());
+  const audioRef = useRef(null);
 
   const showNotification = (message, type = "info") => {
-  const id = Date.now();
+    const id = crypto.randomUUID();
 
-  const newNotif = { id, message, type };
-  setNotifications((prev) => [...prev, newNotif]);
+    const newNotif = { id, message, type };
+    setNotifications((prev) => [...prev, newNotif]);
 
-  // 🔊 SOUND
-  try {
-    const audio = new Audio(
-      "https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"
-    );
-    audio.volume = 0.3;
-    audio.play();
-  } catch {}
+    // 🔊 SOUND (reuse audio)
+    try {
+      if (!audioRef.current) {
+        audioRef.current = new Audio(
+          "https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"
+        );
+        audioRef.current.volume = 0.3;
+      }
+      audioRef.current.currentTime = 0;
+      audioRef.current.play();
+    } catch {}
 
-  // 📳 VIBRATION (mobile)
-  if (navigator.vibrate) {
-    navigator.vibrate([100, 50, 100]);
-  }
+    // 📳 VIBRATION
+    if (navigator.vibrate) {
+      navigator.vibrate([100, 50, 100]);
+    }
 
-  // ⏳ AUTO REMOVE
-  setTimeout(() => {
-    setNotifications((prev) =>
-      prev.filter((n) => n.id !== id)
-    );
-  }, 3000);
-};
+    // ⏳ AUTO REMOVE
+    const timeout = setTimeout(() => {
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      timeouts.current.delete(id);
+    }, 3000);
+
+    timeouts.current.set(id, timeout);
+  };
 
   return (
     <NotificationContext.Provider value={{ showNotification }}>
       {children}
 
-      {/* TOAST UI */}
       <div style={styles.container}>
         <AnimatePresence>
           {notifications.map((n) => (
@@ -83,15 +94,7 @@ const styles = {
     boxShadow: "0 8px 25px rgba(0,0,0,0.3)"
   },
 
-  success: {
-    background: "#22c55e"
-  },
-
-  error: {
-    background: "#ef4444"
-  },
-
-  info: {
-    background: "#3b82f6"
-  }
+  success: { background: "#22c55e" },
+  error: { background: "#ef4444" },
+  info: { background: "#3b82f6" }
 };

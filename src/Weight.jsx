@@ -15,7 +15,7 @@ import {
   predictWeight,
   getWeightAdvice,
   analyzeWeightWithHabits
-} from "./ai";
+} from "./ai/ai";
 
 export default function Weight({
   weightLogs = [],

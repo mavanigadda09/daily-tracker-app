@@ -20,9 +20,9 @@ import {
   getHeatmapData,
   getStreak,
   getTaskBreakdown
-} from "./utils";
+} from "./ai/utils";
 
-import { getAIInsight } from "./ai";
+import { getAIInsight } from "./ai/ai";
 
 export default function Analytics({ logs = {}, tasks = [], user }) {
 

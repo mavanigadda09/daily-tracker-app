@@ -1,15 +1,19 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 
 export default function Activities({ items = [], setItems }) {
-
-  const activities = Array.isArray(items)
-    ? items.filter(i => i.type === "activity")
-    : [];
+  const wrapperRef = useRef(null);
 
   const [activeInput, setActiveInput] = useState(null);
   const [tempValues, setTempValues] = useState({});
-  const wrapperRef = useRef(null);
 
+  // ✅ Memoized activities
+  const activities = useMemo(() => {
+    return Array.isArray(items)
+      ? items.filter((i) => i.type === "activity")
+      : [];
+  }, [items]);
+
+  // ✅ Click outside handler
   useEffect(() => {
     const handleClick = (e) => {
       if (!wrapperRef.current?.contains(e.target)) {
@@ -21,7 +25,8 @@ export default function Activities({ items = [], setItems }) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const updateActivity = (id, value, mode) => {
+  // ✅ Safe updater
+  const updateActivity = useCallback((id, value, mode) => {
     if (!setItems) return;
 
     setItems((prev = []) =>
@@ -33,7 +38,7 @@ export default function Activities({ items = [], setItems }) {
         if (mode === "set") {
           newValue = Number(value) || 0;
         } else {
-          newValue = newValue + (Number(value) || 0);
+          newValue += Number(value) || 0;
         }
 
         return {
@@ -42,11 +47,24 @@ export default function Activities({ items = [], setItems }) {
         };
       })
     );
+  }, [setItems]);
+
+  const updateTempValue = (id, value) => {
+    setTempValues((prev) => ({
+      ...prev,
+      [id]: value
+    }));
+  };
+
+  const clearTemp = (id) => {
+    setTempValues((prev) => ({
+      ...prev,
+      [id]: ""
+    }));
   };
 
   return (
     <div style={styles.container} ref={wrapperRef}>
-
       <h1 style={styles.title}>Activities</h1>
       <p style={styles.subtitle}>Track your daily progress</p>
 
@@ -62,9 +80,20 @@ export default function Activities({ items = [], setItems }) {
 
           const inputValue = tempValues[a.id] ?? "";
 
+          const handleAdd = () => {
+            const val = Number(inputValue) || 1;
+            updateActivity(a.id, val, "increment");
+            clearTemp(a.id);
+          };
+
+          const handleSubtract = () => {
+            const val = Number(inputValue) || 1;
+            updateActivity(a.id, -val, "increment");
+            clearTemp(a.id);
+          };
+
           return (
             <div key={a.id} style={styles.card}>
-
               <h3>{a.name}</h3>
 
               <p style={styles.stats}>
@@ -83,15 +112,7 @@ export default function Activities({ items = [], setItems }) {
 
               {/* CONTROLS */}
               <div style={styles.controls}>
-
-                <button
-                  style={styles.btn}
-                  onClick={() => {
-                    const val = Number(inputValue) || 1;
-                    updateActivity(a.id, -val, "increment");
-                    setTempValues((p) => ({ ...p, [a.id]: "" }));
-                  }}
-                >
+                <button style={styles.btn} onClick={handleSubtract}>
                   −
                 </button>
 
@@ -102,16 +123,11 @@ export default function Activities({ items = [], setItems }) {
                     style={styles.input}
                     onFocus={() => setActiveInput(a.id)}
                     onChange={(e) =>
-                      setTempValues({
-                        ...tempValues,
-                        [a.id]: e.target.value
-                      })
+                      updateTempValue(a.id, e.target.value)
                     }
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
-                        const val = Number(inputValue) || 0;
-                        updateActivity(a.id, val, "increment");
-                        setTempValues((p) => ({ ...p, [a.id]: "" }));
+                        handleAdd();
                         setActiveInput(null);
                       }
                     }}
@@ -135,17 +151,9 @@ export default function Activities({ items = [], setItems }) {
                   )}
                 </div>
 
-                <button
-                  style={styles.btn}
-                  onClick={() => {
-                    const val = Number(inputValue) || 1;
-                    updateActivity(a.id, val, "increment");
-                    setTempValues((p) => ({ ...p, [a.id]: "" }));
-                  }}
-                >
+                <button style={styles.btn} onClick={handleAdd}>
                   +
                 </button>
-
               </div>
             </div>
           );
@@ -154,103 +162,3 @@ export default function Activities({ items = [], setItems }) {
     </div>
   );
 }
-
-// ================= STYLES =================
-const styles = {
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 20
-  },
-
-  title: {
-    fontSize: 28
-  },
-
-  subtitle: {
-    color: "var(--text-muted)"
-  },
-
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))",
-    gap: 16
-  },
-
-  card: {
-    background: "var(--card)",
-    padding: 16,
-    borderRadius: 12,
-    border: "1px solid var(--border)"
-  },
-
-  stats: {
-    color: "var(--text-muted)"
-  },
-
-  barBg: {
-    height: 8,
-    background: "var(--border)",
-    borderRadius: 10,
-    marginTop: 10
-  },
-
-  barFill: {
-    height: 8,
-    background: "var(--accent)",
-    borderRadius: 10
-  },
-
-  controls: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 14
-  },
-
-  btn: {
-    padding: "6px 10px",
-    background: "var(--accent)",
-    border: "none",
-    borderRadius: 8,
-    color: "#fff",
-    cursor: "pointer"
-  },
-
-  inputWrapper: {
-    position: "relative",
-    flex: 1
-  },
-
-  input: {
-    width: "100%",
-    padding: 8,
-    textAlign: "center",
-    background: "#020617",
-    color: "#fff",
-    border: "1px solid var(--border)",
-    borderRadius: 8
-  },
-
-  dropdown: {
-    position: "absolute",
-    top: "110%",
-    left: 0,
-    right: 0,
-    background: "var(--card)",
-    border: "1px solid var(--border)",
-    borderRadius: 8,
-    zIndex: 10
-  },
-
-  option: {
-    padding: 8,
-    cursor: "pointer",
-    borderBottom: "1px solid var(--border)",
-    color: "var(--text)"
-  },
-
-  empty: {
-    color: "var(--text-muted)"
-  }
-};

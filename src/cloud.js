@@ -3,49 +3,61 @@ import {
   doc,
   setDoc,
   getDoc,
-  onSnapshot,
-  serverTimestamp
+  onSnapshot
 } from "firebase/firestore";
 
 const LOCAL_KEY = "tracker_backup";
 const QUEUE_KEY = "tracker_queue";
 
-// ================= 💾 GENERIC UPDATE (NEW - IMPORTANT) =================
+let isProcessing = false;
+let saveTimeout = null;
+
+// ================= UPDATE =================
 export const updateData = (partial) => {
   const current = getLocalBackup();
-
   const updated = mergeData(current, partial);
-
   queueSave(updated);
 };
 
-// ================= 💾 SAVE QUEUE =================
+// ================= SAVE (DEBOUNCED) =================
 export const queueSave = (data) => {
   try {
     localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
 
-    const queue = getQueue();
-    queue.push({
-      data,
-      timestamp: Date.now()
-    });
+    if (saveTimeout) clearTimeout(saveTimeout);
 
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    saveTimeout = setTimeout(() => {
+      const queue = getQueue();
 
-    processQueue();
+      // ✅ LIMIT QUEUE SIZE
+      if (queue.length > 20) queue.shift();
+
+      queue.push({
+        data,
+        timestamp: Date.now()
+      });
+
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+
+      processQueue();
+    }, 500);
 
   } catch (err) {
     console.error("🔥 Queue save error:", err);
   }
 };
 
-// ================= 🔄 PROCESS QUEUE =================
+// ================= PROCESS QUEUE =================
 const processQueue = async () => {
+  if (isProcessing) return;
+
   const user = auth.currentUser;
   if (!user) return;
 
   let queue = getQueue();
   if (!queue.length) return;
+
+  isProcessing = true;
 
   const docRef = doc(db, "users", user.uid);
 
@@ -54,6 +66,7 @@ const processQueue = async () => {
 
     try {
       const remoteSnap = await getDoc(docRef);
+
       const remoteData = remoteSnap.exists()
         ? safeData(remoteSnap.data())
         : safeData();
@@ -66,13 +79,15 @@ const processQueue = async () => {
       localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 
     } catch (err) {
-      console.error("🔥 Sync failed, retry later:", err);
+      console.error("🔥 Sync failed:", err);
       break;
     }
   }
+
+  isProcessing = false;
 };
 
-// ================= 📥 LOAD DATA =================
+// ================= LOAD =================
 export const loadData = async () => {
   try {
     const user = auth.currentUser;
@@ -83,9 +98,7 @@ export const loadData = async () => {
 
     if (snap.exists()) {
       const data = snap.data();
-
       localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
-
       return safeData(data);
     }
 
@@ -97,14 +110,14 @@ export const loadData = async () => {
   }
 };
 
-// ================= ⚡ REALTIME =================
+// ================= REALTIME =================
 export const subscribeToData = (callback) => {
   const user = auth.currentUser;
   if (!user) return;
 
   const docRef = doc(db, "users", user.uid);
 
-  const unsubscribe = onSnapshot(
+  return onSnapshot(
     docRef,
     (snapshot) => {
       if (!snapshot.exists()) {
@@ -126,21 +139,15 @@ export const subscribeToData = (callback) => {
       callback(getLocalBackup());
     }
   );
-
-  return unsubscribe;
 };
 
-// ================= 🌐 BACKGROUND SYNC =================
-setInterval(() => {
-  processQueue();
-}, 5000);
-
+// ================= ONLINE SYNC =================
 window.addEventListener("online", () => {
   console.log("🌐 Back online → syncing...");
   processQueue();
 });
 
-// ================= 🧠 SAFE DATA =================
+// ================= SAFE DATA =================
 const safeData = (data = {}) => ({
   items: data.items || [],
   logs: data.logs || {},
@@ -152,32 +159,31 @@ const safeData = (data = {}) => ({
   chatHistory: data.chatHistory || []
 });
 
-// ================= 🔥 MERGE =================
-const mergeData = (remote, local) => {
-  return {
-    items: mergeArray(remote.items, local.items),
-    logs: { ...remote.logs, ...local.logs },
-    weightLogs: mergeArray(remote.weightLogs, local.weightLogs),
-    weightGoal: local.weightGoal ?? remote.weightGoal,
-    tasks: mergeArray(remote.tasks, local.tasks),
-    goal: local.goal || remote.goal,
-    financeData: mergeArray(remote.financeData, local.financeData),
-    chatHistory: mergeArray(remote.chatHistory, local.chatHistory)
-  };
-};
+// ================= MERGE =================
+const mergeData = (remote, local) => ({
+  items: mergeArray(remote.items, local.items),
+  logs: { ...remote.logs, ...local.logs },
+  weightLogs: mergeArray(remote.weightLogs, local.weightLogs),
+  weightGoal: local.weightGoal ?? remote.weightGoal,
+  tasks: mergeArray(remote.tasks, local.tasks),
+  goal: local.goal || remote.goal,
+  financeData: mergeArray(remote.financeData, local.financeData),
+  chatHistory: mergeArray(remote.chatHistory, local.chatHistory)
+});
 
-// ================= 🔄 ARRAY MERGE =================
+// ================= ARRAY MERGE =================
 const mergeArray = (a = [], b = []) => {
   const map = new Map();
 
   [...a, ...b].forEach((item) => {
+    if (!item?.id) return;
     map.set(item.id, item);
   });
 
   return Array.from(map.values());
 };
 
-// ================= 📦 LOCAL BACKUP =================
+// ================= LOCAL =================
 const getLocalBackup = () => {
   try {
     const local = localStorage.getItem(LOCAL_KEY);
@@ -187,7 +193,7 @@ const getLocalBackup = () => {
   }
 };
 
-// ================= 📋 QUEUE =================
+// ================= QUEUE =================
 const getQueue = () => {
   try {
     const q = localStorage.getItem(QUEUE_KEY);
@@ -197,68 +203,34 @@ const getQueue = () => {
   }
 };
 
-// ================= 💰 FINANCE HELPERS =================
-
-// ADD
+// ================= FINANCE =================
 export const addFinance = (entry) => {
   try {
-    // Validate input
-    if (!entry || typeof entry !== 'object') {
-      console.error("🔥 addFinance: Invalid entry object");
-      return false;
-    }
-
-    const numAmount = Number(entry.amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
-      console.error("🔥 addFinance: Invalid amount", entry.amount);
-      return false;
-    }
-
-    if (!['income', 'expense'].includes(entry.type)) {
-      console.error("🔥 addFinance: Invalid type", entry.type);
-      return false;
-    }
+    const amount = Number(entry.amount);
+    if (!amount || amount <= 0) return false;
 
     const newEntry = {
       id: crypto.randomUUID(),
       type: entry.type,
-      amount: numAmount,
-      category: String(entry.category || "Other").substring(0, 50), // Limit length
-      note: String(entry.note || "").substring(0, 200), // Limit length
-      date: Date.now(),
-      createdAt: Date.now()
+      amount,
+      category: entry.category || "Other",
+      note: entry.note || "",
+      date: Date.now()
     };
 
     const current = getLocalBackup();
-
-    // Check for potential duplicates (same amount, category, within last 5 minutes)
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-    const recentEntries = current.financeData.filter(f =>
-      f.amount === numAmount &&
-      f.category === entry.category &&
-      f.type === entry.type &&
-      f.createdAt > fiveMinutesAgo
-    );
-
-    if (recentEntries.length > 0) {
-      console.warn("⚠️ Potential duplicate entry detected, skipping");
-      return false;
-    }
 
     updateData({
       financeData: [...current.financeData, newEntry]
     });
 
-    console.log("✅ Finance entry added:", newEntry);
     return true;
 
-  } catch (err) {
-    console.error("🔥 addFinance error:", err);
+  } catch {
     return false;
   }
 };
 
-// DELETE
 export const deleteFinance = (id) => {
   const current = getLocalBackup();
 

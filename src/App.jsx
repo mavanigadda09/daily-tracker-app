@@ -23,16 +23,15 @@ import { queueSave, subscribeToData, loadData } from "./cloud";
 import { auth } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
-// 🔔 NOTIFICATIONS
 import { NotificationProvider } from "./context/NotificationContext";
-
-// ⏰ SMART REMINDERS
 import ReminderSystem from "./system/ReminderSystem";
 
 export default function App() {
 
-  // 🌗 THEME
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
+  // ===== THEME =====
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("theme") || "dark"
+  );
 
   useEffect(() => {
     document.body.setAttribute("data-theme", theme);
@@ -72,7 +71,7 @@ export default function App() {
   const [goal, setGoal] = useState({});
   const [weightLogs, setWeightLogs] = useState([]);
   const [weightGoal, setWeightGoal] = useState(null);
-  const [logs, setLogs] = useState({});
+  const [logs, setLogs] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [financeData, setFinanceData] = useState([]);
   const [chatHistory, setChatHistory] = useState([]);
@@ -82,18 +81,25 @@ export default function App() {
   useEffect(() => {
     if (!firebaseUser) return;
 
-    loadData().then((data) => {
-      if (!data) return;
+    const fetchData = async () => {
+      try {
+        const data = await loadData();
+        if (!data) return;
 
-      setItems(data.items || []);
-      setLogs(data.logs || {});
-      setWeightLogs(data.weightLogs || []);
-      setWeightGoal(data.weightGoal || null);
-      setTasks(data.tasks || []);
-      setGoal(data.goal || {});
-      setFinanceData(data.financeData || []);
-      setChatHistory(data.chatHistory || []);
-    });
+        setItems(data.items || []);
+        setLogs(data.logs || {});
+        setWeightLogs(data.weightLogs || []);
+        setWeightGoal(data.weightGoal || null);
+        setTasks(data.tasks || []);
+        setGoal(data.goal || {});
+        setFinanceData(data.financeData || []);
+        setChatHistory(data.chatHistory || []);
+      } catch (err) {
+        console.error("Load error:", err);
+      }
+    };
+
+    fetchData();
   }, [firebaseUser]);
 
   // ===== REALTIME SYNC =====
@@ -155,7 +161,7 @@ export default function App() {
   return (
     <NotificationProvider>
 
-      {/* 🔥 SMART REMINDER SYSTEM */}
+      {/* 🔔 REMINDERS */}
       <ReminderSystem
         items={items}
         tasks={tasks}
@@ -165,7 +171,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
 
-          {/* PUBLIC ROUTES */}
+          {/* PUBLIC */}
           <Route
             path="/login"
             element={<Login onLogin={handleLoginUser} />}
@@ -173,7 +179,7 @@ export default function App() {
 
           <Route path="/onboarding" element={<Onboarding />} />
 
-          {/* PROTECTED ROUTES */}
+          {/* PROTECTED */}
           <Route
             path="/"
             element={
@@ -187,14 +193,14 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            {/* DASHBOARD (FIXED WITH ITEMS) */}
+
             <Route
               index
               element={
                 <Dashboard
                   logs={logs}
                   tasks={tasks}
-                  items={items}   // ✅ IMPORTANT FIX
+                  items={items}
                   user={user}
                   weightLogs={weightLogs}
                 />
@@ -211,11 +217,38 @@ export default function App() {
               }
             />
 
-            <Route path="chat" element={<Chat />} />
+            {/* ✅ FIXED CHAT */}
+            <Route
+              path="chat"
+              element={
+                <Chat
+                  chatHistory={chatHistory}
+                  setChatHistory={setChatHistory}
+                  items={items}
+                  tasks={tasks}
+                  weightLogs={weightLogs}
+                />
+              }
+            />
+
             <Route path="weight" element={<Weight weightLogs={weightLogs} />} />
-            <Route path="habits" element={<Habits items={items} setItems={setItems} />} />
-            <Route path="tasks" element={<Tasks tasks={tasks} />} />
-            <Route path="activities" element={<Activities items={items} setItems={setItems} />} />
+
+            <Route
+              path="habits"
+              element={<Habits items={items} setItems={setItems} />}
+            />
+
+            {/* ✅ FIXED TASKS */}
+            <Route
+              path="tasks"
+              element={<Tasks tasks={tasks} setTasks={setTasks} />}
+            />
+
+            <Route
+              path="activities"
+              element={<Activities items={items} setItems={setItems} />}
+            />
+
             <Route path="analytics" element={<Analytics logs={logs} />} />
             <Route path="insights" element={<Insights items={items} />} />
             <Route path="goals" element={<Goals />} />
