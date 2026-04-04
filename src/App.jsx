@@ -25,6 +25,14 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 
 export default function App() {
 
+  // 🌗 THEME
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
+
+  useEffect(() => {
+    document.body.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
   // ===== AUTH =====
   const [firebaseUser, setFirebaseUser] = useState(undefined);
   const [loadingAuth, setLoadingAuth] = useState(true);
@@ -129,118 +137,56 @@ export default function App() {
     initialLoad
   ]);
 
-  // ===== WEIGHT =====
-  const addWeight = (value) => {
-    if (!value) return;
-    const today = new Date().toDateString();
-
-    setWeightLogs((prev) => {
-      const exists = prev.find((w) => w.date === today);
-      return exists
-        ? prev.map((w) => w.date === today ? { ...w, weight: value } : w)
-        : [...prev, { date: today, weight: value }];
-    });
-  };
-
-  const deleteWeight = (date) => {
-    setWeightLogs((prev) => prev.filter((w) => w.date !== date));
-  };
-
-  // ===== AI ACTIONS =====
-  const handleAddHabit = (name) => {
-    setItems((prev) => [...prev, { name, type: "habit", completed: {} }]);
-  };
-
-  const handleAddTask = (name) => {
-    setTasks((prev) => [...prev, { title: name, done: false }]);
-  };
-
-  const handleAddExpense = (expense) => {
-    return addFinance(expense);
-  };
-
   // ===== LOADING =====
   if (loadingAuth) {
     return <div style={{ color: "white", padding: 20 }}>Loading App...</div>;
   }
 
-  // ===== ROUTES =====
   return (
     <BrowserRouter>
       <Routes>
 
-        {/* PUBLIC */}
         <Route path="/login" element={<Login onLogin={handleLoginUser} />} />
         <Route path="/onboarding" element={<Onboarding />} />
 
-        {/* PROTECTED */}
         <Route
           path="/"
           element={
             <ProtectedRoute firebaseUser={firebaseUser}>
-              <Layout user={user} onLogout={handleLogout} />
+              <Layout
+                user={user}
+                onLogout={handleLogout}
+                theme={theme}
+                setTheme={setTheme}
+              />
             </ProtectedRoute>
           }
         >
-
-          {/* 🔥 FIXED: PASS DATA INTO DASHBOARD */}
           <Route
             index
             element={
               <Dashboard
-                items={items}
                 logs={logs}
                 tasks={tasks}
                 user={user}
-                setGoal={setGoal}
                 weightLogs={weightLogs}
-                weightGoal={weightGoal}
               />
             }
           />
 
-          <Route path="finance" element={
-            <Finance financeData={financeData} setFinanceData={setFinanceData} />
-          } />
-
-          <Route path="chat" element={
-            <Chat
-              items={items}
-              tasks={tasks}
-              weightLogs={weightLogs}
-              user={user}
-              financeData={financeData}
-              module="general"
-              chatHistory={chatHistory}
-              onHistoryChange={setChatHistory}
-              onAddHabit={handleAddHabit}
-              onAddTask={handleAddTask}
-              onAddExpense={handleAddExpense}
-            />
-          } />
-
-          <Route path="weight" element={
-            <Weight
-              weightLogs={weightLogs}
-              addWeight={addWeight}
-              deleteWeight={deleteWeight}
-              weightGoal={weightGoal}
-              setWeightGoal={setWeightGoal}
-              items={items}
-            />
-          } />
-
+          <Route path="finance" element={<Finance financeData={financeData} setFinanceData={setFinanceData} />} />
+          <Route path="chat" element={<Chat />} />
+          <Route path="weight" element={<Weight weightLogs={weightLogs} />} />
           <Route path="habits" element={<Habits items={items} setItems={setItems} />} />
           <Route path="tasks" element={<Tasks tasks={tasks} />} />
           <Route path="activities" element={<Activities items={items} setItems={setItems} />} />
-          <Route path="analytics" element={<Analytics logs={logs} tasks={tasks} user={user} />} />
+          <Route path="analytics" element={<Analytics logs={logs} />} />
           <Route path="insights" element={<Insights items={items} />} />
-          <Route path="goals" element={<Goals goal={goal} setGoal={setGoal} logs={weightLogs} setLogs={setWeightLogs} />} />
+          <Route path="goals" element={<Goals />} />
           <Route path="profile" element={<Profile user={user} />} />
 
         </Route>
 
-        {/* FALLBACK */}
         <Route path="*" element={<Navigate to="/" />} />
 
       </Routes>

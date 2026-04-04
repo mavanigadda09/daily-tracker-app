@@ -16,7 +16,7 @@ import {
   Wallet
 } from "lucide-react";
 
-export default function Layout({ user, onLogout }) {
+export default function Layout({ user, onLogout, theme, setTheme }) {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -38,33 +38,45 @@ export default function Layout({ user, onLogout }) {
 
       {/* SIDEBAR */}
       <motion.aside
-        animate={{ width: collapsed ? 80 : 240 }}
-        transition={{ duration: 0.3 }}
+        animate={{ width: collapsed ? 70 : 240 }}
+        transition={{ duration: 0.25 }}
         style={styles.sidebar}
       >
+
         {/* TOP */}
         <div>
           <div style={styles.topRow}>
-            {!collapsed && (
-              <h2 style={styles.logo}>🚀 Tracker</h2>
-            )}
+            {!collapsed && <h2 style={styles.logo}>🚀 Tracker</h2>}
 
-            <button
-              style={styles.menuBtn}
-              onClick={() => setCollapsed((prev) => !prev)}
-            >
-              <Menu size={20} />
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              {/* 🌗 THEME */}
+              <button
+                style={styles.themeBtn}
+                onClick={() =>
+                  setTheme(prev => prev === "dark" ? "light" : "dark")
+                }
+              >
+                {theme === "dark" ? "🌞" : "🌙"}
+              </button>
+
+              {/* ☰ MENU */}
+              <button
+                style={styles.menuBtn}
+                onClick={() => setCollapsed(prev => !prev)}
+              >
+                <Menu size={18} />
+              </button>
+            </div>
           </div>
 
           {/* NAV */}
-          <div style={styles.nav}>
-            {navItems.map((item) => {
+          <nav style={styles.nav}>
+            {navItems.map(item => {
+              const Icon = item.icon;
+
               const active =
                 location.pathname === item.path ||
                 location.pathname.startsWith(item.path + "/");
-
-              const Icon = item.icon;
 
               return (
                 <Link
@@ -75,16 +87,14 @@ export default function Layout({ user, onLogout }) {
                     ...(active ? styles.active : {})
                   }}
                 >
-                  {/* ACTIVE BAR */}
                   {active && <div style={styles.activeBar} />}
 
                   <Icon size={18} />
-
                   {!collapsed && <span>{item.label}</span>}
                 </Link>
               );
             })}
-          </div>
+          </nav>
         </div>
 
         {/* BOTTOM */}
@@ -103,6 +113,7 @@ export default function Layout({ user, onLogout }) {
             {collapsed ? "⏻" : "Logout"}
           </button>
         </div>
+
       </motion.aside>
 
       {/* MAIN */}
@@ -118,16 +129,16 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    background: "#0f172a"
+    background: "var(--bg)"
   },
 
   sidebar: {
-    background: "linear-gradient(180deg, #020617, #020617)",
+    background: "var(--sidebar)",
     padding: 16,
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
-    borderRight: "1px solid rgba(255,255,255,0.05)"
+    borderRight: "1px solid var(--border)"
   },
 
   topRow: {
@@ -139,13 +150,22 @@ const styles = {
 
   logo: {
     fontWeight: "600",
-    color: "#fff"
+    color: "var(--text)"
   },
 
   menuBtn: {
-    background: "rgba(255,255,255,0.05)",
+    background: "var(--card)",
     border: "none",
-    color: "#fff",
+    color: "var(--text)",
+    cursor: "pointer",
+    padding: 6,
+    borderRadius: 8
+  },
+
+  themeBtn: {
+    background: "var(--card)",
+    border: "none",
+    color: "var(--text)",
     cursor: "pointer",
     padding: 6,
     borderRadius: 8
@@ -165,14 +185,13 @@ const styles = {
     padding: "10px 14px",
     borderRadius: 10,
     textDecoration: "none",
-    color: "#94a3b8",
-    transition: "0.2s",
-    fontSize: 14
+    color: "var(--text-muted)",
+    transition: "0.2s"
   },
 
   active: {
     background: "rgba(34,197,94,0.15)",
-    color: "#4ade80"
+    color: "var(--accent)"
   },
 
   activeBar: {
@@ -182,7 +201,7 @@ const styles = {
     bottom: 8,
     width: 4,
     borderRadius: 4,
-    background: "#22c55e"
+    background: "var(--accent)"
   },
 
   bottom: {
@@ -196,7 +215,7 @@ const styles = {
     alignItems: "center",
     gap: 10,
     padding: 10,
-    background: "rgba(255,255,255,0.04)",
+    background: "var(--card)",
     borderRadius: 12
   },
 
@@ -204,7 +223,7 @@ const styles = {
     width: 36,
     height: 36,
     borderRadius: "50%",
-    background: "#22c55e",
+    background: "var(--accent)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center"
@@ -213,27 +232,26 @@ const styles = {
   userName: {
     margin: 0,
     fontSize: 14,
-    color: "#fff"
+    color: "var(--text)"
   },
 
   userSub: {
     margin: 0,
     fontSize: 12,
-    color: "#94a3b8"
+    color: "var(--text-muted)"
   },
 
   logout: {
     padding: 10,
     borderRadius: 10,
     border: "none",
-    background: "linear-gradient(135deg, #ef4444, #dc2626)",
+    background: "#ef4444",
     color: "#fff",
     cursor: "pointer"
   },
 
   main: {
     flex: 1,
-    padding: 24,
-    overflowX: "hidden"
+    padding: 24
   }
 };
