@@ -10,6 +10,7 @@ export default function Habits({ items = [], setItems }) {
   const [name, setName] = useState("");
   const [weekOffset, setWeekOffset] = useState(0);
 
+  // ===== ADD =====
   const addHabit = () => {
     if (!name.trim()) return;
 
@@ -19,7 +20,8 @@ export default function Habits({ items = [], setItems }) {
         id: crypto.randomUUID(),
         name: name.trim(),
         type: "habit",
-        completed: {}
+        completed: {},
+        xp: 0
       }
     ]);
 
@@ -33,6 +35,7 @@ export default function Habits({ items = [], setItems }) {
   const getKey = (d) =>
     `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
+  // ===== WEEK =====
   const week = useMemo(() => {
     const today = new Date();
     const day = today.getDay();
@@ -51,27 +54,27 @@ export default function Habits({ items = [], setItems }) {
     });
   }, [weekOffset]);
 
-  const last30 = useMemo(() => {
-    return Array.from({ length: 30 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (29 - i));
-      return getKey(d);
-    });
-  }, []);
-
+  // ===== TOGGLE + XP =====
   const toggleDay = (id, key) => {
     setItems(prev =>
       prev.map(item => {
         if (item.id !== id) return item;
 
         const updated = { ...(item.completed || {}) };
+        const alreadyDone = updated[key];
+
         updated[key] = !updated[key];
 
-        return { ...item, completed: updated };
+        return {
+          ...item,
+          completed: updated,
+          xp: alreadyDone ? Math.max(0, item.xp - 10) : item.xp + 10
+        };
       })
     );
   };
 
+  // ===== STREAK =====
   const getStreak = (habit) => {
     const completed = habit.completed || {};
     let streak = 0;
@@ -79,7 +82,6 @@ export default function Habits({ items = [], setItems }) {
     for (let i = 0; i < 365; i++) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-
       const key = getKey(d);
 
       if (completed[key]) streak++;
@@ -89,142 +91,186 @@ export default function Habits({ items = [], setItems }) {
     return streak;
   };
 
-  const getBestStreak = (habit) => {
+  // ===== LEVEL SYSTEM =====
+  const getLevel = (xp) => {
+    if (xp >= 500) return 5;
+    if (xp >= 250) return 4;
+    if (xp >= 100) return 3;
+    if (xp >= 50) return 2;
+    return 1;
+  };
+
+  // ===== BADGES =====
+  const getBadge = (streak) => {
+    if (streak >= 30) return "🥇 Gold";
+    if (streak >= 14) return "🥈 Silver";
+    if (streak >= 7) return "🥉 Bronze";
+    return "—";
+  };
+
+  const getWeeklyProgress = (habit) => {
     const completed = habit.completed || {};
-    const dates = Object.keys(completed).sort(
-      (a, b) => new Date(a) - new Date(b)
-    );
-
-    let best = 0;
-    let current = 0;
-    let prev = null;
-
-    dates.forEach((k) => {
-      if (!completed[k]) return;
-
-      const d = new Date(k);
-
-      if (prev) {
-        const diff = (d - prev) / (1000 * 60 * 60 * 24);
-        current = diff === 1 ? current + 1 : 1;
-      } else {
-        current = 1;
-      }
-
-      best = Math.max(best, current);
-      prev = d;
-    });
-
-    return best;
+    const done = week.filter(d => completed[d.key]).length;
+    return Math.round((done / 7) * 100);
   };
 
   return (
     <div style={styles.container}>
 
-      <h1 style={styles.title}>🔥 Habits Tracker</h1>
+      <h1 style={styles.title}>🔥 Habits</h1>
 
-      <div style={styles.navRow}>
+      {/* NAV */}
+      <div style={styles.nav}>
         <button onClick={() => setWeekOffset(p => p - 1)}>⬅</button>
         <button onClick={() => setWeekOffset(0)}>Today</button>
         <button onClick={() => setWeekOffset(p => p + 1)}>➡</button>
       </div>
 
-      <div style={styles.card}>
+      {/* ADD */}
+      <div style={styles.addBox}>
         <input
-          style={styles.input}
-          placeholder="New Habit"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          placeholder="New Habit"
+          style={styles.input}
         />
-        <button onClick={addHabit}>Add</button>
+        <button onClick={addHabit} style={styles.addBtn}>
+          Add
+        </button>
       </div>
 
       {habits.length === 0 && (
-        <p style={styles.empty}>
-          No habits yet 🚀
-        </p>
+        <p style={styles.empty}>No habits yet 🚀</p>
       )}
 
-      <div style={{ overflowX: "auto" }}>
-        <div style={styles.grid}>
+      {/* HABITS */}
+      <div style={styles.list}>
+        {habits.map((h) => {
+          const completed = h.completed || {};
+          const streak = getStreak(h);
+          const progress = getWeeklyProgress(h);
+          const level = getLevel(h.xp || 0);
+          const badge = getBadge(streak);
 
-          <div>Habit</div>
+          return (
+            <div key={h.id} style={styles.card}>
 
-          {week.map((d, i) => (
-            <div key={d.key} style={styles.headerCell}>
-              {["S","M","T","W","T","F","S"][i]}<br/>
-              {d.label}
-            </div>
-          ))}
+              <div style={styles.header}>
+                <h3>{h.name}</h3>
+                <button onClick={() => deleteHabit(h.id)}>❌</button>
+              </div>
 
-          <div>🔥</div>
-          <div>🏆</div>
-          <div></div>
+              {/* 🎮 GAME STATS */}
+              <div style={styles.stats}>
+                <span>🔥 {streak}</span>
+                <span>⭐ {h.xp || 0} XP</span>
+                <span>🆙 Lv {level}</span>
+                <span>{badge}</span>
+              </div>
 
-          {habits.map((h) => {
-            const completed = h.completed || {};
+              {/* PROGRESS */}
+              <div style={styles.progressBar}>
+                <div
+                  style={{
+                    ...styles.progressFill,
+                    width: `${progress}%`
+                  }}
+                />
+              </div>
 
-            return (
-              <div key={h.id} style={{ display: "contents" }}>
-
-                <div style={styles.habit}>{h.name}</div>
-
+              {/* WEEK */}
+              <div style={styles.week}>
                 {week.map((d) => (
                   <div
                     key={d.key}
                     onClick={() => toggleDay(h.id, d.key)}
                     style={{
-                      ...styles.cell,
+                      ...styles.day,
                       background: completed[d.key]
-                        ? "#16a34a"
-                        : "#f3f4f6"
+                        ? "#22c55e"
+                        : "#1e293b"
                     }}
                   >
                     {completed[d.key] ? "✔" : ""}
                   </div>
                 ))}
-
-                <div>{getStreak(h)}</div>
-                <div>{getBestStreak(h)}</div>
-
-                <button onClick={() => deleteHabit(h.id)}>❌</button>
-
-                <div style={styles.heatmap}>
-                  {last30.map((k) => (
-                    <div
-                      key={k}
-                      style={{
-                        ...styles.heatCell,
-                        background: completed[k]
-                          ? "#16a34a"
-                          : "#e5e7eb"
-                      }}
-                    />
-                  ))}
-                </div>
-
               </div>
-            );
-          })}
-        </div>
+
+            </div>
+          );
+        })}
       </div>
 
     </div>
   );
 }
 
-// ✅ ADD THIS (FIX)
+// ===== STYLES =====
 const styles = {
   container: { padding: 20, color: "white" },
-  title: { marginBottom: 10 },
-  navRow: { display: "flex", gap: 10, marginBottom: 10 },
-  card: { marginBottom: 10 },
-  input: { padding: 8 },
-  empty: { marginTop: 10 },
-  grid: { display: "grid", gridTemplateColumns: "repeat(12, auto)", gap: 8 },
-  headerCell: { textAlign: "center" },
-  habit: { fontWeight: "bold" },
-  cell: { width: 30, height: 30, cursor: "pointer" },
-  heatmap: { display: "flex", gap: 2 },
-  heatCell: { width: 6, height: 6 }
+
+  title: { fontSize: 26 },
+
+  nav: { display: "flex", gap: 10, marginBottom: 10 },
+
+  addBox: { display: "flex", gap: 10, marginBottom: 20 },
+
+  input: {
+    flex: 1,
+    padding: 10,
+    background: "#020617",
+    color: "#fff"
+  },
+
+  addBtn: {
+    background: "#22c55e",
+    border: "none",
+    padding: 10,
+    color: "#fff"
+  },
+
+  empty: { color: "#94a3b8" },
+
+  list: { display: "flex", flexDirection: "column", gap: 15 },
+
+  card: {
+    background: "#0f172a",
+    padding: 16,
+    borderRadius: 12
+  },
+
+  header: {
+    display: "flex",
+    justifyContent: "space-between"
+  },
+
+  stats: {
+    display: "flex",
+    gap: 12,
+    marginTop: 10,
+    flexWrap: "wrap"
+  },
+
+  progressBar: {
+    height: 6,
+    background: "#1e293b",
+    marginTop: 10
+  },
+
+  progressFill: {
+    height: "100%",
+    background: "#22c55e"
+  },
+
+  week: { display: "flex", gap: 6, marginTop: 12 },
+
+  day: {
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    cursor: "pointer"
+  }
 };
