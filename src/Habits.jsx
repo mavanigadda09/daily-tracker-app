@@ -19,29 +19,19 @@ export default function Habits({ items = [], setItems }) {
 
   const todayKey = getKey(new Date());
 
-  // ===== VIEW DATES =====
+  // ✅ FIXED DATE GENERATION
   const getDates = () => {
     const dates = [];
     const today = new Date();
 
-    if (view === "today") {
-      dates.push(new Date());
-    }
+    let range = 1;
+    if (view === "week") range = 7;
+    if (view === "month") range = 30;
 
-    if (view === "week") {
-      for (let i = 0; i < 7; i++) {
-        const d = new Date();
-        d.setDate(today.getDate() - i);
-        dates.unshift(d);
-      }
-    }
-
-    if (view === "month") {
-      for (let i = 0; i < 30; i++) {
-        const d = new Date();
-        d.setDate(today.getDate() - i);
-        dates.unshift(d);
-      }
+    for (let i = 0; i < range; i++) {
+      const d = new Date();
+      d.setDate(today.getDate() - (range - 1 - i));
+      dates.push(d);
     }
 
     return dates;
@@ -49,10 +39,21 @@ export default function Habits({ items = [], setItems }) {
 
   const dates = getDates();
 
-  // ===== FILTER =====
+  // ✅ FIXED FILTER LOGIC
   const isCompletedInView = (habit) => {
-    if (view === "today") return habit.completed?.[todayKey];
-    return dates.some(d => habit.completed?.[getKey(d)]);
+    if (view === "today") {
+      return habit.completed?.[todayKey];
+    }
+
+    if (view === "week") {
+      return dates.slice(-7).some(d => habit.completed?.[getKey(d)]);
+    }
+
+    if (view === "month") {
+      return dates.some(d => habit.completed?.[getKey(d)]);
+    }
+
+    return false;
   };
 
   const completedHabits = habits.filter(h => isCompletedInView(h));
@@ -124,12 +125,10 @@ export default function Habits({ items = [], setItems }) {
     );
   };
 
-  // ===== DELETE (FIXED) =====
   const deleteHabit = (id) => {
     setItems(prev => prev.filter(i => i.id !== id));
   };
 
-  // ===== EDIT =====
   const editHabit = (id) => {
     const newName = prompt("Edit habit name");
     if (!newName) return;
@@ -175,7 +174,7 @@ export default function Habits({ items = [], setItems }) {
         ))}
       </div>
 
-      {/* CREATE CARD */}
+      {/* CREATE */}
       {!showForm && (
         <div style={styles.grid}>
           <motion.div
@@ -208,7 +207,7 @@ export default function Habits({ items = [], setItems }) {
 
           return (
             <motion.div key={h.id} style={{ ...styles.card, background: bg }}>
-              
+
               <div style={styles.cardTop}>
                 <div>
                   <h3>{h.name}</h3>
@@ -253,7 +252,7 @@ export default function Habits({ items = [], setItems }) {
         })}
       </div>
 
-      {/* COMPLETED */}
+      {/* COMPLETED (FIXED EDIT + DELETE) */}
       <h3>Completed</h3>
       <div style={styles.grid}>
         {completedHabits.map((h, i) => {
@@ -261,8 +260,19 @@ export default function Habits({ items = [], setItems }) {
 
           return (
             <motion.div key={h.id} style={{ ...styles.card, background: bg }}>
-              <h3>{h.name}</h3>
-              <p>Completed ✔</p>
+
+              <div style={styles.cardTop}>
+                <div>
+                  <h3>{h.name}</h3>
+                  <p>Completed ✔</p>
+                </div>
+
+                <div style={styles.actions}>
+                  <button onClick={() => editHabit(h.id)}>✏️</button>
+                  <button onClick={() => deleteHabit(h.id)}>🗑</button>
+                </div>
+              </div>
+
             </motion.div>
           );
         })}
@@ -298,7 +308,8 @@ const styles = {
 
   activeTab: {
     background: "#22c55e",
-    color: "#fff"
+    color: "#fff",
+    boxShadow: "0 0 10px rgba(34,197,94,0.6)"
   },
 
   grid: {
