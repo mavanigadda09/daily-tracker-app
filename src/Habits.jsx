@@ -19,7 +19,7 @@ export default function Habits({ items = [], setItems }) {
 
   const todayKey = getKey(new Date());
 
-  // ✅ VIEW DATES
+  // ===== VIEW DATES =====
   const getDates = () => {
     const dates = [];
     const today = new Date();
@@ -49,12 +49,9 @@ export default function Habits({ items = [], setItems }) {
 
   const dates = getDates();
 
-  // ✅ FIXED FILTER (MAIN FIX)
+  // ===== FILTER =====
   const isCompletedInView = (habit) => {
-    if (view === "today") {
-      return habit.completed?.[todayKey];
-    }
-
+    if (view === "today") return habit.completed?.[todayKey];
     return dates.some(d => habit.completed?.[getKey(d)]);
   };
 
@@ -127,10 +124,12 @@ export default function Habits({ items = [], setItems }) {
     );
   };
 
+  // ===== DELETE (FIXED) =====
   const deleteHabit = (id) => {
     setItems(prev => prev.filter(i => i.id !== id));
   };
 
+  // ===== EDIT =====
   const editHabit = (id) => {
     const newName = prompt("Edit habit name");
     if (!newName) return;
@@ -176,7 +175,7 @@ export default function Habits({ items = [], setItems }) {
         ))}
       </div>
 
-      {/* CREATE BUTTON */}
+      {/* CREATE CARD */}
       {!showForm && (
         <div style={styles.grid}>
           <motion.div
@@ -191,10 +190,7 @@ export default function Habits({ items = [], setItems }) {
 
       {/* FORM */}
       {showForm && (
-        <motion.form
-          onSubmit={handleSubmit}
-          style={styles.horizontalForm}
-        >
+        <motion.form onSubmit={handleSubmit} style={styles.horizontalForm}>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Habit" style={styles.input}/>
           <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={styles.input}/>
           <input type="number" value={targetDays} onChange={(e) => setTargetDays(e.target.value)} style={styles.input}/>
@@ -226,6 +222,7 @@ export default function Habits({ items = [], setItems }) {
                 </div>
               </div>
 
+              {/* DAYS */}
               <div style={styles.dayRow}>
                 {dates.map((d, index) => {
                   const key = getKey(d);
@@ -238,7 +235,7 @@ export default function Habits({ items = [], setItems }) {
                       style={{
                         ...styles.dayBox,
                         background: done ? "#22c55e" : "#1e293b",
-                        opacity: key === todayKey ? 1 : 0.5,
+                        opacity: key === todayKey ? 1 : 0.4,
                         cursor: key === todayKey ? "pointer" : "not-allowed"
                       }}
                     />
@@ -246,6 +243,7 @@ export default function Habits({ items = [], setItems }) {
                 })}
               </div>
 
+              {/* PROGRESS */}
               <div style={styles.progressTrack}>
                 <motion.div style={styles.progressFill} animate={{ width: `${progress.percent}%` }}/>
               </div>
@@ -273,3 +271,116 @@ export default function Habits({ items = [], setItems }) {
     </div>
   );
 }
+
+// ===== STYLES =====
+const styles = {
+  container: { padding: 24, maxWidth: 1000, margin: "0 auto", color: "#fff" },
+
+  title: { fontSize: 28, marginBottom: 20 },
+
+  tabs: {
+    display: "flex",
+    gap: 12,
+    marginBottom: 20,
+    background: "#0f172a",
+    padding: 6,
+    borderRadius: 14
+  },
+
+  tab: {
+    padding: "10px 18px",
+    borderRadius: 10,
+    border: "none",
+    background: "transparent",
+    color: "#94a3b8",
+    cursor: "pointer"
+  },
+
+  activeTab: {
+    background: "#22c55e",
+    color: "#fff"
+  },
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))",
+    gap: 16
+  },
+
+  createCard: {
+    padding: 20,
+    borderRadius: 20,
+    background: "#111",
+    textAlign: "center",
+    cursor: "pointer"
+  },
+
+  horizontalForm: {
+    display: "flex",
+    gap: 10,
+    marginBottom: 20
+  },
+
+  input: {
+    padding: 10,
+    borderRadius: 10,
+    background: "#020617",
+    color: "#fff",
+    border: "1px solid #333"
+  },
+
+  addBtn: {
+    background: "#22c55e",
+    padding: "10px 16px",
+    borderRadius: 10,
+    color: "#fff"
+  },
+
+  cancelBtn: {
+    background: "#ef4444",
+    padding: "10px 16px",
+    borderRadius: 10,
+    color: "#fff"
+  },
+
+  card: {
+    padding: 18,
+    borderRadius: 20,
+    color: "#fff"
+  },
+
+  cardTop: {
+    display: "flex",
+    justifyContent: "space-between"
+  },
+
+  actions: {
+    display: "flex",
+    gap: 6
+  },
+
+  dayRow: {
+    display: "flex",
+    gap: 6,
+    marginTop: 12,
+    flexWrap: "wrap"
+  },
+
+  dayBox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4
+  },
+
+  progressTrack: {
+    height: 6,
+    background: "rgba(255,255,255,0.3)",
+    borderRadius: 10,
+    marginTop: 12
+  },
+
+  progressFill: {
+    height: "100%",
+    background: "#fff"
+  }
+};
