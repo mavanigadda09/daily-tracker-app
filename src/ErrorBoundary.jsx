@@ -21,7 +21,7 @@ export default class ErrorBoundary extends React.Component {
     console.error("🔥 Error Boundary:", error, info);
   }
 
-  // ✅ SAFE RESET (only app data)
+  // ✅ SAFE RESET
   handleReset = () => {
     try {
       localStorage.removeItem(LOCAL_KEY);
@@ -33,7 +33,7 @@ export default class ErrorBoundary extends React.Component {
     window.location.reload();
   };
 
-  // ✅ SIMPLE RELOAD
+  // ✅ RELOAD
   handleReload = () => {
     window.location.reload();
   };
@@ -46,34 +46,48 @@ export default class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      // 🔒 fallback styles safety
+      const s = styles || {};
+
       return (
-        <div style={styles.container}>
+        <div style={s.container || { padding: 20, textAlign: "center" }}>
 
-          <h1 style={styles.title}>⚠️ Something went wrong</h1>
+          <h1 style={s.title || { fontSize: 24 }}>
+            ⚠️ Something went wrong
+          </h1>
 
-          <p style={styles.text}>
+          <p style={s.text || { marginBottom: 20 }}>
             Don't worry — your data is likely safe.
           </p>
 
           {/* ACTIONS */}
-          <div style={styles.actions}>
-            <button style={styles.primaryBtn} onClick={this.handleReload}>
+          <div style={s.actions || { marginBottom: 15 }}>
+            <button
+              style={s.primaryBtn || {}}
+              onClick={this.handleReload}
+            >
               🔄 Reload App
             </button>
 
-            <button style={styles.dangerBtn} onClick={this.handleReset}>
+            <button
+              style={s.dangerBtn || {}}
+              onClick={this.handleReset}
+            >
               🧹 Reset App Data
             </button>
           </div>
 
           {/* ERROR DETAILS */}
-          <button style={styles.linkBtn} onClick={this.toggleDetails}>
+          <button
+            style={s.linkBtn || {}}
+            onClick={this.toggleDetails}
+          >
             {this.state.showDetails ? "Hide Details" : "Show Details"}
           </button>
 
           {this.state.showDetails && (
-            <pre style={styles.errorBox}>
-              {this.state.error?.toString()}
+            <pre style={s.errorBox || { marginTop: 10 }}>
+              {this.state.error?.message || String(this.state.error)}
             </pre>
           )}
 
@@ -86,6 +100,7 @@ export default class ErrorBoundary extends React.Component {
 }
 
 // ================= STYLES =================
+
 const styles = {
   container: {
     height: "100vh",
