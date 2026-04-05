@@ -10,7 +10,6 @@ export default function Habits({ items = [], setItems }) {
   const [name, setName] = useState("");
   const [weekOffset, setWeekOffset] = useState(0);
 
-  // ===== ADD =====
   const addHabit = () => {
     if (!name.trim()) return;
 
@@ -34,7 +33,6 @@ export default function Habits({ items = [], setItems }) {
   const getKey = (d) =>
     `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
-  // ===== WEEK =====
   const week = useMemo(() => {
     const today = new Date();
     const day = today.getDay();
@@ -53,7 +51,6 @@ export default function Habits({ items = [], setItems }) {
     });
   }, [weekOffset]);
 
-  // ===== LAST 30 =====
   const last30 = useMemo(() => {
     return Array.from({ length: 30 }, (_, i) => {
       const d = new Date();
@@ -62,7 +59,6 @@ export default function Habits({ items = [], setItems }) {
     });
   }, []);
 
-  // ===== TOGGLE =====
   const toggleDay = (id, key) => {
     setItems(prev =>
       prev.map(item => {
@@ -76,7 +72,6 @@ export default function Habits({ items = [], setItems }) {
     );
   };
 
-  // ===== STREAK =====
   const getStreak = (habit) => {
     const completed = habit.completed || {};
     let streak = 0;
@@ -128,14 +123,12 @@ export default function Habits({ items = [], setItems }) {
 
       <h1 style={styles.title}>🔥 Habits Tracker</h1>
 
-      {/* NAV */}
       <div style={styles.navRow}>
         <button onClick={() => setWeekOffset(p => p - 1)}>⬅</button>
         <button onClick={() => setWeekOffset(0)}>Today</button>
         <button onClick={() => setWeekOffset(p => p + 1)}>➡</button>
       </div>
 
-      {/* ADD */}
       <div style={styles.card}>
         <input
           style={styles.input}
@@ -148,11 +141,10 @@ export default function Habits({ items = [], setItems }) {
 
       {habits.length === 0 && (
         <p style={styles.empty}>
-          No habits yet. Start building one 🚀
+          No habits yet 🚀
         </p>
       )}
 
-      {/* GRID */}
       <div style={{ overflowX: "auto" }}>
         <div style={styles.grid}>
 
@@ -197,7 +189,6 @@ export default function Habits({ items = [], setItems }) {
 
                 <button onClick={() => deleteHabit(h.id)}>❌</button>
 
-                {/* HEATMAP */}
                 <div style={styles.heatmap}>
                   {last30.map((k) => (
                     <div
@@ -221,3 +212,19 @@ export default function Habits({ items = [], setItems }) {
     </div>
   );
 }
+
+// ✅ ADD THIS (FIX)
+const styles = {
+  container: { padding: 20, color: "white" },
+  title: { marginBottom: 10 },
+  navRow: { display: "flex", gap: 10, marginBottom: 10 },
+  card: { marginBottom: 10 },
+  input: { padding: 8 },
+  empty: { marginTop: 10 },
+  grid: { display: "grid", gridTemplateColumns: "repeat(12, auto)", gap: 8 },
+  headerCell: { textAlign: "center" },
+  habit: { fontWeight: "bold" },
+  cell: { width: 30, height: 30, cursor: "pointer" },
+  heatmap: { display: "flex", gap: 2 },
+  heatCell: { width: 6, height: 6 }
+};
