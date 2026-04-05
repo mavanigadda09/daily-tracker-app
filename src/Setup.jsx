@@ -1,17 +1,57 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 
 const SUGGESTED = ["Water", "Workout", "Reading", "Meditation"];
 
-export default function Setup({ addActivity, activities }) {
+export default function Setup({ addActivity, activities = [] }) {
 
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [unit, setUnit] = useState("L");
   const [time, setTime] = useState("");
   const [freq, setFreq] = useState("daily");
+  const [error, setError] = useState("");
+
+  // ===== VALIDATION =====
+  const isValid = name.trim() && Number(target) > 0;
+
+  const handleSave = () => {
+    if (!isValid) {
+      setError("Enter valid name and target");
+      return;
+    }
+
+    // 🚫 prevent duplicates
+    const exists = activities.some(
+      a => a.name.toLowerCase() === name.trim().toLowerCase()
+    );
+
+    if (exists) {
+      setError("Activity already exists");
+      return;
+    }
+
+    addActivity({
+      id: crypto.randomUUID(),
+      name: name.trim(),
+      target: Number(target),
+      unit,
+      reminderTime: time,
+      frequency: freq
+    });
+
+    // RESET
+    setName("");
+    setTarget("");
+    setTime("");
+    setError("");
+  };
+
+  // ===== MEMO PREVIEW =====
+  const previewList = useMemo(() => activities, [activities]);
 
   return (
     <div style={container}>
+
       <h1 style={title}>⚙ Setup Activity</h1>
 
       <div style={card}>
@@ -22,26 +62,31 @@ export default function Setup({ addActivity, activities }) {
           <input
             list="activities"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              setError("");
+            }}
             placeholder="Activity name"
             style={input}
           />
+
           <datalist id="activities">
-            {SUGGESTED.map((a) => <option key={a} value={a} />)}
+            {SUGGESTED.map((a) => (
+              <option key={a} value={a} />
+            ))}
           </datalist>
 
           <input
             style={input}
             placeholder="Target"
             value={target}
-            onChange={(e) => setTarget(e.target.value)}
+            onChange={(e) => {
+              setTarget(e.target.value);
+              setError("");
+            }}
           />
 
-          <select
-            value={unit}
-            onChange={(e) => setUnit(e.target.value)}
-            style={input}
-          >
+          <select value={unit} onChange={(e) => setUnit(e.target.value)} style={input}>
             <option value="L">Liters</option>
             <option value="min">Minutes</option>
             <option value="pages">Pages</option>
@@ -54,11 +99,7 @@ export default function Setup({ addActivity, activities }) {
             onChange={(e) => setTime(e.target.value)}
           />
 
-          <select
-            value={freq}
-            onChange={(e) => setFreq(e.target.value)}
-            style={input}
-          >
+          <select value={freq} onChange={(e) => setFreq(e.target.value)} style={input}>
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
             <option value="weekdays">Weekdays</option>
@@ -66,47 +107,32 @@ export default function Setup({ addActivity, activities }) {
 
         </div>
 
+        {/* ERROR */}
+        {error && <p style={errorStyle}>{error}</p>}
+
         {/* BUTTON */}
         <button
-          style={btn}
-          onClick={() => {
-            if (!name || !target) return;
-
-            addActivity({
-              name,
-              target: Number(target),
-              unit,
-              reminderTime: time,
-              frequency: freq
-            });
-
-            setName("");
-            setTarget("");
-            setTime("");
+          style={{
+            ...btn,
+            opacity: isValid ? 1 : 0.6,
+            cursor: isValid ? "pointer" : "not-allowed"
           }}
+          onClick={handleSave}
+          disabled={!isValid}
         >
           Save Activity
         </button>
 
-        {/* ✅ PREVIEW (CORRECT PLACE) */}
+        {/* PREVIEW */}
         <div style={{ marginTop: 30 }}>
           <h3 style={{ color: "#cbd5f5" }}>Your Activities</h3>
 
-          {activities.length === 0 && (
+          {previewList.length === 0 && (
             <p style={{ color: "#64748b" }}>No activities yet</p>
           )}
 
-          {activities.map((a) => (
-            <div
-              key={a.id}
-              style={{
-                padding: 12,
-                marginTop: 10,
-                background: "#020617",
-                border: "1px solid #334155",
-                borderRadius: 10
-              }}
-            >
+          {previewList.map((a) => (
+            <div key={a.id} style={previewCard}>
               <strong>{a.name}</strong> → {a.target} {a.unit}
             </div>
           ))}
@@ -163,6 +189,19 @@ const btn = {
   padding: 14,
   border: "none",
   borderRadius: 10,
-  fontWeight: "bold",
-  cursor: "pointer"
+  fontWeight: "bold"
+};
+
+const errorStyle = {
+  color: "#ef4444",
+  marginTop: 10,
+  fontSize: 13
+};
+
+const previewCard = {
+  padding: 12,
+  marginTop: 10,
+  background: "#020617",
+  border: "1px solid #334155",
+  borderRadius: 10
 };

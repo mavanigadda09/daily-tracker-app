@@ -1,19 +1,23 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
-export default function Habits({ items, setItems }) {
+export default function Habits({ items = [], setItems }) {
 
-  const habits = items.filter(i => i.type === "habit");
+  const habits = useMemo(
+    () => items.filter(i => i.type === "habit"),
+    [items]
+  );
 
   const [name, setName] = useState("");
   const [weekOffset, setWeekOffset] = useState(0);
 
+  // ===== ADD =====
   const addHabit = () => {
     if (!name.trim()) return;
 
     setItems(prev => [
       ...prev,
       {
-        id: Date.now(),
+        id: crypto.randomUUID(),
         name: name.trim(),
         type: "habit",
         completed: {}
@@ -23,10 +27,15 @@ export default function Habits({ items, setItems }) {
     setName("");
   };
 
+  const deleteHabit = (id) => {
+    setItems(prev => prev.filter(i => i.id !== id));
+  };
+
   const getKey = (d) =>
     `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
-  const getWeek = () => {
+  // ===== WEEK =====
+  const week = useMemo(() => {
     const today = new Date();
     const day = today.getDay();
 
@@ -42,20 +51,18 @@ export default function Habits({ items, setItems }) {
         key: getKey(d)
       };
     });
-  };
+  }, [weekOffset]);
 
-  const week = getWeek();
-
-  const getLast30Days = () => {
+  // ===== LAST 30 =====
+  const last30 = useMemo(() => {
     return Array.from({ length: 30 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (29 - i));
       return getKey(d);
     });
-  };
+  }, []);
 
-  const last30 = getLast30Days();
-
+  // ===== TOGGLE =====
   const toggleDay = (id, key) => {
     setItems(prev =>
       prev.map(item => {
@@ -69,6 +76,7 @@ export default function Habits({ items, setItems }) {
     );
   };
 
+  // ===== STREAK =====
   const getStreak = (habit) => {
     const completed = habit.completed || {};
     let streak = 0;
@@ -118,13 +126,13 @@ export default function Habits({ items, setItems }) {
   return (
     <div style={styles.container}>
 
-      <h1 style={styles.title}>Habits Tracker</h1>
+      <h1 style={styles.title}>🔥 Habits Tracker</h1>
 
       {/* NAV */}
       <div style={styles.navRow}>
-        <button onClick={() => setWeekOffset(p => p - 1)} style={styles.navBtn}>⬅</button>
-        <button onClick={() => setWeekOffset(0)} style={styles.todayBtn}>Today</button>
-        <button onClick={() => setWeekOffset(p => p + 1)} style={styles.navBtn}>➡</button>
+        <button onClick={() => setWeekOffset(p => p - 1)}>⬅</button>
+        <button onClick={() => setWeekOffset(0)}>Today</button>
+        <button onClick={() => setWeekOffset(p => p + 1)}>➡</button>
       </div>
 
       {/* ADD */}
@@ -135,14 +143,12 @@ export default function Habits({ items, setItems }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <button style={styles.btn} onClick={addHabit}>
-          Add Habit
-        </button>
+        <button onClick={addHabit}>Add</button>
       </div>
 
       {habits.length === 0 && (
-        <p style={{ color: "#6b7280", marginTop: 20 }}>
-          No habits yet. Add one above 👆
+        <p style={styles.empty}>
+          No habits yet. Start building one 🚀
         </p>
       )}
 
@@ -161,10 +167,10 @@ export default function Habits({ items, setItems }) {
 
           <div>🔥</div>
           <div>🏆</div>
+          <div></div>
 
           {habits.map((h) => {
             const completed = h.completed || {};
-            const streak = getStreak(h);
 
             return (
               <div key={h.id} style={{ display: "contents" }}>
@@ -186,14 +192,12 @@ export default function Habits({ items, setItems }) {
                   </div>
                 ))}
 
-                <div style={styles.streak}>
-                  {streak} 🔥
-                </div>
+                <div>{getStreak(h)}</div>
+                <div>{getBestStreak(h)}</div>
 
-                <div style={styles.best}>
-                  🏆 {getBestStreak(h)}
-                </div>
+                <button onClick={() => deleteHabit(h.id)}>❌</button>
 
+                {/* HEATMAP */}
                 <div style={styles.heatmap}>
                   {last30.map((k) => (
                     <div
@@ -217,115 +221,3 @@ export default function Habits({ items, setItems }) {
     </div>
   );
 }
-
-// ================= STYLES =================
-
-const styles = {
-  container: {
-    padding: 30,
-    color: "#111827"
-  },
-
-  title: {
-    fontSize: 28,
-    marginBottom: 20
-  },
-
-  navRow: {
-    display: "flex",
-    gap: 10
-  },
-
-  navBtn: {
-    background: "#e5e7eb",
-    padding: 8,
-    borderRadius: 8,
-    border: "none",
-    cursor: "pointer"
-  },
-
-  todayBtn: {
-    background: "#16a34a",
-    color: "#fff",
-    padding: 8,
-    borderRadius: 8,
-    border: "none",
-    cursor: "pointer"
-  },
-
-  card: {
-    display: "flex",
-    gap: 10,
-    marginTop: 20,
-    background: "#ffffff",
-    padding: 15,
-    borderRadius: 12,
-    border: "1px solid #e5e7eb"
-  },
-
-  input: {
-    padding: 10,
-    background: "#f9fafb",
-    border: "1px solid #e5e7eb",
-    borderRadius: 8,
-    flex: 1
-  },
-
-  btn: {
-    background: "#16a34a",
-    color: "#fff",
-    padding: 10,
-    borderRadius: 8,
-    border: "none",
-    cursor: "pointer"
-  },
-
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "150px repeat(7, 50px) 70px 80px",
-    gap: 10,
-    marginTop: 20
-  },
-
-  headerCell: {
-    textAlign: "center",
-    fontSize: 12,
-    color: "#6b7280"
-  },
-
-  habit: {
-    fontWeight: "bold"
-  },
-
-  cell: {
-    height: 40,
-    width: 40,
-    borderRadius: 6,
-    cursor: "pointer",
-    textAlign: "center",
-    lineHeight: "40px",
-    border: "1px solid #e5e7eb"
-  },
-
-  streak: {
-    textAlign: "center"
-  },
-
-  best: {
-    textAlign: "center",
-    color: "#16a34a"
-  },
-
-  heatmap: {
-    gridColumn: "1 / -1",
-    display: "grid",
-    gridTemplateColumns: "repeat(30, 1fr)",
-    gap: 3,
-    marginTop: 10
-  },
-
-  heatCell: {
-    height: 8,
-    borderRadius: 2
-  }
-};

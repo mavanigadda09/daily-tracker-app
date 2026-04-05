@@ -6,12 +6,11 @@ import {
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import { useNotification } from "./context/NotificationContext"; // ✅ ADD
+import { useNotification } from "./context/NotificationContext";
 
 export default function Login({ onLogin }) {
-  const navigate = useNavigate();
 
-  // 🔔 NOTIFICATION
+  const navigate = useNavigate();
   const { showNotification } = useNotification();
 
   const [email, setEmail] = useState("");
@@ -31,14 +30,16 @@ export default function Login({ onLogin }) {
     }
   }, []);
 
+  // ================= EMAIL LOGIN =================
   const handleSubmit = async () => {
+
     if (!email || !password) {
-      showNotification("Please enter email & password", "error");
+      showNotification("Enter email & password", "error");
       return;
     }
 
     if (isRegister && (!fullName || !username)) {
-      showNotification("Fill all required fields", "error");
+      showNotification("Fill all fields", "error");
       return;
     }
 
@@ -50,9 +51,7 @@ export default function Login({ onLogin }) {
 
       if (isRegister) {
         userCredential = await createUserWithEmailAndPassword(
-          auth,
-          email,
-          password
+          auth, email, password
         );
 
         await setDoc(doc(db, "users", userCredential.user.uid), {
@@ -61,12 +60,11 @@ export default function Login({ onLogin }) {
           email
         });
 
-        showNotification("Account created successfully 🎉", "success");
+        showNotification("Account created 🎉", "success");
+
       } else {
         userCredential = await signInWithEmailAndPassword(
-          auth,
-          email,
-          password
+          auth, email, password
         );
 
         showNotification("Login successful 🚀", "success");
@@ -81,19 +79,30 @@ export default function Login({ onLogin }) {
 
       localStorage.setItem("user", JSON.stringify(userData));
       onLogin(userData);
+
       navigate("/");
 
-    } catch {
-      setError("Invalid credentials");
-      showNotification("Invalid email or password ❌", "error");
+    } catch (err) {
+      const msg = err.message || "Login failed";
+      setError(msg);
+      showNotification(msg, "error");
     }
 
     setLoading(false);
   };
 
+  // ================= GOOGLE LOGIN =================
   const handleGoogleLogin = async () => {
+    setLoading(true);
+
     try {
-      const user = await signInWithGoogle();
+      const result = await signInWithGoogle();
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      const user = result.user;
 
       await setDoc(doc(db, "users", user.uid), {
         fullName: user.displayName,
@@ -111,24 +120,30 @@ export default function Login({ onLogin }) {
       showNotification("Google login successful 🎉", "success");
 
       navigate("/");
-    } catch {
-      setError("Google login failed");
-      showNotification("Google login failed ❌", "error");
+
+    } catch (err) {
+      const msg = err.message || "Google login failed";
+      setError(msg);
+      showNotification(msg, "error");
     }
+
+    setLoading(false);
   };
 
   return (
     <div style={styles.container}>
-      <div style={{
-        ...styles.wrapper,
-        transform: isRegister ? "translateX(-50%)" : "translateX(0)"
-      }}>
-        
+
+      <div style={styles.wrapper}>
+
         {/* LEFT */}
         <div style={styles.left}>
           <h2>Welcome Back!</h2>
           <p>Login to continue your journey</p>
-          <button onClick={() => setIsRegister(false)} style={styles.ghostBtn}>
+
+          <button
+            onClick={() => setIsRegister(false)}
+            style={styles.ghostBtn}
+          >
             SIGN IN
           </button>
         </div>
@@ -139,50 +154,77 @@ export default function Login({ onLogin }) {
 
           {isRegister && (
             <>
-              <input placeholder="Full Name" onChange={(e) => setFullName(e.target.value)} style={styles.input} />
-              <input placeholder="Username" onChange={(e) => setUsername(e.target.value)} style={styles.input} />
+              <input
+                placeholder="Full Name"
+                onChange={(e) => setFullName(e.target.value)}
+                style={styles.input}
+              />
+              <input
+                placeholder="Username"
+                onChange={(e) => setUsername(e.target.value)}
+                style={styles.input}
+              />
             </>
           )}
 
-          <input placeholder="Email" onChange={(e) => setEmail(e.target.value)} style={styles.input} />
-          <input type="password" placeholder="Password" onChange={(e) => setPassword(e.target.value)} style={styles.input} />
+          <input
+            placeholder="Email"
+            onChange={(e) => setEmail(e.target.value)}
+            style={styles.input}
+          />
+
+          <input
+            type="password"
+            placeholder="Password"
+            onChange={(e) => setPassword(e.target.value)}
+            style={styles.input}
+          />
 
           {error && <p style={styles.error}>{error}</p>}
 
-          <button onClick={handleSubmit} style={styles.primaryBtn}>
+          <button
+            onClick={handleSubmit}
+            style={styles.primaryBtn}
+            disabled={loading}
+          >
             {loading ? "Loading..." : isRegister ? "REGISTER" : "LOGIN"}
           </button>
 
-          <button onClick={handleGoogleLogin} style={styles.googleBtn}>
+          <button
+            onClick={handleGoogleLogin}
+            style={styles.googleBtn}
+            disabled={loading}
+          >
             Continue with Google
           </button>
 
           <p style={styles.switch} onClick={() => setIsRegister(!isRegister)}>
             {isRegister ? "Already have account? Login" : "Create new account"}
           </p>
+
         </div>
       </div>
     </div>
   );
 }
 
+// ================= STYLES =================
 const styles = {
   container: {
     height: "100vh",
-    width: "100vw",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    background: "linear-gradient(135deg, #0f2027, #203a43, #2c5364)"
+    background: "linear-gradient(135deg, #0f2027, #203a43, #2c5364)",
+    padding: 20
   },
 
   wrapper: {
-    width: "900px",
-    height: "520px",
+    width: "100%",
+    maxWidth: 900,
     display: "flex",
     borderRadius: 20,
     overflow: "hidden",
-    transition: "0.5s ease",
     boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
   },
 
@@ -194,7 +236,7 @@ const styles = {
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
-    padding: 40,
+    padding: 30,
     textAlign: "center"
   },
 
@@ -204,7 +246,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
-    padding: 40,
+    padding: 30,
     gap: 14
   },
 

@@ -1,3 +1,4 @@
+/* ================= ROOT (DARK) ================= */
 :root {
   --bg: #020617;
   --sidebar: #020617;
@@ -10,9 +11,21 @@
 
   --accent: #22c55e;
   --border: rgba(255, 255, 255, 0.1);
+
+  /* ✨ NEW SYSTEM */
+  --radius: 12px;
+  --radius-sm: 8px;
+
+  --shadow: 0 8px 30px rgba(0,0,0,0.3);
+
+  --transition: 0.2s ease;
+
+  --font-sm: 13px;
+  --font-md: 15px;
+  --font-lg: 20px;
 }
 
-/* 🌞 LIGHT MODE */
+/* ================= LIGHT MODE ================= */
 body[data-theme="light"] {
   --bg: #f8fafc;
   --sidebar: #ffffff;
@@ -25,11 +38,84 @@ body[data-theme="light"] {
 
   --accent: #16a34a;
   --border: #e2e8f0;
+
+  --shadow: 0 6px 20px rgba(0,0,0,0.08);
 }
 
-/* BASE */
+/* ================= RESET ================= */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ================= BASE ================= */
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui;
+  font-family: system-ui, -apple-system, sans-serif;
+  transition: background var(--transition), color var(--transition);
+}
+
+/* ================= SCROLL ================= */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+
+/* ================= UTILITIES ================= */
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  transition: var(--transition);
+}
+
+.card:hover {
+  background: var(--card-hover);
+}
+
+.btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.input {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.flex {
+  display: flex;
+}
+
+.grid {
+  display: grid;
+}
+
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

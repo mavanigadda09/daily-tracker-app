@@ -1,66 +1,89 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 
-export default function Goals() {
-
-  const [goal, setGoal] = useState(() => {
-    return JSON.parse(localStorage.getItem("goal")) || {
-      startWeight: "",
-      targetWeight: "",
-      startDate: "",
-      endDate: ""
-    };
-  });
-
-  const [logs, setLogs] = useState(() => {
-    return JSON.parse(localStorage.getItem("weightLogs")) || [];
-  });
+export default function Goals({
+  weightLogs = [],
+  setWeightLogs,
+  weightGoal,
+  setWeightGoal
+}) {
 
   const [weight, setWeight] = useState("");
 
-  useEffect(() => {
-    localStorage.setItem("goal", JSON.stringify(goal));
-    localStorage.setItem("weightLogs", JSON.stringify(logs));
-  }, [goal, logs]);
+  const goal = weightGoal || {
+    startWeight: "",
+    targetWeight: "",
+    startDate: "",
+    endDate: ""
+  };
 
+  // ===== ADD LOG =====
   const addLog = () => {
-    if (!weight) return;
+    const num = Number(weight);
+    if (!num || num <= 0) return;
 
-    setLogs([
-      ...logs,
-      {
-        date: new Date().toISOString().split("T")[0],
-        weight: Number(weight)
-      }
-    ]);
+    const newLog = {
+      id: crypto.randomUUID(),
+      date: Date.now(),
+      weight: num
+    };
 
+    setWeightLogs((prev) => [...prev, newLog]);
     setWeight("");
   };
 
-  const currentWeight = logs.length
-    ? logs[logs.length - 1].weight
-    : goal.startWeight;
+  // ===== SORTED LOGS =====
+  const logs = useMemo(() => {
+    return [...weightLogs].sort((a, b) => a.date - b.date);
+  }, [weightLogs]);
 
-  const totalLoss = goal.startWeight - goal.targetWeight;
-  const currentLoss = goal.startWeight - currentWeight;
+  // ===== CALCULATIONS =====
+  const {
+    currentWeight,
+    percent,
+    daysLeft
+  } = useMemo(() => {
 
-  const percent = totalLoss
-    ? Math.min(Math.round((currentLoss / totalLoss) * 100), 100)
-    : 0;
+    if (!goal.startWeight || !goal.targetWeight) {
+      return { currentWeight: 0, percent: 0, daysLeft: 0 };
+    }
 
-  const daysLeft = goal.endDate
-    ? Math.ceil(
-        (new Date(goal.endDate) - new Date()) /
+    const currentWeight =
+      logs.length > 0
+        ? logs[logs.length - 1].weight
+        : goal.startWeight;
+
+    const totalLoss = goal.startWeight - goal.targetWeight;
+    const currentLoss = goal.startWeight - currentWeight;
+
+    const percent = totalLoss > 0
+      ? Math.min(Math.round((currentLoss / totalLoss) * 100), 100)
+      : 0;
+
+    const daysLeft = goal.endDate
+      ? Math.ceil(
+          (new Date(goal.endDate).getTime() - Date.now()) /
           (1000 * 60 * 60 * 24)
-      )
-    : 0;
+        )
+      : 0;
+
+    return { currentWeight, percent, daysLeft };
+
+  }, [goal, logs]);
+
+  // ===== UPDATE GOAL =====
+  const updateGoal = (field, value) => {
+    setWeightGoal({
+      ...goal,
+      [field]: value
+    });
+  };
 
   return (
     <div style={styles.container}>
 
-      <h1 style={styles.title}>Goal Tracker</h1>
-      <p style={styles.subtitle}>Track your transformation journey</p>
+      <h1 style={styles.title}>🎯 Goal Tracker</h1>
 
-      {/* GOAL SETUP */}
+      {/* GOAL */}
       <div style={styles.card}>
         <h3>Set Goal</h3>
 
@@ -69,7 +92,7 @@ export default function Goals() {
           placeholder="Start Weight"
           value={goal.startWeight}
           onChange={(e) =>
-            setGoal({ ...goal, startWeight: Number(e.target.value) })
+            updateGoal("startWeight", Number(e.target.value))
           }
         />
 
@@ -78,7 +101,7 @@ export default function Goals() {
           placeholder="Target Weight"
           value={goal.targetWeight}
           onChange={(e) =>
-            setGoal({ ...goal, targetWeight: Number(e.target.value) })
+            updateGoal("targetWeight", Number(e.target.value))
           }
         />
 
@@ -87,7 +110,7 @@ export default function Goals() {
           type="date"
           value={goal.startDate}
           onChange={(e) =>
-            setGoal({ ...goal, startDate: e.target.value })
+            updateGoal("startDate", e.target.value)
           }
         />
 
@@ -96,7 +119,7 @@ export default function Goals() {
           type="date"
           value={goal.endDate}
           onChange={(e) =>
-            setGoal({ ...goal, endDate: e.target.value })
+            updateGoal("endDate", e.target.value)
           }
         />
       </div>
@@ -111,17 +134,21 @@ export default function Goals() {
             {percent}%
           </div>
 
-          <p style={styles.subtext}>{currentWeight} kg</p>
+          <p style={styles.subtext}>
+            {currentWeight || "--"} kg
+          </p>
         </div>
 
         <div style={styles.card}>
           <h3>Days Left</h3>
-          <div style={styles.big}>{daysLeft}</div>
+          <div style={styles.big}>
+            {daysLeft > 0 ? daysLeft : "--"}
+          </div>
         </div>
 
       </div>
 
-      {/* LOG ENTRY */}
+      {/* ADD LOG */}
       <div style={styles.card}>
         <h3>Daily Weight</h3>
 
@@ -147,9 +174,11 @@ export default function Goals() {
           <p style={styles.subtext}>No logs yet</p>
         )}
 
-        {logs.map((l, i) => (
-          <div key={i} style={styles.row}>
-            <span>{l.date}</span>
+        {logs.map((l) => (
+          <div key={l.id} style={styles.row}>
+            <span>
+              {new Date(l.date).toLocaleDateString()}
+            </span>
             <span>{l.weight} kg</span>
           </div>
         ))}
@@ -160,7 +189,6 @@ export default function Goals() {
 }
 
 // ================= STYLES =================
-
 const styles = {
   container: {
     padding: 30,
@@ -169,16 +197,11 @@ const styles = {
 
   title: {
     fontSize: 28,
-    marginBottom: 5
-  },
-
-  subtitle: {
-    color: "#6b7280",
-    marginBottom: 20
+    marginBottom: 10
   },
 
   card: {
-    background: "#ffffff",
+    background: "#fff",
     padding: 20,
     borderRadius: 16,
     border: "1px solid #e5e7eb",

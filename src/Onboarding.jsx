@@ -1,15 +1,22 @@
 import { useState } from "react";
 
 export default function Onboarding({ onComplete }) {
+
   const [name, setName] = useState("");
   const [goal, setGoal] = useState("");
+  const [focus, setFocus] = useState("productivity");
+  const [error, setError] = useState("");
 
   const handleSubmit = () => {
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      setError("Please enter your name");
+      return;
+    }
 
     const user = {
       name: name.trim(),
-      goal: goal.trim()
+      goal: goal.trim(),
+      focus
     };
 
     localStorage.setItem("user", JSON.stringify(user));
@@ -25,17 +32,21 @@ export default function Onboarding({ onComplete }) {
 
       <div style={styles.card}>
 
-        <h1 style={styles.title}>Welcome 👋</h1>
+        {/* TITLE */}
+        <h1 style={styles.title}>👋 Welcome</h1>
         <p style={styles.subtitle}>
-          Let’s set up your profile
+          Let’s personalize your experience
         </p>
 
         {/* NAME */}
         <input
           style={styles.input}
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Enter your name"
+          onChange={(e) => {
+            setName(e.target.value);
+            setError("");
+          }}
+          placeholder="Your name"
           onKeyDown={handleKeyDown}
         />
 
@@ -48,8 +59,28 @@ export default function Onboarding({ onComplete }) {
           onKeyDown={handleKeyDown}
         />
 
+        {/* FOCUS */}
+        <div style={styles.focusRow}>
+          {["productivity", "fitness", "finance"].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFocus(f)}
+              style={{
+                ...styles.focusBtn,
+                ...(focus === f ? styles.focusActive : {})
+              }}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+
+        {/* ERROR */}
+        {error && <p style={styles.error}>{error}</p>}
+
+        {/* CTA */}
         <button style={styles.button} onClick={handleSubmit}>
-          Continue
+          Continue →
         </button>
 
       </div>
@@ -58,17 +89,20 @@ export default function Onboarding({ onComplete }) {
   );
 }
 
+// ================= STYLES =================
 const styles = {
   container: {
     height: "100vh",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    background: "var(--bg)"
+    background: "var(--bg)",
+    padding: 20
   },
 
   card: {
-    width: 360,
+    width: "100%",
+    maxWidth: 400,
     padding: 30,
     borderRadius: 16,
     background: "var(--card)",
@@ -83,21 +117,42 @@ const styles = {
   },
 
   subtitle: {
-    color: "var(--text-muted)"
+    color: "var(--text-muted)",
+    marginBottom: 10
   },
 
   input: {
-    width: "100%",
     padding: 12,
     borderRadius: 8,
     border: "1px solid var(--border)",
-    background: "#020617",
-    color: "#fff",
+    background: "var(--bg)",
+    color: "var(--text)",
     outline: "none"
   },
 
+  focusRow: {
+    display: "flex",
+    gap: 8,
+    marginTop: 5
+  },
+
+  focusBtn: {
+    flex: 1,
+    padding: 8,
+    borderRadius: 8,
+    border: "1px solid var(--border)",
+    background: "transparent",
+    color: "var(--text)",
+    cursor: "pointer"
+  },
+
+  focusActive: {
+    background: "var(--accent)",
+    color: "#fff"
+  },
+
   button: {
-    marginTop: 5,
+    marginTop: 10,
     padding: 12,
     borderRadius: 8,
     background: "var(--accent)",
@@ -105,5 +160,10 @@ const styles = {
     color: "#fff",
     fontWeight: "bold",
     cursor: "pointer"
+  },
+
+  error: {
+    color: "#ef4444",
+    fontSize: 12
   }
 };

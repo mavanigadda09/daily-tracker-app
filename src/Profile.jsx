@@ -1,43 +1,133 @@
-export default function Profile({ user }) {
+import { useState } from "react";
+
+export default function Profile({ user, setUser, onLogout }) {
+
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(user?.name || "");
+  const [goal, setGoal] = useState(user?.goal || "");
+  const [focus, setFocus] = useState(user?.focus || "productivity");
+
   if (!user) return null;
+
+  // ===== SAVE =====
+  const handleSave = () => {
+    const updated = {
+      ...user,
+      name,
+      goal,
+      focus
+    };
+
+    localStorage.setItem("user", JSON.stringify(updated));
+    setUser(updated);
+    setEditing(false);
+  };
+
+  // ===== RESET DATA =====
+  const handleReset = () => {
+    if (!confirm("Reset all app data?")) return;
+
+    localStorage.clear();
+    window.location.reload();
+  };
 
   return (
     <div style={styles.container}>
 
-      {/* HEADER */}
-      <h1 style={styles.title}>Profile</h1>
-      <p style={styles.subtitle}>Manage your account</p>
+      <h1 style={styles.title}>👤 Profile</h1>
 
-      {/* CARD */}
       <div style={styles.card}>
 
         {/* AVATAR */}
         <div style={styles.avatar}>
-          {user.name?.charAt(0).toUpperCase() || "U"}
+          {name?.charAt(0).toUpperCase()}
         </div>
 
         {/* NAME */}
-        <h2 style={styles.name}>{user.name || "User"}</h2>
+        {editing ? (
+          <input
+            style={styles.input}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        ) : (
+          <h2 style={styles.name}>{name}</h2>
+        )}
 
         {/* EMAIL */}
         <p style={styles.email}>{user.email}</p>
 
-        {/* INFO */}
-        <div style={styles.infoBox}>
-          <div style={styles.infoItem}>
-            <span>Status</span>
-            <strong>Active</strong>
-          </div>
+        {/* GOAL */}
+        {editing ? (
+          <input
+            style={styles.input}
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            placeholder="Your goal"
+          />
+        ) : (
+          <p style={styles.goal}>🎯 {goal || "No goal set"}</p>
+        )}
 
-          <div style={styles.infoItem}>
-            <span>Account</span>
-            <strong>Firebase</strong>
+        {/* FOCUS */}
+        {editing && (
+          <div style={styles.focusRow}>
+            {["productivity", "fitness", "finance"].map((f) => (
+              <button
+                key={f}
+                onClick={() => setFocus(f)}
+                style={{
+                  ...styles.focusBtn,
+                  ...(focus === f ? styles.focusActive : {})
+                }}
+              >
+                {f}
+              </button>
+            ))}
           </div>
+        )}
 
-          <div style={styles.infoItem}>
-            <span>Plan</span>
-            <strong>Free</strong>
-          </div>
+        {!editing && (
+          <p style={styles.meta}>
+            Focus: <strong>{focus}</strong>
+          </p>
+        )}
+
+        {/* ACTIONS */}
+        <div style={styles.actions}>
+
+          {editing ? (
+            <>
+              <button style={styles.saveBtn} onClick={handleSave}>
+                Save
+              </button>
+
+              <button
+                style={styles.cancelBtn}
+                onClick={() => setEditing(false)}
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                style={styles.editBtn}
+                onClick={() => setEditing(true)}
+              >
+                Edit Profile
+              </button>
+
+              <button style={styles.logoutBtn} onClick={onLogout}>
+                Logout
+              </button>
+
+              <button style={styles.resetBtn} onClick={handleReset}>
+                Reset App
+              </button>
+            </>
+          )}
+
         </div>
 
       </div>
@@ -46,6 +136,7 @@ export default function Profile({ user }) {
   );
 }
 
+// ================= STYLES =================
 const styles = {
   container: {
     padding: 20,
@@ -59,12 +150,8 @@ const styles = {
     fontSize: 28
   },
 
-  subtitle: {
-    color: "var(--text-muted)"
-  },
-
   card: {
-    width: 340,
+    width: 360,
     background: "var(--card)",
     padding: 30,
     borderRadius: 16,
@@ -85,8 +172,7 @@ const styles = {
     justifyContent: "center",
     fontSize: 28,
     fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 10
+    color: "#fff"
   },
 
   name: {
@@ -94,24 +180,92 @@ const styles = {
   },
 
   email: {
-    color: "var(--text-muted)",
-    marginBottom: 10
+    color: "var(--text-muted)"
   },
 
-  infoBox: {
-    width: "100%",
-    marginTop: 10,
-    borderTop: "1px solid var(--border)",
-    paddingTop: 10,
+  goal: {
+    marginTop: 5
+  },
+
+  meta: {
+    color: "var(--text-muted)",
+    fontSize: 14
+  },
+
+  input: {
+    padding: 10,
+    borderRadius: 8,
+    border: "1px solid var(--border)",
+    background: "var(--bg)",
+    color: "var(--text)",
+    width: "100%"
+  },
+
+  focusRow: {
+    display: "flex",
+    gap: 8
+  },
+
+  focusBtn: {
+    flex: 1,
+    padding: 6,
+    borderRadius: 8,
+    border: "1px solid var(--border)",
+    background: "transparent",
+    cursor: "pointer",
+    color: "var(--text)"
+  },
+
+  focusActive: {
+    background: "var(--accent)",
+    color: "#fff"
+  },
+
+  actions: {
     display: "flex",
     flexDirection: "column",
-    gap: 10
+    gap: 8,
+    width: "100%",
+    marginTop: 10
   },
 
-  infoItem: {
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: 14,
-    color: "var(--text-muted)"
+  editBtn: {
+    padding: 10,
+    background: "#3b82f6",
+    border: "none",
+    color: "#fff",
+    borderRadius: 8
+  },
+
+  saveBtn: {
+    padding: 10,
+    background: "#22c55e",
+    border: "none",
+    color: "#fff",
+    borderRadius: 8
+  },
+
+  cancelBtn: {
+    padding: 10,
+    background: "#6b7280",
+    border: "none",
+    color: "#fff",
+    borderRadius: 8
+  },
+
+  logoutBtn: {
+    padding: 10,
+    background: "#ef4444",
+    border: "none",
+    color: "#fff",
+    borderRadius: 8
+  },
+
+  resetBtn: {
+    padding: 10,
+    background: "#111827",
+    border: "1px solid var(--border)",
+    color: "#fff",
+    borderRadius: 8
   }
 };

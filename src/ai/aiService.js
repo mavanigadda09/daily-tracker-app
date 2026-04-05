@@ -1,10 +1,22 @@
-const API_URL = process.env.REACT_APP_AI_URL || "https://daily-tracker-app-g96u.onrender.com/ai";
+const API_URL =
+  process.env.REACT_APP_AI_URL ||
+  "https://daily-tracker-app-g96u.onrender.com/ai";
 
-export async function processUserInput(input, context = {}) {
+// ===== RETRY CONFIG =====
+const MAX_RETRIES = 2;
+const TIMEOUT = 10000;
+
+// ===== SAFE RESPONSE =====
+const fallbackResponse = () => ({
+  type: "message",
+  message: "⚠️ AI is temporarily unavailable. Please try again."
+});
+
+export async function processUserInput(input, context = {}, retry = 0) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
+
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
-
     const res = await fetch(API_URL, {
       method: "POST",
       headers: {
@@ -17,7 +29,7 @@ export async function processUserInput(input, context = {}) {
       signal: controller.signal
     });
 
-    clearTimeout(timeout);
+    clearTimeout(timeoutId);
 
     if (!res.ok) {
       throw new Error(`Server error: ${res.status}`);
@@ -25,19 +37,29 @@ export async function processUserInput(input, context = {}) {
 
     const data = await res.json();
 
-    // Basic validation
+    // ===== VALIDATION =====
     if (!data || typeof data !== "object") {
-      throw new Error("Invalid AI response format");
+      throw new Error("Invalid AI response");
     }
 
-    return data;
+    // Ensure consistent format
+    return {
+      type: data.type || "message",
+      message: data.message || "AI response",
+      ...data
+    };
 
   } catch (err) {
+    clearTimeout(timeoutId);
+
+    // ===== RETRY LOGIC =====
+    if (retry < MAX_RETRIES) {
+      console.warn(`Retrying AI request... (${retry + 1})`);
+      return processUserInput(input, context, retry + 1);
+    }
+
     console.error("AI Service Error:", err);
 
-    return {
-      type: "message",
-      message: "⚠️ AI is temporarily unavailable. Please try again."
-    };
+    return fallbackResponse();
   }
 }

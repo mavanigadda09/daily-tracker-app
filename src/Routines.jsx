@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 const DEFAULT_ROUTINES = [
   "Lift Weights",
@@ -12,10 +12,10 @@ export default function Routines() {
 
   const [routines, setRoutines] = useState(() => {
     const stored = JSON.parse(localStorage.getItem("routines"));
-    if (stored && stored.length) return stored;
+    if (stored?.length) return stored;
 
-    return DEFAULT_ROUTINES.map((name, i) => ({
-      id: Date.now() + i,
+    return DEFAULT_ROUTINES.map((name) => ({
+      id: crypto.randomUUID(),
       name,
       completed: {}
     }));
@@ -27,7 +27,8 @@ export default function Routines() {
     localStorage.setItem("routines", JSON.stringify(routines));
   }, [routines]);
 
-  const getWeek = () => {
+  // ===== WEEK (MEMO) =====
+  const week = useMemo(() => {
     const today = new Date();
     const day = today.getDay();
 
@@ -46,30 +47,33 @@ export default function Routines() {
         key: `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`
       };
     });
-  };
+  }, []);
 
-  const week = getWeek();
-
+  // ===== TOGGLE =====
   const toggle = (id, key) => {
     setRoutines(prev =>
       prev.map(r => {
         if (r.id !== id) return r;
 
-        const updated = { ...(r.completed || {}) };
-        updated[key] = !updated[key];
-
-        return { ...r, completed: updated };
+        return {
+          ...r,
+          completed: {
+            ...r.completed,
+            [key]: !r.completed?.[key]
+          }
+        };
       })
     );
   };
 
+  // ===== ADD =====
   const addRoutine = () => {
     if (!newRoutine.trim()) return;
 
-    setRoutines([
-      ...routines,
+    setRoutines(prev => [
+      ...prev,
       {
-        id: Date.now(),
+        id: crypto.randomUUID(),
         name: newRoutine.trim(),
         completed: {}
       }
@@ -82,16 +86,21 @@ export default function Routines() {
     setRoutines(prev => prev.filter(r => r.id !== id));
   };
 
-  const getPercent = (routine) => {
-    const values = Object.values(routine.completed || {});
-    const done = values.filter(Boolean).length;
-    return Math.round((done / 7) * 100);
-  };
+  // ===== PERCENT (MEMOIZED MAP) =====
+  const routineStats = useMemo(() => {
+    return routines.map(r => {
+      const values = Object.values(r.completed || {});
+      const done = values.filter(Boolean).length;
+      const percent = Math.round((done / 7) * 100);
+
+      return { ...r, percent };
+    });
+  }, [routines]);
 
   return (
     <div style={styles.container}>
 
-      <h1 style={styles.title}>Weekly Routines</h1>
+      <h1 style={styles.title}>📅 Weekly Routines</h1>
 
       {/* ADD */}
       <div style={styles.addBox}>
@@ -106,28 +115,30 @@ export default function Routines() {
         </button>
       </div>
 
+      {routineStats.length === 0 && (
+        <p style={styles.empty}>No routines yet 🚀</p>
+      )}
+
       {/* GRID */}
-      <div style={styles.grid}>
+      <div style={{ overflowX: "auto" }}>
+        <div style={styles.grid}>
 
-        <div>#</div>
-        <div>Routine</div>
+          <div>#</div>
+          <div>Routine</div>
 
-        {week.map((d) => (
-          <div key={d.key} style={styles.header}>
-            {d.label}
-            <br />
-            <small>{d.date}</small>
-          </div>
-        ))}
+          {week.map((d) => (
+            <div key={d.key} style={styles.header}>
+              {d.label}
+              <br />
+              <small>{d.date}</small>
+            </div>
+          ))}
 
-        <div>%</div>
-        <div>Progress</div>
-        <div></div>
+          <div>%</div>
+          <div>Progress</div>
+          <div></div>
 
-        {routines.map((r, i) => {
-          const percent = getPercent(r);
-
-          return (
+          {routineStats.map((r, i) => (
             <div key={r.id} style={{ display: "contents" }}>
 
               <div>{i + 1}</div>
@@ -135,7 +146,7 @@ export default function Routines() {
               <div style={styles.name}>{r.name}</div>
 
               {week.map((d) => {
-                const checked = r.completed?.[d.key] || false;
+                const checked = r.completed?.[d.key];
 
                 return (
                   <div
@@ -151,13 +162,13 @@ export default function Routines() {
                 );
               })}
 
-              <div>{percent}%</div>
+              <div>{r.percent}%</div>
 
               <div style={styles.progressBar}>
                 <div
                   style={{
                     ...styles.progressFill,
-                    width: `${percent}%`
+                    width: `${r.percent}%`
                   }}
                 />
               </div>
@@ -170,94 +181,10 @@ export default function Routines() {
               </button>
 
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
     </div>
   );
 }
-
-// ================= STYLES =================
-
-const styles = {
-  container: {
-    padding: 30,
-    color: "#111827"
-  },
-
-  title: {
-    fontSize: 26,
-    marginBottom: 20
-  },
-
-  addBox: {
-    display: "flex",
-    gap: 10,
-    marginBottom: 20
-  },
-
-  input: {
-    padding: 10,
-    borderRadius: 8,
-    border: "1px solid #e5e7eb",
-    background: "#f9fafb"
-  },
-
-  addBtn: {
-    background: "#16a34a",
-    border: "none",
-    padding: "10px 16px",
-    borderRadius: 8,
-    color: "#fff",
-    cursor: "pointer"
-  },
-
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "40px 180px repeat(7, 45px) 50px 150px 40px",
-    gap: 8,
-    alignItems: "center"
-  },
-
-  header: {
-    textAlign: "center",
-    fontWeight: "bold",
-    color: "#6b7280"
-  },
-
-  name: {
-    fontWeight: "bold"
-  },
-
-  cell: {
-    width: 40,
-    height: 40,
-    border: "1px solid #e5e7eb",
-    borderRadius: 6,
-    cursor: "pointer",
-    textAlign: "center",
-    lineHeight: "40px"
-  },
-
-  progressBar: {
-    height: 10,
-    background: "#e5e7eb",
-    borderRadius: 10,
-    overflow: "hidden"
-  },
-
-  progressFill: {
-    height: "100%",
-    background: "#16a34a"
-  },
-
-  deleteBtn: {
-    background: "#ef4444",
-    border: "none",
-    color: "#fff",
-    borderRadius: 6,
-    cursor: "pointer",
-    height: 30
-  }
-};

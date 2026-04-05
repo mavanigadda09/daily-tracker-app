@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
@@ -7,49 +7,65 @@ import {
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// 🔐 Firebase Config
+// ================= CONFIG =================
+
+// ✅ Use ENV (fallback for safety)
 const firebaseConfig = {
-  apiKey: "AIzaSyBO1F1JrlosiNxsy9hh56jWldE8l-T57wQ",
-  authDomain: "ignira-os.firebaseapp.com",
-  projectId: "ignira-os",
-  storageBucket: "ignira-os.appspot.com",
-  messagingSenderId: "287796839565",
-  appId: "1:287796839565:web:0a4780615d4f192bcb8ec4",
-  measurementId: "G-DZRYRMVNPR"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "your_api_key",
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "your_auth_domain",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "your_project_id",
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "your_bucket",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MSG_ID || "your_msg_id",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "your_app_id"
 };
 
-// 🚀 Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// ================= INIT (SAFE) =================
+
+// Prevent multiple initializations
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 // ================= SERVICES =================
 
-// 🔐 Auth
 export const auth = getAuth(app);
-
-// ☁️ Firestore
 export const db = getFirestore(app);
 
-// 🔵 Google Provider
 const provider = new GoogleAuthProvider();
 
 // ================= AUTH HELPERS =================
 
-// 🔥 Google Login (Reusable)
+// 🔐 Google Login
 export const signInWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, provider);
-    return result.user;
+
+    return {
+      user: result.user,
+      success: true
+    };
+
   } catch (error) {
     console.error("❌ Google Login Error:", error);
-    throw error;
+
+    return {
+      success: false,
+      error: error.message
+    };
   }
 };
 
-// 🔥 Logout
+// 🚪 Logout
 export const logoutUser = async () => {
   try {
     await signOut(auth);
+
+    return { success: true };
+
   } catch (error) {
     console.error("❌ Logout Error:", error);
+
+    return {
+      success: false,
+      error: error.message
+    };
   }
 };

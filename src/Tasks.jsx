@@ -1,35 +1,64 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 export default function Tasks({
   tasks = [],
   addTask,
   startTask,
-  endTask
+  endTask,
+  deleteTask
 }) {
+
   const [name, setName] = useState("");
   const [now, setNow] = useState(Date.now());
 
+  // ===== TIMER (SAFE) =====
   useEffect(() => {
     const interval = setInterval(() => {
       setNow(Date.now());
     }, 1000);
+
     return () => clearInterval(interval);
   }, []);
 
+  // ===== FORMAT =====
   const formatDuration = (sec) => {
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
     return m === 0 ? `${s}s` : `${m}m ${s}s`;
   };
 
+  // ===== ADD =====
+  const handleAdd = () => {
+    const trimmed = name.trim();
+
+    if (!trimmed) return;
+
+    const exists = tasks.some(
+      t => t.name.toLowerCase() === trimmed.toLowerCase()
+    );
+
+    if (exists) return;
+
+    addTask(trimmed);
+    setName("");
+  };
+
+  // ===== SORT TASKS =====
+  const sortedTasks = useMemo(() => {
+    return [...tasks].sort((a, b) => {
+      if (a.running) return -1;
+      if (b.running) return 1;
+      return 0;
+    });
+  }, [tasks]);
+
   return (
     <div style={styles.container}>
 
-      {/* HEADER */}
-      <h1 style={styles.title}>Tasks</h1>
+      <h1 style={styles.title}>📌 Tasks</h1>
       <p style={styles.subtitle}>Track your time & productivity</p>
 
-      {/* ADD TASK */}
+      {/* ADD */}
       <div style={styles.addBox}>
         <input
           style={styles.input}
@@ -37,32 +66,32 @@ export default function Tasks({
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && name.trim()) {
-              addTask(name.trim());
-              setName("");
-            }
+            if (e.key === "Enter") handleAdd();
           }}
         />
 
         <button
-          style={styles.addBtn}
-          onClick={() => {
-            if (!name.trim()) return;
-            addTask(name.trim());
-            setName("");
+          style={{
+            ...styles.addBtn,
+            opacity: name.trim() ? 1 : 0.6
           }}
+          disabled={!name.trim()}
+          onClick={handleAdd}
         >
           Add
         </button>
       </div>
 
-      {/* TASK LIST */}
+      {/* LIST */}
       <div style={styles.grid}>
-        {tasks.length === 0 && (
-          <p style={styles.empty}>No tasks yet</p>
+
+        {sortedTasks.length === 0 && (
+          <p style={styles.empty}>No tasks yet 🚀</p>
         )}
 
-        {tasks.map((t) => {
+        {sortedTasks.map((t) => {
+
+          // ===== DURATION (MEMO SAFE) =====
           let duration = t.duration || 0;
 
           if (t.running && t.start) {
@@ -71,6 +100,7 @@ export default function Tasks({
 
           return (
             <div key={t.id} style={styles.card}>
+
               <h3>{t.name}</h3>
 
               <p style={t.running ? styles.running : styles.stopped}>
@@ -95,6 +125,7 @@ export default function Tasks({
                 </p>
               )}
 
+              {/* ACTIONS */}
               {!t.running ? (
                 <button
                   style={styles.start}
@@ -120,6 +151,15 @@ export default function Tasks({
                   ⏹ Stop
                 </button>
               )}
+
+              {/* DELETE */}
+              <button
+                style={styles.delete}
+                onClick={() => deleteTask?.(t.id)}
+              >
+                🗑 Delete
+              </button>
+
             </div>
           );
         })}
@@ -128,102 +168,3 @@ export default function Tasks({
     </div>
   );
 }
-
-// ================= STYLES =================
-const styles = {
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 20
-  },
-
-  title: {
-    fontSize: 28
-  },
-
-  subtitle: {
-    color: "var(--text-muted)"
-  },
-
-  addBox: {
-    display: "flex",
-    gap: 10,
-    background: "var(--card)",
-    padding: 16,
-    borderRadius: 12,
-    border: "1px solid var(--border)"
-  },
-
-  input: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 8,
-    border: "1px solid var(--border)",
-    background: "#020617",
-    color: "#fff"
-  },
-
-  addBtn: {
-    background: "var(--accent)",
-    border: "none",
-    padding: "10px 16px",
-    borderRadius: 8,
-    color: "#fff",
-    cursor: "pointer"
-  },
-
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-    gap: 16
-  },
-
-  card: {
-    background: "var(--card)",
-    padding: 16,
-    borderRadius: 12,
-    border: "1px solid var(--border)"
-  },
-
-  running: {
-    color: "#22c55e"
-  },
-
-  stopped: {
-    color: "var(--text-muted)"
-  },
-
-  time: {
-    fontSize: 12,
-    color: "var(--text-muted)"
-  },
-
-  duration: {
-    marginTop: 6,
-    color: "#facc15"
-  },
-
-  start: {
-    marginTop: 10,
-    background: "#22c55e",
-    border: "none",
-    padding: 8,
-    borderRadius: 8,
-    color: "#fff",
-    cursor: "pointer"
-  },
-
-  stop: {
-    marginTop: 10,
-    background: "#ef4444",
-    border: "none",
-    padding: 8,
-    borderRadius: 8,
-    color: "#fff",
-    cursor: "pointer"
-  },
-
-  empty: {
-    color: "var(--text-muted)"
-  }
-};

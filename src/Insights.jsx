@@ -2,8 +2,15 @@ import { useMemo } from "react";
 
 export default function Insights({ items = [] }) {
 
-  const habits = items.filter(i => i.type === "habit");
-  const activities = items.filter(i => i.type === "activity");
+  const habits = useMemo(
+    () => items.filter(i => i.type === "habit"),
+    [items]
+  );
+
+  const activities = useMemo(
+    () => items.filter(i => i.type === "activity"),
+    [items]
+  );
 
   // ================= HABIT TOTAL =================
   const totalStats = useMemo(() => {
@@ -17,52 +24,47 @@ export default function Insights({ items = [] }) {
       });
     });
 
-    const percent = total ? Math.round((completed / total) * 100) : 0;
+    const percent = total
+      ? Math.round((completed / total) * 100)
+      : 0;
+
     return { total, completed, percent };
   }, [habits]);
 
-  // ================= DATES =================
-  const processDates = () => {
-    let dates = [];
+  // ================= DATES (MEMOIZED) =================
+  const dates = useMemo(() => {
+    let arr = [];
 
     habits.forEach((h) => {
       Object.entries(h.completed || {})
         .filter(([_, v]) => v)
-        .forEach(([d]) => dates.push(new Date(d)));
+        .forEach(([d]) => arr.push(new Date(d)));
     });
 
-    return dates.sort((a, b) => a - b);
-  };
+    return arr.sort((a, b) => a - b);
+  }, [habits]);
 
   // ================= STREAK =================
-  const getBestStreak = () => {
-    const dates = processDates();
-    if (!dates.length) return 0;
+  const { bestStreak, currentStreak } = useMemo(() => {
+    if (!dates.length) return { bestStreak: 0, currentStreak: 0 };
 
     let best = 1;
-    let streak = 1;
+    let current = 1;
 
     for (let i = 1; i < dates.length; i++) {
       const diff =
         (dates[i] - dates[i - 1]) / (1000 * 60 * 60 * 24);
 
       if (diff === 1) {
-        streak++;
-        best = Math.max(best, streak);
-      } else if (diff > 1) {
-        streak = 1;
+        current++;
+        best = Math.max(best, current);
+      } else {
+        current = 1;
       }
     }
 
-    return best;
-  };
-
-  const getCurrentStreak = () => {
-    const dates = processDates();
-    if (!dates.length) return 0;
-
+    // current streak from end
     let streak = 1;
-
     for (let i = dates.length - 1; i > 0; i--) {
       const diff =
         (dates[i] - dates[i - 1]) / (1000 * 60 * 60 * 24);
@@ -71,8 +73,8 @@ export default function Insights({ items = [] }) {
       else break;
     }
 
-    return streak;
-  };
+    return { bestStreak: best, currentStreak: streak };
+  }, [dates]);
 
   // ================= TODAY =================
   const todayStr = new Date().toDateString();
@@ -109,17 +111,38 @@ export default function Insights({ items = [] }) {
     return { totalValue, totalTarget, percent };
   }, [activities]);
 
+  // ================= AI INSIGHT =================
+  const aiMessage = useMemo(() => {
+    if (totalStats.percent < 40) {
+      return "⚠️ Your consistency is low. Start small.";
+    }
+
+    if (currentStreak >= 5) {
+      return "🔥 You're on a strong streak. Keep going!";
+    }
+
+    if (activityStats.percent < 50) {
+      return "📉 Increase activity to reach your goals.";
+    }
+
+    return "🚀 You're doing great. Stay consistent.";
+  }, [totalStats, currentStreak, activityStats]);
+
   const today = new Date().toDateString();
 
   return (
     <div style={styles.container}>
 
-      <h1 style={styles.title}>Insights</h1>
+      <h1 style={styles.title}>📊 Insights</h1>
       <p style={styles.subtitle}>Your performance overview</p>
+
+      {/* 🤖 AI MESSAGE */}
+      <div style={styles.aiBox}>
+        {aiMessage}
+      </div>
 
       <div style={styles.grid}>
 
-        {/* HABITS */}
         <Card title="Habits">
           <Circle value={totalStats.percent} color="#6366f1" />
           <p style={styles.subtext}>
@@ -127,17 +150,14 @@ export default function Insights({ items = [] }) {
           </p>
         </Card>
 
-        {/* BEST */}
         <Card title="🔥 Best Streak">
-          <div style={styles.big}>{getBestStreak()}</div>
+          <div style={styles.big}>{bestStreak}</div>
         </Card>
 
-        {/* CURRENT */}
         <Card title="⚡ Current Streak">
-          <div style={styles.bigPurple}>{getCurrentStreak()}</div>
+          <div style={styles.bigPurple}>{currentStreak}</div>
         </Card>
 
-        {/* TODAY */}
         <Card title="📅 Today">
           <div style={styles.date}>{today}</div>
           <p style={styles.subtext}>
@@ -145,7 +165,6 @@ export default function Insights({ items = [] }) {
           </p>
         </Card>
 
-        {/* ACTIVITIES */}
         <Card title="📊 Activities">
           <Circle value={activityStats.percent} color="#22c55e" />
           <p style={styles.subtext}>
@@ -191,12 +210,18 @@ const styles = {
   },
 
   title: {
-    fontSize: 28,
-    color: "var(--text)"
+    fontSize: 28
   },
 
   subtitle: {
     color: "var(--text-muted)"
+  },
+
+  aiBox: {
+    background: "var(--card)",
+    padding: 12,
+    borderRadius: 12,
+    border: "1px solid var(--border)"
   },
 
   grid: {
@@ -206,18 +231,14 @@ const styles = {
   },
 
   card: {
-    background: "rgba(255,255,255,0.05)",
-    backdropFilter: "blur(12px)",
-    border: "1px solid rgba(255,255,255,0.1)",
+    background: "var(--card)",
     padding: 20,
     borderRadius: 16,
-    textAlign: "center",
-    transition: "0.3s"
+    textAlign: "center"
   },
 
   cardTitle: {
-    marginBottom: 10,
-    color: "var(--text)"
+    marginBottom: 10
   },
 
   circle: {
@@ -228,9 +249,7 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     margin: "10px auto",
-    fontWeight: "bold",
-    fontSize: 18,
-    color: "#fff"
+    fontWeight: "bold"
   },
 
   big: {

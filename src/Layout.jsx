@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 export default function Layout({ user, onLogout, theme, setTheme }) {
+
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -33,6 +34,11 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
     { path: "/profile", label: "Profile", icon: User }
   ];
 
+  const isActive = (path) => {
+    if (path === "/") return location.pathname === "/";
+    return location.pathname.startsWith(path);
+  };
+
   return (
     <div style={styles.container}>
 
@@ -46,12 +52,14 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
         {/* TOP */}
         <div>
           <div style={styles.topRow}>
+
             {!collapsed && <h2 style={styles.logo}>🚀 Tracker</h2>}
 
             <div style={{ display: "flex", gap: 8 }}>
-              {/* 🌗 THEME */}
+
+              {/* THEME */}
               <button
-                style={styles.themeBtn}
+                style={styles.iconBtn}
                 onClick={() =>
                   setTheme(prev => prev === "dark" ? "light" : "dark")
                 }
@@ -59,13 +67,14 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
                 {theme === "dark" ? "🌞" : "🌙"}
               </button>
 
-              {/* ☰ MENU */}
+              {/* MENU */}
               <button
-                style={styles.menuBtn}
+                style={styles.iconBtn}
                 onClick={() => setCollapsed(prev => !prev)}
               >
                 <Menu size={18} />
               </button>
+
             </div>
           </div>
 
@@ -73,24 +82,25 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
           <nav style={styles.nav}>
             {navItems.map(item => {
               const Icon = item.icon;
-
-              const active =
-                location.pathname === item.path ||
-                location.pathname.startsWith(item.path + "/");
+              const active = isActive(item.path);
 
               return (
                 <Link
                   key={item.path}
                   to={item.path}
+                  title={collapsed ? item.label : ""}
                   style={{
                     ...styles.link,
                     ...(active ? styles.active : {})
                   }}
                 >
+
                   {active && <div style={styles.activeBar} />}
 
                   <Icon size={18} />
+
                   {!collapsed && <span>{item.label}</span>}
+
                 </Link>
               );
             })}
@@ -99,11 +109,14 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
 
         {/* BOTTOM */}
         <div style={styles.bottom}>
+
           {!collapsed && (
             <div style={styles.userBox}>
               <div style={styles.avatar}>👤</div>
               <div>
-                <p style={styles.userName}>{user?.name || "User"}</p>
+                <p style={styles.userName}>
+                  {user?.name || "User"}
+                </p>
                 <p style={styles.userSub}>Active</p>
               </div>
             </div>
@@ -112,6 +125,7 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
           <button style={styles.logout} onClick={onLogout}>
             {collapsed ? "⏻" : "Logout"}
           </button>
+
         </div>
 
       </motion.aside>
@@ -125,6 +139,7 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
   );
 }
 
+// ================= STYLES =================
 const styles = {
   container: {
     display: "flex",
@@ -153,16 +168,7 @@ const styles = {
     color: "var(--text)"
   },
 
-  menuBtn: {
-    background: "var(--card)",
-    border: "none",
-    color: "var(--text)",
-    cursor: "pointer",
-    padding: 6,
-    borderRadius: 8
-  },
-
-  themeBtn: {
+  iconBtn: {
     background: "var(--card)",
     border: "none",
     color: "var(--text)",

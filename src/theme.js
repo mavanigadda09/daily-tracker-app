@@ -1,31 +1,47 @@
 export const theme = {
   colors: {
-    primary: "#16a34a",
-    primaryLight: "#22c55e",
-    primaryDark: "#166534",
-
-    bg: "#020617",
-    surface: "#0f172a",
-    surfaceSoft: "#111827",
-
-    text: "#e2e8f0",
-    textMuted: "#94a3b8",
-
-    border: "#1e293b",
+    primary: "var(--accent)",
+    bg: "var(--bg)",
+    surface: "var(--card)",
+    surfaceHover: "var(--card-hover)",
+    text: "var(--text)",
+    textMuted: "var(--text-muted)",
+    border: "var(--border)",
     danger: "#ef4444"
   },
 
   radius: {
-    sm: 10,
-    md: 16,
-    lg: 20,
-    xl: 30
+    sm: "8px",
+    md: "12px",
+    lg: "16px",
+    xl: "24px"
   },
 
   spacing: {
-    sm: 8,
-    md: 16,
-    lg: 24,
-    xl: 32
+    xs: "4px",
+    sm: "8px",
+    md: "16px",
+    lg: "24px",
+    xl: "32px"
+  },
+
+  typography: {
+    sm: "13px",
+    md: "15px",
+    lg: "18px",
+    xl: "24px",
+    xxl: "32px"
+  },
+
+  shadow: {
+    sm: "0 2px 6px rgba(0,0,0,0.2)",
+    md: "0 8px 25px rgba(0,0,0,0.3)",
+    lg: "0 15px 40px rgba(0,0,0,0.4)"
+  },
+
+  transition: {
+    fast: "0.15s ease",
+    normal: "0.25s ease",
+    slow: "0.4s ease"
   }
 };
