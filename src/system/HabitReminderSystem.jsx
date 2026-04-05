@@ -7,6 +7,7 @@ export default function HabitReminderSystem({ items = [] }) {
   // 🧠 Prevent spam
   const lastReminderRef = useRef(0);
   const lastEveningRef = useRef(null);
+  const triggeredRef = useRef({}); // ⏰ track per-habit triggers
 
   // ===== HELPERS =====
   const getKey = (d) =>
@@ -29,44 +30,45 @@ export default function HabitReminderSystem({ items = [] }) {
   };
 
   useEffect(() => {
-    // 🔔 Request browser permission once
+    // 🔔 Request permission once
     if (Notification.permission !== "granted") {
       Notification.requestPermission();
     }
 
     const checkHabits = () => {
-      const now = Date.now();
+      const now = new Date();
+      const nowTime = now.getTime();
 
-      // ⏱️ Prevent spam (5 min cooldown)
-      if (now - lastReminderRef.current < 5 * 60 * 1000) return;
-
-      const today = getKey(new Date());
-      const hour = new Date().getHours();
+      const todayKey = getKey(now);
+      const hour = now.getHours();
 
       const habits = items.filter(i => i.type === "habit");
 
       const incomplete = habits.filter(
-        h => !h.completed?.[today]
+        h => !h.completed?.[todayKey]
       );
 
-      // ===== BASIC REMINDER =====
-      if (incomplete.length > 0) {
-        lastReminderRef.current = now;
+      // =========================
+      // 🔥 BASIC REMINDER (cooldown)
+      // =========================
+      if (nowTime - lastReminderRef.current > 5 * 60 * 1000) {
+        if (incomplete.length > 0) {
+          lastReminderRef.current = nowTime;
 
-        const message = `⚠️ ${incomplete.length} habits pending today`;
+          const message = `⚠️ ${incomplete.length} habits pending today`;
 
-        showNotification(message, "error");
+          showNotification(message, "error");
 
-        // 🔔 Browser notification
-        if (Notification.permission === "granted") {
-          new Notification("Habits Reminder", {
-            body: message
-          });
+          if (Notification.permission === "granted") {
+            new Notification("Habits Reminder", { body: message });
+          }
         }
       }
 
-      // ===== EVENING REMINDER (ONCE PER DAY) =====
-      const todayStr = new Date().toDateString();
+      // =========================
+      // 🌙 EVENING REMINDER
+      // =========================
+      const todayStr = now.toDateString();
 
       if (
         hour === 20 &&
@@ -86,10 +88,12 @@ export default function HabitReminderSystem({ items = [] }) {
         }
       }
 
-      // ===== STREAK RISK ALERT =====
+      // =========================
+      // 🔥 STREAK RISK ALERT
+      // =========================
       const atRisk = habits.filter((h) => {
         const streak = getStreak(h);
-        return streak >= 3 && !h.completed?.[today];
+        return streak >= 3 && !h.completed?.[todayKey];
       });
 
       if (atRisk.length > 0) {
@@ -98,14 +102,72 @@ export default function HabitReminderSystem({ items = [] }) {
         showNotification(message, "error");
 
         if (Notification.permission === "granted") {
-          new Notification("Streak Alert", {
-            body: message
-          });
+          new Notification("Streak Alert", { body: message });
         }
       }
+
+      // =========================
+      // ⏰ TIME-BASED REMINDERS
+      // =========================
+      habits.forEach((habit) => {
+        if (!habit.time) return;
+
+        const [h, m] = habit.time.split(":");
+
+        const habitTime = new Date();
+        habitTime.setHours(Number(h));
+        habitTime.setMinutes(Number(m));
+        habitTime.setSeconds(0);
+
+        const idKey = `${habit.id}-${todayKey}`;
+
+        const alreadyDone = habit.completed?.[todayKey];
+
+        const diff = Math.abs(now - habitTime);
+
+        // ⏰ EXACT TIME TRIGGER
+        if (
+          diff < 60000 &&
+          !alreadyDone &&
+          !triggeredRef.current[idKey]
+        ) {
+          triggeredRef.current[idKey] = true;
+
+          const message = `⏰ ${habit.name} time!`;
+
+          showNotification(message, "info");
+
+          if (Notification.permission === "granted") {
+            new Notification("Habit Reminder", {
+              body: message
+            });
+          }
+        }
+
+        // ⚠️ MISSED ALERT (30 min later)
+        const lateTime = new Date(habitTime.getTime() + 30 * 60000);
+
+        if (
+          now > lateTime &&
+          !alreadyDone &&
+          !triggeredRef.current[idKey + "-late"]
+        ) {
+          triggeredRef.current[idKey + "-late"] = true;
+
+          const message = `⚠️ You missed: ${habit.name}`;
+
+          showNotification(message, "error");
+
+          if (Notification.permission === "granted") {
+            new Notification("Missed Habit", {
+              body: message
+            });
+          }
+        }
+      });
     };
 
-    const interval = setInterval(checkHabits, 60000);
+    const interval = setInterval(checkHabits, 30000);
 
     return () => clearInterval(interval);
 

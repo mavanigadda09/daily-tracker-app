@@ -8,7 +8,14 @@ export default function Habits({ items = [], setItems }) {
   );
 
   const [name, setName] = useState("");
+  const [time, setTime] = useState(""); // ⏰ NEW
+  const [view, setView] = useState("today");
   const [weekOffset, setWeekOffset] = useState(0);
+
+  const getKey = (d) =>
+    `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+
+  const todayKey = getKey(new Date());
 
   // ===== ADD =====
   const addHabit = () => {
@@ -21,54 +28,51 @@ export default function Habits({ items = [], setItems }) {
         name: name.trim(),
         type: "habit",
         completed: {},
-        xp: 0
+        xp: 0,
+        time: time || null // ⏰ NEW
       }
     ]);
 
     setName("");
+    setTime("");
   };
 
+  // ===== DELETE =====
   const deleteHabit = (id) => {
     setItems(prev => prev.filter(i => i.id !== id));
   };
 
-  const getKey = (d) =>
-    `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-
   // ===== WEEK =====
   const week = useMemo(() => {
     const today = new Date();
-    const day = today.getDay();
-
     const start = new Date(today);
-    start.setDate(today.getDate() - day + weekOffset * 7);
+    start.setDate(today.getDate() - today.getDay() + weekOffset * 7);
 
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
-
-      return {
-        label: d.getDate(),
-        key: getKey(d)
-      };
+      return { label: d.getDate(), key: getKey(d) };
     });
   }, [weekOffset]);
 
-  // ===== TOGGLE + XP =====
+  const getWeekRange = () =>
+    `${week[0].label} - ${week[6].label}`;
+
+  // ===== TOGGLE =====
   const toggleDay = (id, key) => {
     setItems(prev =>
       prev.map(item => {
         if (item.id !== id) return item;
 
         const updated = { ...(item.completed || {}) };
-        const alreadyDone = updated[key];
+        const already = updated[key];
 
         updated[key] = !updated[key];
 
         return {
           ...item,
           completed: updated,
-          xp: alreadyDone
+          xp: already
             ? Math.max(0, item.xp - 10)
             : item.xp + 10
         };
@@ -76,141 +80,133 @@ export default function Habits({ items = [], setItems }) {
     );
   };
 
-  // ===== STREAK =====
-  const getStreak = (habit) => {
-    const completed = habit.completed || {};
-    let streak = 0;
+  // ===== TIME CHECK =====
+  const isDueNow = (habit) => {
+    if (!habit.time) return false;
 
-    for (let i = 0; i < 365; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const key = getKey(d);
+    const now = new Date();
+    const [h, m] = habit.time.split(":");
 
-      if (completed[key]) streak++;
-      else break;
-    }
-
-    return streak;
+    return (
+      now.getHours() >= Number(h) &&
+      now.getMinutes() >= Number(m)
+    );
   };
 
-  // ===== LEVEL =====
-  const getLevel = (xp) => {
-    if (xp >= 500) return 5;
-    if (xp >= 250) return 4;
-    if (xp >= 100) return 3;
-    if (xp >= 50) return 2;
-    return 1;
-  };
-
-  // ===== BADGE =====
-  const getBadge = (streak) => {
-    if (streak >= 30) return "🥇 Gold";
-    if (streak >= 14) return "🥈 Silver";
-    if (streak >= 7) return "🥉 Bronze";
-    return "—";
-  };
-
-  const getWeeklyProgress = (habit) => {
-    const completed = habit.completed || {};
-    const done = week.filter(d => completed[d.key]).length;
-    return Math.round((done / 7) * 100);
-  };
+  // ===== DASHBOARD =====
+  const totalXP = habits.reduce((s, h) => s + (h.xp || 0), 0);
 
   return (
     <div style={styles.container}>
 
       <h1 style={styles.title}>🔥 Habits</h1>
 
-      {/* NAV */}
-      <div style={styles.nav}>
-        <button onClick={() => setWeekOffset(p => p - 1)}>⬅</button>
-        <button onClick={() => setWeekOffset(0)}>Today</button>
-        <button onClick={() => setWeekOffset(p => p + 1)}>➡</button>
+      {/* VIEW TOGGLE */}
+      <div style={styles.toggle}>
+        <button onClick={() => setView("today")}>Today</button>
+        <button onClick={() => setView("week")}>Week</button>
       </div>
+
+      {/* DASHBOARD */}
+      <div style={styles.dashboard}>
+        <div>⭐ XP: {totalXP}</div>
+        <div>📊 Habits: {habits.length}</div>
+      </div>
+
+      {/* NAV */}
+      {view === "week" && (
+        <div style={styles.nav}>
+          <button onClick={() => setWeekOffset(p => p - 1)}>⬅</button>
+          <span>{getWeekRange()}</span>
+          <button onClick={() => setWeekOffset(p => p + 1)}>➡</button>
+        </div>
+      )}
 
       {/* ADD */}
       <div style={styles.addBox}>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="New Habit"
+          placeholder="Habit name"
           style={styles.input}
         />
+
+        <input
+          type="time"
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
+          style={styles.input}
+        />
+
         <button onClick={addHabit} style={styles.addBtn}>
           Add
         </button>
       </div>
 
-      {habits.length === 0 && (
-        <p style={styles.empty}>No habits yet 🚀</p>
-      )}
+      {/* TODAY VIEW */}
+      {view === "today" && habits.map(h => {
+        const done = h.completed?.[todayKey];
+        const due = isDueNow(h);
 
-      {/* HABITS */}
-      <div style={styles.list}>
-        {habits.map((h) => {
-          const completed = h.completed || {};
-          const streak = getStreak(h);
-          const progress = getWeeklyProgress(h);
-          const level = getLevel(h.xp || 0);
-          const badge = getBadge(streak);
+        return (
+          <div key={h.id} style={styles.card}>
 
-          return (
-            <div
-              key={h.id}
-              style={styles.card}
-              onMouseEnter={e => e.currentTarget.style.transform = "scale(1.01)"}
-              onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
-            >
-
-              {/* HEADER */}
-              <div style={styles.header}>
-                <h3>{h.name}</h3>
-                <button onClick={() => deleteHabit(h.id)}>❌</button>
-              </div>
-
-              {/* STATS */}
-              <div style={styles.stats}>
-                <span>🔥 {streak}</span>
-                <span>⭐ {h.xp || 0} XP</span>
-                <span>🆙 Lv {level}</span>
-                <span>{badge}</span>
-              </div>
-
-              {/* PROGRESS */}
-              <div style={styles.progressBar}>
-                <div
-                  style={{
-                    ...styles.progressFill,
-                    width: `${progress}%`
-                  }}
-                />
-              </div>
-
-              {/* WEEK */}
-              <div style={styles.week}>
-                {week.map((d) => (
-                  <div
-                    key={d.key}
-                    onClick={() => toggleDay(h.id, d.key)}
-                    style={{
-                      ...styles.day,
-                      background: completed[d.key]
-                        ? "var(--accent)"
-                        : "var(--card)",
-                      color: completed[d.key]
-                        ? "#fff"
-                        : "var(--text)"
-                    }}
-                  >
-                    {completed[d.key] ? "✔" : ""}
-                  </div>
-                ))}
-              </div>
-
+            <div style={styles.row}>
+              <h3>{h.name}</h3>
+              {h.time && <span>⏰ {h.time}</span>}
             </div>
-          );
-        })}
-      </div>
+
+            {/* STATUS */}
+            <div style={styles.status}>
+              {done && "✅ Completed"}
+              {!done && due && "⚠️ Due now"}
+              {!done && !due && "🕒 Upcoming"}
+            </div>
+
+            <button
+              onClick={() => toggleDay(h.id, todayKey)}
+              style={{
+                ...styles.todayBtn,
+                background: done
+                  ? "var(--accent)"
+                  : "var(--card)"
+              }}
+            >
+              {done ? "Completed ✔" : "Mark Done"}
+            </button>
+
+            <button
+              onClick={() => deleteHabit(h.id)}
+              style={styles.delete}
+            >
+              Delete
+            </button>
+
+          </div>
+        );
+      })}
+
+      {/* WEEK VIEW */}
+      {view === "week" && habits.map(h => (
+        <div key={h.id} style={styles.card}>
+          <h3>{h.name}</h3>
+
+          <div style={styles.week}>
+            {week.map(d => (
+              <div
+                key={d.key}
+                onClick={() => toggleDay(h.id, d.key)}
+                style={{
+                  ...styles.day,
+                  background: h.completed?.[d.key]
+                    ? "var(--accent)"
+                    : "var(--card)"
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
 
     </div>
   );
@@ -218,108 +214,71 @@ export default function Habits({ items = [], setItems }) {
 
 // ===== STYLES =====
 const styles = {
-  container: {
-    padding: 20,
-    color: "var(--text)"
-  },
+  container: { padding: 20, color: "var(--text)" },
+  title: { fontSize: 26 },
 
-  title: {
-    fontSize: 26
-  },
+  toggle: { display: "flex", gap: 10, marginBottom: 10 },
+
+  dashboard: { display: "flex", gap: 20, marginBottom: 15 },
 
   nav: {
     display: "flex",
-    gap: 10,
+    justifyContent: "space-between",
     marginBottom: 10
   },
 
-  addBox: {
-    display: "flex",
-    gap: 10,
-    marginBottom: 20
-  },
+  addBox: { display: "flex", gap: 10, marginBottom: 20 },
 
   input: {
-    flex: 1,
-    padding: 12,
+    padding: 10,
     background: "var(--card)",
-    color: "var(--text)",
-    border: "1px solid var(--border)",
-    borderRadius: 10
+    color: "var(--text)"
   },
 
   addBtn: {
     background: "var(--accent)",
-    border: "none",
-    padding: "12px 16px",
     color: "#fff",
-    borderRadius: 10,
-    cursor: "pointer"
-  },
-
-  empty: {
-    color: "var(--text-muted)"
-  },
-
-  list: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 16
+    border: "none",
+    padding: 10
   },
 
   card: {
     background: "var(--card)",
-    padding: 18,
-    borderRadius: 16,
-    border: "1px solid var(--border)",
-    boxShadow: "0 8px 25px rgba(0,0,0,0.2)",
-    transition: "0.2s ease"
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12
   },
 
-  header: {
+  row: {
     display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center"
+    justifyContent: "space-between"
   },
 
-  stats: {
-    display: "flex",
-    gap: 14,
-    marginTop: 10,
-    flexWrap: "wrap",
+  status: {
+    marginTop: 6,
     color: "var(--text-muted)"
   },
 
-  progressBar: {
-    height: 8,
-    background: "var(--border)",
-    marginTop: 12,
-    borderRadius: 10,
-    overflow: "hidden"
+  todayBtn: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 8
   },
 
-  progressFill: {
-    height: "100%",
-    background: "var(--accent)",
-    borderRadius: 10,
-    transition: "0.3s ease"
+  delete: {
+    marginTop: 10,
+    background: "#ef4444",
+    color: "#fff",
+    border: "none",
+    padding: 8
   },
 
-  week: {
-    display: "flex",
-    gap: 8,
-    marginTop: 14
-  },
+  week: { display: "flex", gap: 6, marginTop: 10 },
 
   day: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    cursor: "pointer",
-    border: "1px solid var(--border)",
-    transition: "0.2s ease"
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    cursor: "pointer"
   }
 };
