@@ -9,7 +9,6 @@ import { useNavigate } from "react-router-dom";
 import { useNotification } from "./context/NotificationContext";
 
 export default function Login({ onLogin }) {
-
   const navigate = useNavigate();
   const { showNotification } = useNotification();
 
@@ -32,7 +31,6 @@ export default function Login({ onLogin }) {
 
   // ================= EMAIL LOGIN =================
   const handleSubmit = async () => {
-
     if (!email || !password) {
       showNotification("Enter email & password", "error");
       return;
@@ -51,7 +49,9 @@ export default function Login({ onLogin }) {
 
       if (isRegister) {
         userCredential = await createUserWithEmailAndPassword(
-          auth, email, password
+          auth,
+          email,
+          password
         );
 
         await setDoc(doc(db, "users", userCredential.user.uid), {
@@ -61,10 +61,11 @@ export default function Login({ onLogin }) {
         });
 
         showNotification("Account created 🎉", "success");
-
       } else {
         userCredential = await signInWithEmailAndPassword(
-          auth, email, password
+          auth,
+          email,
+          password
         );
 
         showNotification("Login successful 🚀", "success");
@@ -81,7 +82,6 @@ export default function Login({ onLogin }) {
       onLogin(userData);
 
       navigate("/");
-
     } catch (err) {
       const msg = err.message || "Login failed";
       setError(msg);
@@ -104,10 +104,14 @@ export default function Login({ onLogin }) {
 
       const user = result.user;
 
-      await setDoc(doc(db, "users", user.uid), {
-        fullName: user.displayName,
-        email: user.email
-      }, { merge: true });
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          fullName: user.displayName,
+          email: user.email
+        },
+        { merge: true }
+      );
 
       const userData = {
         name: user.displayName,
@@ -120,7 +124,6 @@ export default function Login({ onLogin }) {
       showNotification("Google login successful 🎉", "success");
 
       navigate("/");
-
     } catch (err) {
       const msg = err.message || "Google login failed";
       setError(msg);
@@ -132,9 +135,7 @@ export default function Login({ onLogin }) {
 
   return (
     <div style={styles.container}>
-
       <div style={styles.wrapper}>
-
         {/* LEFT */}
         <div style={styles.left}>
           <h2>Welcome Back!</h2>
@@ -199,9 +200,10 @@ export default function Login({ onLogin }) {
           </button>
 
           <p style={styles.switch} onClick={() => setIsRegister(!isRegister)}>
-            {isRegister ? "Already have account? Login" : "Create new account"}
+            {isRegister
+              ? "Already have account? Login"
+              : "Create new account"}
           </p>
-
         </div>
       </div>
     </div>
@@ -209,7 +211,8 @@ export default function Login({ onLogin }) {
 }
 
 // ================= STYLES =================
-const styles = {
+
+const styles = Object.freeze({
   container: {
     height: "100vh",
     display: "flex",
@@ -295,4 +298,4 @@ const styles = {
     fontSize: 12,
     textAlign: "center"
   }
-};
+});
