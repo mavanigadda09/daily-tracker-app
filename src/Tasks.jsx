@@ -11,7 +11,6 @@ export default function Tasks({
   const [name, setName] = useState("");
   const [now, setNow] = useState(Date.now());
 
-  // ===== TIMER (SAFE) =====
   useEffect(() => {
     const interval = setInterval(() => {
       setNow(Date.now());
@@ -20,17 +19,14 @@ export default function Tasks({
     return () => clearInterval(interval);
   }, []);
 
-  // ===== FORMAT =====
   const formatDuration = (sec) => {
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
     return m === 0 ? `${s}s` : `${m}m ${s}s`;
   };
 
-  // ===== ADD =====
   const handleAdd = () => {
     const trimmed = name.trim();
-
     if (!trimmed) return;
 
     const exists = tasks.some(
@@ -43,7 +39,6 @@ export default function Tasks({
     setName("");
   };
 
-  // ===== SORT TASKS =====
   const sortedTasks = useMemo(() => {
     return [...tasks].sort((a, b) => {
       if (a.running) return -1;
@@ -58,7 +53,6 @@ export default function Tasks({
       <h1 style={styles.title}>📌 Tasks</h1>
       <p style={styles.subtitle}>Track your time & productivity</p>
 
-      {/* ADD */}
       <div style={styles.addBox}>
         <input
           style={styles.input}
@@ -82,7 +76,6 @@ export default function Tasks({
         </button>
       </div>
 
-      {/* LIST */}
       <div style={styles.grid}>
 
         {sortedTasks.length === 0 && (
@@ -91,7 +84,6 @@ export default function Tasks({
 
         {sortedTasks.map((t) => {
 
-          // ===== DURATION (MEMO SAFE) =====
           let duration = t.duration || 0;
 
           if (t.running && t.start) {
@@ -125,7 +117,6 @@ export default function Tasks({
                 </p>
               )}
 
-              {/* ACTIONS */}
               {!t.running ? (
                 <button
                   style={styles.start}
@@ -152,7 +143,6 @@ export default function Tasks({
                 </button>
               )}
 
-              {/* DELETE */}
               <button
                 style={styles.delete}
                 onClick={() => deleteTask?.(t.id)}
@@ -168,3 +158,66 @@ export default function Tasks({
     </div>
   );
 }
+
+
+// ✅ REQUIRED STYLES (FIX)
+const styles = {
+  container: { padding: 20, color: "white" },
+  title: { fontSize: 24 },
+  subtitle: { color: "#94a3b8", marginBottom: 10 },
+
+  addBox: { display: "flex", gap: 10, marginBottom: 15 },
+  input: { padding: 8, flex: 1 },
+
+  addBtn: {
+    padding: "8px 16px",
+    background: "#22c55e",
+    border: "none",
+    borderRadius: 6,
+    color: "white",
+    cursor: "pointer"
+  },
+
+  grid: { display: "grid", gap: 12 },
+
+  card: {
+    padding: 12,
+    background: "#0f172a",
+    borderRadius: 8
+  },
+
+  running: { color: "#22c55e" },
+  stopped: { color: "#ef4444" },
+
+  time: { fontSize: 12, color: "#94a3b8" },
+  duration: { marginTop: 5 },
+
+  start: {
+    background: "#22c55e",
+    border: "none",
+    padding: "6px 10px",
+    marginTop: 8,
+    borderRadius: 6,
+    cursor: "pointer"
+  },
+
+  stop: {
+    background: "#ef4444",
+    border: "none",
+    padding: "6px 10px",
+    marginTop: 8,
+    borderRadius: 6,
+    cursor: "pointer"
+  },
+
+  delete: {
+    marginTop: 8,
+    background: "#374151",
+    border: "none",
+    padding: "6px 10px",
+    borderRadius: 6,
+    cursor: "pointer"
+  },
+
+  empty: { color: "#94a3b8" }
+};
