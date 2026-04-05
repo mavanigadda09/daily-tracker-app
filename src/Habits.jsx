@@ -19,7 +19,7 @@ export default function Habits({ items = [], setItems }) {
   const today = new Date();
   const todayKey = getKey(today);
 
-  // ===== ADD (ENTER SUPPORT) =====
+  // ===== ADD =====
   const addHabit = () => {
     if (!name.trim()) return;
 
@@ -30,7 +30,6 @@ export default function Habits({ items = [], setItems }) {
         name: name.trim(),
         type: "habit",
         completed: {},
-        xp: 0,
         time: time || null,
         targetDays: Number(targetDays),
         createdAt: Date.now()
@@ -42,11 +41,11 @@ export default function Habits({ items = [], setItems }) {
     setTargetDays(30);
   };
 
-  const handleEnter = (e) => {
-    if (e.key === "Enter") addHabit();
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    addHabit();
   };
 
-  // ===== DELETE =====
   const deleteHabit = (id) => {
     setItems(prev => prev.filter(i => i.id !== id));
   };
@@ -85,9 +84,9 @@ export default function Habits({ items = [], setItems }) {
     return days;
   };
 
-  // ===== TOGGLE (ONLY TODAY ALLOWED) =====
+  // ===== TOGGLE =====
   const toggleDay = (id, key) => {
-    if (key !== todayKey) return; // 🔒 restrict
+    if (key !== todayKey) return;
 
     setItems(prev =>
       prev.map(item => {
@@ -96,10 +95,7 @@ export default function Habits({ items = [], setItems }) {
         const updated = { ...(item.completed || {}) };
         updated[key] = !updated[key];
 
-        return {
-          ...item,
-          completed: updated
-        };
+        return { ...item, completed: updated };
       })
     );
   };
@@ -123,17 +119,25 @@ export default function Habits({ items = [], setItems }) {
 
       {/* TOGGLE */}
       <div style={styles.toggle}>
-        <button onClick={() => setView("today")}>Today</button>
-        <button onClick={() => setView("week")}>Week</button>
-        <button onClick={() => setView("month")}>Month</button>
+        {["today", "week", "month"].map(v => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            style={{
+              ...styles.toggleBtn,
+              ...(view === v ? styles.activeBtn : {})
+            }}
+          >
+            {v.toUpperCase()}
+          </button>
+        ))}
       </div>
 
-      {/* ADD */}
-      <div style={styles.addBox}>
+      {/* ADD FORM */}
+      <form onSubmit={handleSubmit} style={styles.addBox}>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          onKeyDown={handleEnter}
           placeholder="Habit name"
           style={styles.input}
         />
@@ -142,7 +146,6 @@ export default function Habits({ items = [], setItems }) {
           type="time"
           value={time}
           onChange={(e) => setTime(e.target.value)}
-          onKeyDown={handleEnter}
           style={styles.input}
         />
 
@@ -150,15 +153,13 @@ export default function Habits({ items = [], setItems }) {
           type="number"
           value={targetDays}
           onChange={(e) => setTargetDays(e.target.value)}
-          onKeyDown={handleEnter}
-          placeholder="Days"
           style={styles.input}
         />
 
-        <button onClick={addHabit} style={styles.addBtn}>
+        <button type="submit" style={styles.addBtn}>
           Add
         </button>
-      </div>
+      </form>
 
       {/* WEEK NAV */}
       {view === "week" && (
@@ -178,7 +179,7 @@ export default function Habits({ items = [], setItems }) {
 
             <div style={styles.header}>
               <h3>{h.name}</h3>
-              {h.time && <span>⏰ {h.time}</span>}
+              {h.time && <span style={styles.time}>⏰ {h.time}</span>}
             </div>
 
             {/* PROGRESS */}
@@ -201,9 +202,7 @@ export default function Habits({ items = [], setItems }) {
                 onClick={() => toggleDay(h.id, todayKey)}
                 style={{
                   ...styles.todayBtn,
-                  background: h.completed?.[todayKey]
-                    ? "var(--accent)"
-                    : "var(--card)"
+                  ...(h.completed?.[todayKey] ? styles.done : {})
                 }}
               >
                 {h.completed?.[todayKey]
@@ -214,7 +213,7 @@ export default function Habits({ items = [], setItems }) {
 
             {/* WEEK */}
             {view === "week" && (
-              <div style={styles.week}>
+              <div style={styles.grid}>
                 {week.map(d => (
                   <div
                     key={d.key}
@@ -232,7 +231,7 @@ export default function Habits({ items = [], setItems }) {
 
             {/* MONTH */}
             {view === "month" && (
-              <div style={styles.month}>
+              <div style={styles.grid}>
                 {getMonthDays().map(key => (
                   <div
                     key={key}
@@ -271,15 +270,27 @@ const styles = {
     color: "var(--text)"
   },
 
-  title: { fontSize: 28, marginBottom: 10 },
+  title: { fontSize: 28, marginBottom: 20 },
 
   toggle: { display: "flex", gap: 10, marginBottom: 20 },
 
-  addBox: {
-    display: "flex",
-    gap: 10,
-    marginBottom: 20
+  toggleBtn: {
+    padding: "8px 14px",
+    borderRadius: 8,
+    background: "var(--card)",
+    border: "1px solid var(--border)",
+    color: "var(--text)",
+    cursor: "pointer",
+    transition: "0.2s"
   },
+
+  activeBtn: {
+    background: "var(--accent)",
+    color: "#fff",
+    boxShadow: "0 0 10px rgba(34,197,94,0.5)"
+  },
+
+  addBox: { display: "flex", gap: 10, marginBottom: 20 },
 
   input: {
     padding: 10,
@@ -293,8 +304,8 @@ const styles = {
     background: "var(--accent)",
     color: "#fff",
     padding: "10px 16px",
-    border: "none",
-    borderRadius: 8
+    borderRadius: 8,
+    border: "none"
   },
 
   nav: {
@@ -307,8 +318,9 @@ const styles = {
     padding: 20,
     borderRadius: 16,
     background: "var(--card)",
+    border: "1px solid var(--border)",
     marginBottom: 20,
-    border: "1px solid var(--border)"
+    transition: "0.2s"
   },
 
   header: {
@@ -316,17 +328,20 @@ const styles = {
     justifyContent: "space-between"
   },
 
+  time: { color: "var(--text-muted)" },
+
   progressBar: {
     height: 8,
     background: "var(--border)",
-    marginTop: 10,
-    borderRadius: 10
+    borderRadius: 10,
+    marginTop: 10
   },
 
   progressFill: {
     height: "100%",
     background: "var(--accent)",
-    borderRadius: 10
+    borderRadius: 10,
+    transition: "width 0.4s ease"
   },
 
   meta: {
@@ -341,16 +356,15 @@ const styles = {
     border: "1px solid var(--border)"
   },
 
-  week: {
-    display: "flex",
-    gap: 6,
-    marginTop: 10
+  done: {
+    background: "var(--accent)",
+    color: "#fff"
   },
 
-  month: {
+  grid: {
     display: "grid",
     gridTemplateColumns: "repeat(7, 1fr)",
-    gap: 4,
+    gap: 6,
     marginTop: 10
   },
 
