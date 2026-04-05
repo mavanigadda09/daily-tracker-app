@@ -17,27 +17,38 @@ export default defineConfig({
     port: 5173,
     open: true,
 
-    // 🔥 API PROXY (OPTIONAL)
     proxy: {
       "/api": {
         target: "https://daily-tracker-app-g96u.onrender.com",
         changeOrigin: true,
-        secure: false
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, "")
       }
     }
   },
 
-  // ===== BUILD OPTIMIZATION =====
+  // ===== BUILD =====
   build: {
     outDir: "dist",
     sourcemap: false,
+    chunkSizeWarningLimit: 1000,
 
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ["react", "react-dom"],
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            // Split vendor chunks smarter
+            if (id.includes("react")) return "react-vendor";
+            if (id.includes("firebase")) return "firebase";
+            return "vendor";
+          }
         }
       }
     }
+  },
+
+  // ===== OPTIMIZATION =====
+  optimizeDeps: {
+    include: ["react", "react-dom"]
   }
 });

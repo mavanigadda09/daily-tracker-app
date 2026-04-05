@@ -1,11 +1,13 @@
 // ================= HABIT HELPERS =================
 
 export const getHabitStats = (habit) => {
-  const values = Object.values(habit.completed || {});
+  if (!habit?.completed) return null;
+
+  const values = Object.values(habit.completed);
   if (!values.length) return null;
 
   const misses = values.filter(v => !v).length;
-  const rate = misses / values.length;
+  const rate = values.length ? misses / values.length : 0;
 
   return {
     total: values.length,
@@ -15,18 +17,22 @@ export const getHabitStats = (habit) => {
 };
 
 export const getWorstHabit = (habits = []) => {
+  if (!Array.isArray(habits) || !habits.length) {
+    return { worstHabit: null, worstRate: 0 };
+  }
+
   let worstHabit = null;
   let worstRate = 0;
 
-  habits.forEach(h => {
+  for (const h of habits) {
     const stats = getHabitStats(h);
-    if (!stats) return;
+    if (!stats) continue;
 
     if (stats.rate > worstRate) {
       worstRate = stats.rate;
-      worstHabit = h.name;
+      worstHabit = h?.name || "Unknown";
     }
-  });
+  }
 
   return { worstHabit, worstRate };
 };
@@ -34,10 +40,10 @@ export const getWorstHabit = (habits = []) => {
 // ================= SMART GOAL =================
 
 export const parseSmartGoal = (goal) => {
-  if (!goal) return null;
+  if (!goal || typeof goal !== "string") return null;
 
-  const num = goal.match(/\d+/);
-  const value = num ? Number(num[0]) : null;
+  const numMatch = goal.match(/\d+/);
+  const value = numMatch ? Number(numMatch[0]) : null;
 
   const lower = goal.toLowerCase();
 
@@ -55,16 +61,22 @@ export const parseSmartGoal = (goal) => {
 
   let target = value;
 
-  if (unit === "minutes" && lower.includes("hour")) {
+  if (unit === "minutes" && lower.includes("hour") && value) {
     target = value * 60;
   }
 
-  return { target, unit };
+  return {
+    target: target || 0,
+    unit
+  };
 };
 
 export const calculatePercent = (value, target) => {
-  if (!target) return 0;
-  return Math.min(Math.round((value / target) * 100), 100);
+  if (!target || target <= 0) return 0;
+
+  const percent = (Number(value || 0) / target) * 100;
+
+  return Math.min(Math.round(percent), 100);
 };
 
 // ================= DAILY =================
@@ -72,17 +84,22 @@ export const calculatePercent = (value, target) => {
 export const getDailyData = (logs = {}, tasks = []) => {
   const daily = {};
 
-  Object.values(logs).flat().forEach((l) => {
+  // Logs
+  Object.values(logs || {}).flat().forEach((l) => {
     if (!l?.date) return;
+
+    const val = Number(l.value || 0);
     if (!daily[l.date]) daily[l.date] = 0;
-    daily[l.date] += Number(l.value || 0);
+
+    daily[l.date] += isNaN(val) ? 0 : val;
   });
 
-  tasks.forEach((t) => {
-    t.logs?.forEach((log) => {
+  // Task durations
+  (tasks || []).forEach((t) => {
+    (t.logs || []).forEach((log) => {
       if (!log?.date) return;
 
-      const minutes = Math.round((log.duration || 0) / 60);
+      const minutes = Math.round((Number(log.duration) || 0) / 60);
 
       if (!daily[log.date]) daily[log.date] = 0;
       daily[log.date] += minutes;
@@ -94,25 +111,29 @@ export const getDailyData = (logs = {}, tasks = []) => {
 
 // ================= HEATMAP =================
 
-export const getHeatmapData = (daily) => {
+export const getHeatmapData = (daily = {}) => {
   return Array.from({ length: 30 }).map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (29 - i));
 
+    const dateStr = d.toDateString();
+
     return {
-      date: d.toDateString(),
-      value: daily[d.toDateString()] || 0
+      date: dateStr,
+      value: Number(daily[dateStr] || 0)
     };
   });
 };
 
 // ================= STREAK =================
 
-export const getStreak = (data) => {
+export const getStreak = (data = []) => {
+  if (!Array.isArray(data)) return 0;
+
   let streak = 0;
 
   for (let i = data.length - 1; i >= 0; i--) {
-    if (data[i].value > 0) streak++;
+    if (data[i]?.value > 0) streak++;
     else break;
   }
 
@@ -122,9 +143,9 @@ export const getStreak = (data) => {
 // ================= CONSISTENCY =================
 
 export const getConsistencyScore = (heatmap = []) => {
-  if (!heatmap.length) return 0;
+  if (!Array.isArray(heatmap) || !heatmap.length) return 0;
 
-  const activeDays = heatmap.filter(d => d.value > 0).length;
+  const activeDays = heatmap.filter(d => d?.value > 0).length;
 
   return Math.round((activeDays / heatmap.length) * 100);
 };

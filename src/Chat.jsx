@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { processUserInput } from "../ai/aiService";
+import { processUserInput } from "../ai/aiService.js";
 
 // ===== INITIAL =====
 const getInitialMessages = (history = []) => {
-  if (history.length) return history;
+  if (history?.length) return history;
 
   return [
     {
@@ -34,7 +34,6 @@ export default function Chat({
   onAddTask,
   onAddExpense
 }) {
-
   const [messages, setMessages] = useState(() =>
     getInitialMessages(chatHistory)
   );
@@ -56,19 +55,15 @@ export default function Chat({
 
   // ===== TYPING EFFECT =====
   const typeMessage = async (text) => {
+    const id = Date.now();
     let current = "";
 
-    const id = Date.now();
+    saveMessages((prev) => [...prev, { id, role: "ai", text: "" }]);
 
-    saveMessages((prev) => [
-      ...prev,
-      { id, role: "ai", text: "" }
-    ]);
+    for (let i = 0; i < text.length; i++) {
+      current += text[i];
 
-    for (let char of text) {
-      current += char;
-
-      await new Promise((r) => setTimeout(r, 15));
+      await new Promise((r) => setTimeout(r, 10)); // faster typing
 
       setMessages((prev) =>
         prev.map((m) =>
@@ -80,7 +75,7 @@ export default function Chat({
 
   // ===== SEND =====
   const sendMessage = async (rawInput) => {
-    const text = rawInput.trim();
+    const text = rawInput?.trim();
     if (!text || isTyping) return;
 
     const userMsg = {
@@ -121,20 +116,20 @@ export default function Chat({
 
         aiText = aiResult.message || "Action completed ✅";
       } else {
-        aiText = aiResult.message || "AI response";
+        aiText = aiResult?.message || "AI response";
       }
 
       await typeMessage(aiText);
 
     } catch (err) {
-      console.error(err);
+      console.error("Chat Error:", err);
 
       saveMessages((prev) => [
         ...prev,
         {
           id: Date.now(),
           role: "ai",
-          text: "⚠️ AI error. Try again."
+          text: "⚠️ AI error. Please try again."
         }
       ]);
     }
@@ -149,7 +144,6 @@ export default function Chat({
 
   return (
     <div style={styles.container}>
-
       <h1 style={styles.title}>🤖 AI Coach</h1>
 
       {/* SUGGESTIONS */}
@@ -159,6 +153,7 @@ export default function Chat({
             key={i}
             style={styles.suggestionBtn}
             onClick={() => sendMessage(s)}
+            disabled={isTyping}
           >
             {s}
           </button>
@@ -191,20 +186,25 @@ export default function Chat({
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask anything..."
           style={styles.input}
+          disabled={isTyping}
           onKeyDown={(e) => {
             if (e.key === "Enter") sendMessage(input);
           }}
         />
 
-        <button onClick={() => sendMessage(input)} style={styles.button}>
+        <button
+          onClick={() => sendMessage(input)}
+          style={styles.button}
+          disabled={isTyping}
+        >
           Send
         </button>
       </div>
-
     </div>
   );
 }
 
+// ===== STYLES =====
 const styles = {
   container: {
     padding: 20,
@@ -249,7 +249,8 @@ const styles = {
     padding: 10,
     borderRadius: 10,
     maxWidth: "70%",
-    color: "#fff"
+    color: "#fff",
+    wordBreak: "break-word"
   },
 
   typing: {
