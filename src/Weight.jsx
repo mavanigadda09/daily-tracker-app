@@ -62,23 +62,33 @@ export default function Weight({
   const { plateau, prediction, advice } = useMemo(() => {
     if (sorted.length < 3) return {};
 
-    return {
-      plateau: detectPlateau(sorted),
-      prediction: predictWeight(sorted),
-      advice: getWeightAdvice(sorted, target)
-    };
+    try {
+      return {
+        plateau: detectPlateau(sorted),
+        prediction: predictWeight(sorted),
+        advice: getWeightAdvice(sorted, target)
+      };
+    } catch (e) {
+      console.error("AI error:", e);
+      return {};
+    }
   }, [sorted, target]);
 
   // ===== HABIT LINK =====
   const habitInsight = useMemo(() => {
     if (sorted.length < 3) return "";
 
-    const habits = items.filter(i => i.type === "habit");
+    try {
+      const habits = items.filter(i => i.type === "habit");
 
-    return analyzeWeightWithHabits({
-      weightLogs: sorted,
-      habits
-    });
+      return analyzeWeightWithHabits({
+        weightLogs: sorted,
+        habits
+      });
+    } catch (e) {
+      console.error("Habit analysis error:", e);
+      return "";
+    }
   }, [sorted, items]);
 
   // ===== CHART =====
@@ -144,7 +154,7 @@ export default function Weight({
         </button>
       </div>
 
-      {/* EMPTY STATE */}
+      {/* EMPTY */}
       {sorted.length === 0 && (
         <p style={styles.empty}>
           No data yet. Add your first weight 🚀
@@ -216,3 +226,68 @@ function Stat({ label, value }) {
     </div>
   );
 }
+
+// ===== STYLES (THIS WAS MISSING → CAUSED CRASH) =====
+const styles = {
+  container: {
+    padding: 20,
+    color: "white",
+    background: "#020617",
+    minHeight: "100vh"
+  },
+  title: {
+    fontSize: 28,
+    marginBottom: 20
+  },
+  card: {
+    background: "#0f172a",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16
+  },
+  input: {
+    padding: 10,
+    marginRight: 10,
+    borderRadius: 8,
+    border: "none"
+  },
+  button: {
+    padding: "10px 14px",
+    borderRadius: 8,
+    border: "none",
+    background: "#6366f1",
+    color: "white",
+    cursor: "pointer"
+  },
+  empty: {
+    opacity: 0.7
+  },
+  stats: {
+    display: "flex",
+    gap: 10,
+    marginBottom: 16
+  },
+  statCard: {
+    flex: 1,
+    background: "#0f172a",
+    padding: 12,
+    borderRadius: 10,
+    textAlign: "center"
+  },
+  progressBar: {
+    height: 10,
+    background: "#1e293b",
+    borderRadius: 10,
+    overflow: "hidden"
+  },
+  progressFill: {
+    height: "100%",
+    background: "#22c55e"
+  },
+  aiCard: {
+    background: "#1e293b",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 16
+  }
+};
