@@ -6,14 +6,12 @@ export default function Activities({ items = [], setItems }) {
   const [activeInput, setActiveInput] = useState(null);
   const [tempValues, setTempValues] = useState({});
 
-  // ✅ Memoized activities
   const activities = useMemo(() => {
     return Array.isArray(items)
       ? items.filter((i) => i.type === "activity")
       : [];
   }, [items]);
 
-  // ✅ Click outside handler
   useEffect(() => {
     const handleClick = (e) => {
       if (!wrapperRef.current?.contains(e.target)) {
@@ -25,7 +23,6 @@ export default function Activities({ items = [], setItems }) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // ✅ Safe updater
   const updateActivity = useCallback((id, value, mode) => {
     if (!setItems) return;
 
@@ -100,7 +97,6 @@ export default function Activities({ items = [], setItems }) {
                 {a.value || 0} / {a.target || 0} {a.unit || ""}
               </p>
 
-              {/* PROGRESS */}
               <div style={styles.barBg}>
                 <div
                   style={{
@@ -110,7 +106,6 @@ export default function Activities({ items = [], setItems }) {
                 />
               </div>
 
-              {/* CONTROLS */}
               <div style={styles.controls}>
                 <button style={styles.btn} onClick={handleSubtract}>
                   −
@@ -162,3 +157,82 @@ export default function Activities({ items = [], setItems }) {
     </div>
   );
 }
+
+
+// ✅ REQUIRED STYLES (FIX)
+const styles = {
+  container: { padding: 20, color: "white" },
+
+  title: { fontSize: 24 },
+  subtitle: { color: "#94a3b8", marginBottom: 10 },
+
+  empty: { color: "#94a3b8" },
+
+  grid: {
+    display: "grid",
+    gap: 15,
+    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))"
+  },
+
+  card: {
+    padding: 15,
+    background: "#0f172a",
+    borderRadius: 10
+  },
+
+  stats: { marginBottom: 8 },
+
+  barBg: {
+    height: 8,
+    background: "#1e293b",
+    borderRadius: 10,
+    overflow: "hidden",
+    marginBottom: 10
+  },
+
+  barFill: {
+    height: "100%",
+    background: "#22c55e"
+  },
+
+  controls: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8
+  },
+
+  btn: {
+    padding: "6px 10px",
+    background: "#1e293b",
+    border: "none",
+    borderRadius: 6,
+    color: "white",
+    cursor: "pointer"
+  },
+
+  inputWrapper: {
+    position: "relative"
+  },
+
+  input: {
+    width: 60,
+    padding: 6,
+    textAlign: "center"
+  },
+
+  dropdown: {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    background: "#111827",
+    borderRadius: 6,
+    marginTop: 4,
+    zIndex: 10
+  },
+
+  option: {
+    padding: 6,
+    cursor: "pointer",
+    color: "white"
+  }
+};
