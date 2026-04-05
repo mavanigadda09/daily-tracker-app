@@ -8,6 +8,7 @@ export default function Habits({ items = [], setItems }) {
     [items]
   );
 
+  const [showForm, setShowForm] = useState(false); // ✅ NEW
   const [name, setName] = useState("");
   const [time, setTime] = useState("");
   const [targetDays, setTargetDays] = useState(30);
@@ -47,6 +48,7 @@ export default function Habits({ items = [], setItems }) {
     setName("");
     setTime("");
     setTargetDays(30);
+    setShowForm(false); // ✅ close after add
   };
 
   const handleSubmit = (e) => {
@@ -85,12 +87,10 @@ export default function Habits({ items = [], setItems }) {
     );
   };
 
-  // ===== DELETE (FIXED CLEAN) =====
   const deleteHabit = (id) => {
     setItems(prev => prev.filter(i => i.id !== id));
   };
 
-  // ===== EDIT =====
   const editHabit = (id) => {
     const newName = prompt("Edit habit name");
     if (!newName) return;
@@ -102,7 +102,6 @@ export default function Habits({ items = [], setItems }) {
     );
   };
 
-  // ===== PROGRESS =====
   const getProgress = (habit) => {
     const total = habit.targetDays || 30;
     const done = Object.keys(habit.completed || {}).length;
@@ -114,7 +113,6 @@ export default function Habits({ items = [], setItems }) {
     };
   };
 
-  // ===== SPLIT =====
   const completedHabits = habits.filter(h => h.completed?.[todayKey]);
   const pendingHabits = habits.filter(h => !h.completed?.[todayKey]);
 
@@ -139,33 +137,61 @@ export default function Habits({ items = [], setItems }) {
         ))}
       </div>
 
-      {/* ADD FORM */}
-      <form onSubmit={handleSubmit} style={styles.addBox}>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Habit"
-          style={styles.input}
-        />
+      {/* ✅ CREATE CARD */}
+      {!showForm && (
+        <div style={styles.grid}>
+          <motion.div
+            style={styles.createCard}
+            whileHover={{ scale: 1.05 }}
+            onClick={() => setShowForm(true)}
+          >
+            ➕ Create Habit
+          </motion.div>
+        </div>
+      )}
 
-        <input
-          type="time"
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-          style={styles.input}
-        />
+      {/* ✅ HORIZONTAL FORM */}
+      {showForm && (
+        <motion.form
+          onSubmit={handleSubmit}
+          style={styles.horizontalForm}
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Habit"
+            style={styles.input}
+          />
 
-        <input
-          type="number"
-          value={targetDays}
-          onChange={(e) => setTargetDays(e.target.value)}
-          style={styles.input}
-        />
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            style={styles.input}
+          />
 
-        <button type="submit" style={styles.addBtn}>
-          Add
-        </button>
-      </form>
+          <input
+            type="number"
+            value={targetDays}
+            onChange={(e) => setTargetDays(e.target.value)}
+            style={styles.input}
+          />
+
+          <button type="submit" style={styles.addBtn}>
+            Add
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowForm(false)}
+            style={styles.cancelBtn}
+          >
+            Cancel
+          </button>
+        </motion.form>
+      )}
 
       {/* PENDING */}
       <h3>Pending</h3>
@@ -175,11 +201,7 @@ export default function Habits({ items = [], setItems }) {
           const bg = colors[i % colors.length];
 
           return (
-            <motion.div
-              key={h.id}
-              style={{ ...styles.card, background: bg }}
-              whileHover={{ scale: 1.02 }}
-            >
+            <motion.div key={h.id} style={{ ...styles.card, background: bg }}>
               <div style={styles.cardTop}>
                 <div onClick={() => setSelectedHabit(h)}>
                   <h3>{h.name}</h3>
@@ -200,8 +222,6 @@ export default function Habits({ items = [], setItems }) {
                 />
               </div>
 
-              <p>{progress.done}/{progress.total} days</p>
-
               <button onClick={() => toggleDay(h.id)} style={styles.actionBtn}>
                 Mark Done
               </button>
@@ -214,7 +234,6 @@ export default function Habits({ items = [], setItems }) {
       <h3>Completed</h3>
       <div style={styles.grid}>
         {completedHabits.map((h, i) => {
-          const progress = getProgress(h);
           const bg = colors[i % colors.length];
 
           return (
@@ -225,21 +244,6 @@ export default function Habits({ items = [], setItems }) {
           );
         })}
       </div>
-
-      {/* MODAL */}
-      {selectedHabit && (
-        <div style={styles.modal}>
-          <div style={styles.modalCard}>
-            <h2>{selectedHabit.name}</h2>
-            <p>🔥 Streak: {selectedHabit.streak}</p>
-            <p>⭐ XP: {selectedHabit.xp}</p>
-
-            <button onClick={() => setSelectedHabit(null)}>
-              Close
-            </button>
-          </div>
-        </div>
-      )}
 
     </div>
   );
@@ -264,7 +268,27 @@ const styles = {
     color: "#fff"
   },
 
-  addBox: { display: "flex", gap: 10, marginBottom: 20 },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))",
+    gap: 16
+  },
+
+  createCard: {
+    padding: 20,
+    borderRadius: 20,
+    background: "#111",
+    color: "#fff",
+    textAlign: "center",
+    cursor: "pointer"
+  },
+
+  horizontalForm: {
+    display: "flex",
+    gap: 10,
+    marginBottom: 20,
+    flexWrap: "wrap"
+  },
 
   input: {
     padding: 10,
@@ -281,10 +305,11 @@ const styles = {
     color: "#fff"
   },
 
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))",
-    gap: 16
+  cancelBtn: {
+    background: "#ef4444",
+    padding: "10px 16px",
+    borderRadius: 10,
+    color: "#fff"
   },
 
   card: {
@@ -321,20 +346,5 @@ const styles = {
     borderRadius: 10,
     background: "#fff",
     color: "#000"
-  },
-
-  modal: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.6)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center"
-  },
-
-  modalCard: {
-    background: "#fff",
-    padding: 20,
-    borderRadius: 12
   }
 };
