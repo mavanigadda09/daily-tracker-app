@@ -3,186 +3,181 @@ import { motion } from "framer-motion";
 
 export default function Habits({ items = [], setItems }) {
 
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [view, setView] = useState("today");
+  const [selectedHabit, setSelectedHabit] = useState(null);
 
   const getKey = (d) =>
     `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
-  const selectedKey = getKey(selectedDate);
+  const todayKey = getKey(new Date());
 
   const habits = useMemo(
     () => items.filter(i => i.type === "habit"),
     [items]
   );
 
-  const colors = [
-    "linear-gradient(135deg,#6366f1,#8b5cf6)",
-    "linear-gradient(135deg,#f97316,#fb7185)",
-    "linear-gradient(135deg,#22c55e,#4ade80)",
-    "linear-gradient(135deg,#06b6d4,#3b82f6)"
-  ];
-
   // ===== ADD =====
-  const addHabit = (data) => {
-    setItems(prev => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        type: "habit",
-        completed: {},
-        xp: 0,
-        streak: 0,
-        ...data
-      }
-    ]);
+  const addHabit = () => {
+    const name = prompt("Enter habit");
+    if (!name) return;
+
+    setItems(prev => {
+      const clean = prev.filter(i => i.type === "habit" || i.type !== "habit");
+
+      return [
+        ...clean,
+        {
+          id: crypto.randomUUID(),
+          name,
+          type: "habit",
+          completed: {},
+          xp: 0,
+          streak: 0,
+          targetDays: 30
+        }
+      ];
+    });
   };
 
   // ===== TOGGLE =====
-  const toggleDay = (id) => {
+  const toggle = (id) => {
     setItems(prev =>
-      prev.map(item => {
-        if (item.id !== id) return item;
+      prev.map(i => {
+        if (i.id !== id) return i;
 
-        const completed = { ...(item.completed || {}) };
+        const completed = { ...(i.completed || {}) };
 
-        if (completed[selectedKey]) {
-          delete completed[selectedKey];
-          return { ...item, completed, streak: 0 };
+        if (completed[todayKey]) {
+          delete completed[todayKey];
+          return { ...i, completed };
         }
 
-        completed[selectedKey] = true;
+        completed[todayKey] = true;
 
         return {
-          ...item,
+          ...i,
           completed,
-          xp: (item.xp || 0) + 10,
-          streak: (item.streak || 0) + 1
+          xp: (i.xp || 0) + 10,
+          streak: (i.streak || 0) + 1
         };
       })
     );
   };
 
-  // ===== DELETE =====
+  // ===== DELETE (FIXED) =====
   const deleteHabit = (id) => {
     setItems(prev => prev.filter(i => i.id !== id));
   };
 
-  // ===== PROGRESS =====
-  const getProgress = (h) => {
-    const done = Object.keys(h.completed || {}).length;
-    const total = h.targetDays || 30;
-    return Math.min(100, (done / total) * 100);
+  // ===== EDIT =====
+  const editHabit = (id) => {
+    const name = prompt("Edit habit name");
+    if (!name) return;
+
+    setItems(prev =>
+      prev.map(i =>
+        i.id === id ? { ...i, name } : i
+      )
+    );
   };
 
-  // ===== DATE STRIP =====
-  const days = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - 7 + i);
-    return d;
-  });
-
-  // ===== SPLIT =====
-  const completedHabits = habits.filter(h => h.completed?.[selectedKey]);
-  const pendingHabits = habits.filter(h => !h.completed?.[selectedKey]);
+  // ===== FILTER =====
+  const completed = habits.filter(h => h.completed?.[todayKey]);
+  const pending = habits.filter(h => !h.completed?.[todayKey]);
 
   return (
     <div style={styles.container}>
 
-      <h1 style={styles.title}>🔥 Habits</h1>
+      <h1>🔥 Habits</h1>
 
-      {/* DATE STRIP */}
-      <div style={styles.dateStrip}>
-        {days.map(d => {
-          const key = getKey(d);
-          const active = key === selectedKey;
-
-          return (
-            <div
-              key={key}
-              onClick={() => setSelectedDate(d)}
-              style={{
-                ...styles.dateCard,
-                ...(active ? styles.activeDate : {})
-              }}
-            >
-              <div>{d.getDate()}</div>
-              <small>{["S","M","T","W","T","F","S"][d.getDay()]}</small>
-            </div>
-          );
-        })}
+      {/* VIEW SWITCH */}
+      <div style={styles.tabs}>
+        {["today", "week", "month"].map(v => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            style={{
+              ...styles.tab,
+              ...(view === v ? styles.activeTab : {})
+            }}
+          >
+            {v.toUpperCase()}
+          </button>
+        ))}
       </div>
 
-      {/* CREATE CARD */}
-      <div style={styles.grid}>
-        <div
-          style={styles.createCard}
-          onClick={() => {
-            const name = prompt("Habit name?");
-            if (!name) return;
-            addHabit({ name, targetDays: 30 });
-          }}
-        >
-          ➕ Create Habit
-        </div>
-      </div>
+      {/* CREATE */}
+      <button onClick={addHabit} style={styles.create}>
+        + Create Habit
+      </button>
 
       {/* PENDING */}
-      <h3 style={styles.section}>Pending</h3>
+      <h3>Pending</h3>
       <div style={styles.grid}>
-        {pendingHabits.map((h, i) => (
-          <HabitCard
+        {pending.map(h => (
+          <Card
             key={h.id}
             h={h}
-            bg={colors[i % colors.length]}
-            toggleDay={toggleDay}
+            toggle={toggle}
             deleteHabit={deleteHabit}
-            progress={getProgress(h)}
+            editHabit={editHabit}
+            open={() => setSelectedHabit(h)}
           />
         ))}
       </div>
 
       {/* COMPLETED */}
-      <h3 style={styles.section}>Completed</h3>
+      <h3>Completed</h3>
       <div style={styles.grid}>
-        {completedHabits.map((h, i) => (
-          <HabitCard
+        {completed.map(h => (
+          <Card
             key={h.id}
             h={h}
-            bg={colors[i % colors.length]}
-            toggleDay={toggleDay}
+            toggle={toggle}
             deleteHabit={deleteHabit}
-            progress={getProgress(h)}
+            editHabit={editHabit}
+            open={() => setSelectedHabit(h)}
           />
         ))}
       </div>
+
+      {/* DETAIL VIEW */}
+      {selectedHabit && (
+        <div style={styles.modal}>
+          <div style={styles.modalCard}>
+            <h2>{selectedHabit.name}</h2>
+            <p>🔥 Streak: {selectedHabit.streak}</p>
+            <p>⭐ XP: {selectedHabit.xp}</p>
+
+            <button onClick={() => setSelectedHabit(null)}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );
 }
 
-// ===== CARD COMPONENT =====
-function HabitCard({ h, bg, toggleDay, deleteHabit, progress }) {
-
+// ===== CARD =====
+function Card({ h, toggle, deleteHabit, editHabit, open }) {
   return (
-    <motion.div style={{ ...styles.card, background: bg }}>
+    <motion.div style={styles.card} whileHover={{ scale: 1.05 }}>
 
-      <div style={styles.cardTop}>
-        <h3>{h.name}</h3>
-        <div style={styles.menu}>
-          <button onClick={() => deleteHabit(h.id)}>🗑</button>
-        </div>
+      <h3 onClick={open} style={{ cursor: "pointer" }}>
+        {h.name}
+      </h3>
+
+      <p>🔥 {h.streak}</p>
+      <p>⭐ {h.xp}</p>
+
+      <button onClick={() => toggle(h.id)}>Done</button>
+
+      <div style={styles.actions}>
+        <button onClick={() => editHabit(h.id)}>✏️</button>
+        <button onClick={() => deleteHabit(h.id)}>🗑</button>
       </div>
-
-      <p style={styles.sub}>🔥 {h.streak || 0} streak</p>
-      <p style={styles.sub}>⭐ {h.xp || 0} XP</p>
-
-      <div style={styles.progress}>
-        <div style={{ ...styles.fill, width: `${progress}%` }} />
-      </div>
-
-      <button onClick={() => toggleDay(h.id)} style={styles.btn}>
-        Mark Done
-      </button>
 
     </motion.div>
   );
@@ -192,72 +187,60 @@ function HabitCard({ h, bg, toggleDay, deleteHabit, progress }) {
 const styles = {
   container: { padding: 20 },
 
-  title: { fontSize: 28 },
+  tabs: { display: "flex", gap: 10 },
 
-  section: { marginTop: 20 },
-
-  dateStrip: {
-    display: "flex",
-    gap: 10,
-    overflowX: "auto",
-    margin: "20px 0"
+  tab: {
+    padding: 8,
+    borderRadius: 8,
+    border: "1px solid #ccc"
   },
 
-  dateCard: {
+  activeTab: {
+    background: "#22c55e",
+    color: "#fff"
+  },
+
+  create: {
+    margin: "10px 0",
     padding: 10,
-    borderRadius: 10,
     background: "#111",
-    color: "#fff",
-    minWidth: 50,
-    textAlign: "center",
-    cursor: "pointer"
-  },
-
-  activeDate: {
-    background: "#22c55e"
+    color: "#fff"
   },
 
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))",
-    gap: 15
-  },
-
-  createCard: {
-    padding: 20,
-    borderRadius: 20,
-    background: "#111",
-    textAlign: "center",
-    cursor: "pointer"
+    gap: 10
   },
 
   card: {
-    padding: 16,
-    borderRadius: 20,
-    color: "#fff"
+    padding: 15,
+    background: "#111",
+    color: "#fff",
+    borderRadius: 12
   },
 
-  cardTop: {
+  actions: {
     display: "flex",
-    justifyContent: "space-between"
-  },
-
-  sub: { fontSize: 12 },
-
-  progress: {
-    height: 6,
-    background: "rgba(255,255,255,0.3)",
+    gap: 10,
     marginTop: 10
   },
 
-  fill: {
+  modal: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100%",
     height: "100%",
-    background: "#fff"
+    background: "rgba(0,0,0,0.6)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center"
   },
 
-  btn: {
-    marginTop: 10,
-    padding: 8,
+  modalCard: {
+    background: "#fff",
+    padding: 20,
     borderRadius: 10
   }
 };
