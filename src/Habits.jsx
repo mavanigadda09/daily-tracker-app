@@ -8,16 +8,18 @@ export default function Habits({ items = [], setItems }) {
   );
 
   const [name, setName] = useState("");
-  const [time, setTime] = useState(""); // ⏰ NEW
+  const [time, setTime] = useState("");
+  const [targetDays, setTargetDays] = useState(30);
   const [view, setView] = useState("today");
   const [weekOffset, setWeekOffset] = useState(0);
 
   const getKey = (d) =>
     `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
-  const todayKey = getKey(new Date());
+  const today = new Date();
+  const todayKey = getKey(today);
 
-  // ===== ADD =====
+  // ===== ADD (ENTER SUPPORT) =====
   const addHabit = () => {
     if (!name.trim()) return;
 
@@ -29,12 +31,19 @@ export default function Habits({ items = [], setItems }) {
         type: "habit",
         completed: {},
         xp: 0,
-        time: time || null // ⏰ NEW
+        time: time || null,
+        targetDays: Number(targetDays),
+        createdAt: Date.now()
       }
     ]);
 
     setName("");
     setTime("");
+    setTargetDays(30);
+  };
+
+  const handleEnter = (e) => {
+    if (e.key === "Enter") addHabit();
   };
 
   // ===== DELETE =====
@@ -44,89 +53,87 @@ export default function Habits({ items = [], setItems }) {
 
   // ===== WEEK =====
   const week = useMemo(() => {
-    const today = new Date();
     const start = new Date(today);
     start.setDate(today.getDate() - today.getDay() + weekOffset * 7);
 
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
-      return { label: d.getDate(), key: getKey(d) };
+      return { key: getKey(d), date: d };
     });
   }, [weekOffset]);
 
   const getWeekRange = () =>
-    `${week[0].label} - ${week[6].label}`;
+    `${week[0].date.getDate()} - ${week[6].date.getDate()}`;
 
-  // ===== TOGGLE =====
+  // ===== MONTH =====
+  const getMonthDays = () => {
+    const days = [];
+    const now = new Date();
+
+    const total = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0
+    ).getDate();
+
+    for (let i = 1; i <= total; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), i);
+      days.push(getKey(d));
+    }
+
+    return days;
+  };
+
+  // ===== TOGGLE (ONLY TODAY ALLOWED) =====
   const toggleDay = (id, key) => {
+    if (key !== todayKey) return; // 🔒 restrict
+
     setItems(prev =>
       prev.map(item => {
         if (item.id !== id) return item;
 
         const updated = { ...(item.completed || {}) };
-        const already = updated[key];
-
         updated[key] = !updated[key];
 
         return {
           ...item,
-          completed: updated,
-          xp: already
-            ? Math.max(0, item.xp - 10)
-            : item.xp + 10
+          completed: updated
         };
       })
     );
   };
 
-  // ===== TIME CHECK =====
-  const isDueNow = (habit) => {
-    if (!habit.time) return false;
+  // ===== PROGRESS =====
+  const getProgress = (habit) => {
+    const total = habit.targetDays || 30;
+    const done = Object.keys(habit.completed || {}).length;
 
-    const now = new Date();
-    const [h, m] = habit.time.split(":");
-
-    return (
-      now.getHours() >= Number(h) &&
-      now.getMinutes() >= Number(m)
-    );
+    return {
+      percent: Math.min(100, Math.round((done / total) * 100)),
+      done,
+      total
+    };
   };
-
-  // ===== DASHBOARD =====
-  const totalXP = habits.reduce((s, h) => s + (h.xp || 0), 0);
 
   return (
     <div style={styles.container}>
 
       <h1 style={styles.title}>🔥 Habits</h1>
 
-      {/* VIEW TOGGLE */}
+      {/* TOGGLE */}
       <div style={styles.toggle}>
         <button onClick={() => setView("today")}>Today</button>
         <button onClick={() => setView("week")}>Week</button>
+        <button onClick={() => setView("month")}>Month</button>
       </div>
-
-      {/* DASHBOARD */}
-      <div style={styles.dashboard}>
-        <div>⭐ XP: {totalXP}</div>
-        <div>📊 Habits: {habits.length}</div>
-      </div>
-
-      {/* NAV */}
-      {view === "week" && (
-        <div style={styles.nav}>
-          <button onClick={() => setWeekOffset(p => p - 1)}>⬅</button>
-          <span>{getWeekRange()}</span>
-          <button onClick={() => setWeekOffset(p => p + 1)}>➡</button>
-        </div>
-      )}
 
       {/* ADD */}
       <div style={styles.addBox}>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onKeyDown={handleEnter}
           placeholder="Habit name"
           style={styles.input}
         />
@@ -135,6 +142,16 @@ export default function Habits({ items = [], setItems }) {
           type="time"
           value={time}
           onChange={(e) => setTime(e.target.value)}
+          onKeyDown={handleEnter}
+          style={styles.input}
+        />
+
+        <input
+          type="number"
+          value={targetDays}
+          onChange={(e) => setTargetDays(e.target.value)}
+          onKeyDown={handleEnter}
+          placeholder="Days"
           style={styles.input}
         />
 
@@ -143,37 +160,92 @@ export default function Habits({ items = [], setItems }) {
         </button>
       </div>
 
-      {/* TODAY VIEW */}
-      {view === "today" && habits.map(h => {
-        const done = h.completed?.[todayKey];
-        const due = isDueNow(h);
+      {/* WEEK NAV */}
+      {view === "week" && (
+        <div style={styles.nav}>
+          <button onClick={() => setWeekOffset(p => p - 1)}>⬅</button>
+          <span>{getWeekRange()}</span>
+          <button onClick={() => setWeekOffset(p => p + 1)}>➡</button>
+        </div>
+      )}
+
+      {/* HABITS */}
+      {habits.map(h => {
+        const progress = getProgress(h);
 
         return (
           <div key={h.id} style={styles.card}>
 
-            <div style={styles.row}>
+            <div style={styles.header}>
               <h3>{h.name}</h3>
               {h.time && <span>⏰ {h.time}</span>}
             </div>
 
-            {/* STATUS */}
-            <div style={styles.status}>
-              {done && "✅ Completed"}
-              {!done && due && "⚠️ Due now"}
-              {!done && !due && "🕒 Upcoming"}
+            {/* PROGRESS */}
+            <div style={styles.progressBar}>
+              <div
+                style={{
+                  ...styles.progressFill,
+                  width: `${progress.percent}%`
+                }}
+              />
             </div>
 
-            <button
-              onClick={() => toggleDay(h.id, todayKey)}
-              style={{
-                ...styles.todayBtn,
-                background: done
-                  ? "var(--accent)"
-                  : "var(--card)"
-              }}
-            >
-              {done ? "Completed ✔" : "Mark Done"}
-            </button>
+            <div style={styles.meta}>
+              {progress.done} / {progress.total} days
+            </div>
+
+            {/* TODAY */}
+            {view === "today" && (
+              <button
+                onClick={() => toggleDay(h.id, todayKey)}
+                style={{
+                  ...styles.todayBtn,
+                  background: h.completed?.[todayKey]
+                    ? "var(--accent)"
+                    : "var(--card)"
+                }}
+              >
+                {h.completed?.[todayKey]
+                  ? "Completed ✔"
+                  : "Mark Done"}
+              </button>
+            )}
+
+            {/* WEEK */}
+            {view === "week" && (
+              <div style={styles.week}>
+                {week.map(d => (
+                  <div
+                    key={d.key}
+                    style={{
+                      ...styles.day,
+                      opacity: d.key !== todayKey ? 0.4 : 1,
+                      background: h.completed?.[d.key]
+                        ? "var(--accent)"
+                        : "var(--card)"
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* MONTH */}
+            {view === "month" && (
+              <div style={styles.month}>
+                {getMonthDays().map(key => (
+                  <div
+                    key={key}
+                    style={{
+                      ...styles.day,
+                      background: h.completed?.[key]
+                        ? "var(--accent)"
+                        : "var(--card)"
+                    }}
+                  />
+                ))}
+              </div>
+            )}
 
             <button
               onClick={() => deleteHabit(h.id)}
@@ -186,51 +258,33 @@ export default function Habits({ items = [], setItems }) {
         );
       })}
 
-      {/* WEEK VIEW */}
-      {view === "week" && habits.map(h => (
-        <div key={h.id} style={styles.card}>
-          <h3>{h.name}</h3>
-
-          <div style={styles.week}>
-            {week.map(d => (
-              <div
-                key={d.key}
-                onClick={() => toggleDay(h.id, d.key)}
-                style={{
-                  ...styles.day,
-                  background: h.completed?.[d.key]
-                    ? "var(--accent)"
-                    : "var(--card)"
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
-
     </div>
   );
 }
 
 // ===== STYLES =====
 const styles = {
-  container: { padding: 20, color: "var(--text)" },
-  title: { fontSize: 26 },
-
-  toggle: { display: "flex", gap: 10, marginBottom: 10 },
-
-  dashboard: { display: "flex", gap: 20, marginBottom: 15 },
-
-  nav: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: 10
+  container: {
+    padding: 24,
+    maxWidth: 900,
+    margin: "0 auto",
+    color: "var(--text)"
   },
 
-  addBox: { display: "flex", gap: 10, marginBottom: 20 },
+  title: { fontSize: 28, marginBottom: 10 },
+
+  toggle: { display: "flex", gap: 10, marginBottom: 20 },
+
+  addBox: {
+    display: "flex",
+    gap: 10,
+    marginBottom: 20
+  },
 
   input: {
     padding: 10,
+    borderRadius: 8,
+    border: "1px solid var(--border)",
     background: "var(--card)",
     color: "var(--text)"
   },
@@ -238,31 +292,72 @@ const styles = {
   addBtn: {
     background: "var(--accent)",
     color: "#fff",
+    padding: "10px 16px",
     border: "none",
-    padding: 10
+    borderRadius: 8
+  },
+
+  nav: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: 20
   },
 
   card: {
+    padding: 20,
+    borderRadius: 16,
     background: "var(--card)",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12
+    marginBottom: 20,
+    border: "1px solid var(--border)"
   },
 
-  row: {
+  header: {
     display: "flex",
     justifyContent: "space-between"
   },
 
-  status: {
+  progressBar: {
+    height: 8,
+    background: "var(--border)",
+    marginTop: 10,
+    borderRadius: 10
+  },
+
+  progressFill: {
+    height: "100%",
+    background: "var(--accent)",
+    borderRadius: 10
+  },
+
+  meta: {
     marginTop: 6,
     color: "var(--text-muted)"
   },
 
   todayBtn: {
-    marginTop: 10,
+    marginTop: 12,
     padding: 10,
-    borderRadius: 8
+    borderRadius: 8,
+    border: "1px solid var(--border)"
+  },
+
+  week: {
+    display: "flex",
+    gap: 6,
+    marginTop: 10
+  },
+
+  month: {
+    display: "grid",
+    gridTemplateColumns: "repeat(7, 1fr)",
+    gap: 4,
+    marginTop: 10
+  },
+
+  day: {
+    width: 28,
+    height: 28,
+    borderRadius: 6
   },
 
   delete: {
@@ -270,15 +365,7 @@ const styles = {
     background: "#ef4444",
     color: "#fff",
     border: "none",
-    padding: 8
-  },
-
-  week: { display: "flex", gap: 6, marginTop: 10 },
-
-  day: {
-    width: 30,
-    height: 30,
-    borderRadius: 6,
-    cursor: "pointer"
+    padding: 8,
+    borderRadius: 6
   }
 };
