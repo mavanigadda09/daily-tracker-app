@@ -8,17 +8,16 @@ import {
   Tooltip,
   ResponsiveContainer
 } from "recharts";
-import { useNotification } from "../context/NotificationContext";
+import { useNotification } from "./context/NotificationContext.jsx";
 import { motion } from "framer-motion";
 
-// 🧠 AI ENGINE
+// ✅ FIXED IMPORT (correct path)
 import {
-  getHabitStreak,
   getConsistencyScore,
-  getMotivationMessage,
   getDailyData,
-  getHeatmapData
-} from "../utils/utils";
+  getHeatmapData,
+  getStreak
+} from "./ai/utils.js";
 
 export default function Dashboard({
   logs = {},
@@ -30,30 +29,44 @@ export default function Dashboard({
   const navigate = useNavigate();
   const { showNotification } = useNotification();
 
-  // ===== WELCOME NOTIFICATION (SAFE) =====
+  // ===== WELCOME NOTIFICATION =====
   useEffect(() => {
     if (user?.name) {
       showNotification(`Welcome back, ${user.name} 🚀`, "success");
     }
   }, [user?.name]);
 
-  // ===== MEMOIZED AI ENGINE =====
+  // ===== AI ENGINE =====
   const { streak, consistency, message } = useMemo(() => {
     const daily = getDailyData(logs, tasks);
     const heatmap = getHeatmapData(daily);
 
-    const streak = getHabitStreak(items);
+    const streak = getStreak(heatmap);
     const consistency = getConsistencyScore(heatmap);
-    const message = getMotivationMessage({ streak, consistency });
+
+    // ✅ SAFE MESSAGE GENERATOR (replacing missing function)
+    let message = "Keep going 💪";
+
+    if (streak === 0) {
+      message = "Start today — small steps matter 🚀";
+    } else if (streak < 3) {
+      message = "You're getting started — stay consistent 👍";
+    } else if (streak < 7) {
+      message = "Nice progress! Keep pushing 🔥";
+    } else {
+      message = "You're on fire! Amazing consistency 🚀";
+    }
 
     return { streak, consistency, message };
   }, [logs, tasks, items]);
 
   // ===== WEIGHT DATA =====
   const weightData = useMemo(() => {
-    return weightLogs.map(w => ({
+    if (!Array.isArray(weightLogs)) return [];
+
+    return weightLogs.map((w) => ({
       date: new Date(w.date).toLocaleDateString(),
-      weight: w.weight
+      weight: Number(w.weight || 0)
     }));
   }, [weightLogs]);
 
@@ -67,7 +80,6 @@ export default function Dashboard({
       animate={{ opacity: 1 }}
       style={styles.container}
     >
-
       {/* HEADER */}
       <div style={styles.header}>
         <div>
@@ -103,7 +115,7 @@ export default function Dashboard({
             style={styles.statCard}
             onClick={() => handleStatClick(item)}
           >
-            <span>{["🚶","🔥","⏱"][i]}</span>
+            <span>{["🚶", "🔥", "⏱"][i]}</span>
             <h3>{item}</h3>
             <p>Coming soon</p>
           </motion.div>
@@ -112,7 +124,6 @@ export default function Dashboard({
 
       {/* GRID */}
       <div style={styles.grid}>
-
         {/* WEIGHT */}
         {weightData.length > 0 && (
           <motion.div whileHover={{ y: -6 }} style={styles.card}>
@@ -122,7 +133,12 @@ export default function Dashboard({
                 <XAxis dataKey="date" stroke="#94a3b8" />
                 <YAxis stroke="#94a3b8" />
                 <Tooltip />
-                <Line type="monotone" dataKey="weight" stroke="#4ade80" strokeWidth={3} />
+                <Line
+                  type="monotone"
+                  dataKey="weight"
+                  stroke="#4ade80"
+                  strokeWidth={3}
+                />
               </LineChart>
             </ResponsiveContainer>
           </motion.div>
@@ -130,7 +146,6 @@ export default function Dashboard({
 
         {/* 🤖 AI COACH */}
         <motion.div style={styles.aiCard}>
-
           <h3>🤖 AI Coach</h3>
 
           <div style={styles.chatBox}>
@@ -151,23 +166,29 @@ export default function Dashboard({
 
           {/* ACTIONS */}
           <div style={styles.actions}>
-            <button style={styles.actionBtn} onClick={() => navigate("/chat")}>
+            <button
+              style={styles.actionBtn}
+              onClick={() => navigate("/chat")}
+            >
               🤖 Open AI Chat
             </button>
 
-            <button style={styles.actionBtn} onClick={() => navigate("/habits")}>
+            <button
+              style={styles.actionBtn}
+              onClick={() => navigate("/habits")}
+            >
               ✅ Manage Habits
             </button>
 
-            <button style={styles.actionBtn} onClick={() => navigate("/tasks")}>
+            <button
+              style={styles.actionBtn}
+              onClick={() => navigate("/tasks")}
+            >
               📌 Manage Tasks
             </button>
           </div>
-
         </motion.div>
-
       </div>
-
     </motion.div>
   );
 }

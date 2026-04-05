@@ -149,3 +149,44 @@ export const getConsistencyScore = (heatmap = []) => {
 
   return Math.round((activeDays / heatmap.length) * 100);
 };
+
+// ================= WEEKLY =================
+
+export const getWeeklyData = (daily = {}) => {
+  const result = [];
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+
+    const key = d.toDateString();
+
+    result.push({
+      date: key,
+      value: daily[key] || 0
+    });
+  }
+
+  return result;
+};
+
+// ================= TASK BREAKDOWN =================
+
+export const getTaskBreakdown = (tasks = []) => {
+  const map = {};
+
+  tasks.forEach((task) => {
+    const name = task?.title || "Task";
+
+    const total = (task.logs || []).reduce((sum, log) => {
+      return sum + Math.round((log.duration || 0) / 60);
+    }, 0);
+
+    map[name] = (map[name] || 0) + total;
+  });
+
+  return Object.entries(map).map(([name, value]) => ({
+    name,
+    value
+  }));
+};

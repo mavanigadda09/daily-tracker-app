@@ -137,3 +137,49 @@ export const getUnifiedAI = ({
 
   return messages.slice(0, 2).join(" ");
 };
+
+// ================= WEIGHT AI =================
+
+export const detectPlateau = (weights = []) => {
+  if (weights.length < 5) return false;
+
+  const last = weights.slice(-5).map(w => w.weight);
+  const diff = Math.max(...last) - Math.min(...last);
+
+  return diff < 1; // plateau if change < 1kg
+};
+
+export const predictWeight = (weights = []) => {
+  if (weights.length < 2) return null;
+
+  const last = weights[weights.length - 1].weight;
+  const prev = weights[weights.length - 2].weight;
+
+  const trend = last - prev;
+
+  return Math.round((last + trend) * 10) / 10;
+};
+
+export const getWeightAdvice = ({ plateau, trend }) => {
+  if (plateau) return "⚠️ You're in a plateau. Try changing routine.";
+
+  if (trend < 0) return "🔥 Great progress! Keep going.";
+
+  if (trend > 0) return "⚠️ Weight increasing. Adjust diet.";
+
+  return "Stay consistent 💪";
+};
+
+export const analyzeWeightWithHabits = (weights = [], habits = []) => {
+  const plateau = detectPlateau(weights);
+  const predicted = predictWeight(weights);
+
+  return {
+    plateau,
+    predicted,
+    message: getWeightAdvice({
+      plateau,
+      trend: predicted ? predicted - weights.at(-1)?.weight : 0
+    })
+  };
+};

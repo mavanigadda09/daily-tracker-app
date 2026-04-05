@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { processUserInput } from "../ai/aiService.js";
+import { processUserInput } from "./ai/aiService.js";
 
 // ===== INITIAL =====
 const getInitialMessages = (history = []) => {
