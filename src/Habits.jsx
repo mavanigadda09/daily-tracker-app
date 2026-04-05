@@ -19,6 +19,36 @@ export default function Habits({ items = [], setItems }) {
 
   const todayKey = getKey(new Date());
 
+  // ✅ VIEW LOGIC (FIXED)
+  const getDates = () => {
+    const dates = [];
+    const today = new Date();
+
+    if (view === "today") {
+      dates.push(new Date());
+    }
+
+    if (view === "week") {
+      for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(today.getDate() - i);
+        dates.unshift(d);
+      }
+    }
+
+    if (view === "month") {
+      for (let i = 0; i < 30; i++) {
+        const d = new Date();
+        d.setDate(today.getDate() - i);
+        dates.unshift(d);
+      }
+    }
+
+    return dates;
+  };
+
+  const dates = getDates();
+
   const colors = [
     "linear-gradient(135deg,#6366f1,#8b5cf6)",
     "linear-gradient(135deg,#f97316,#fb7185)",
@@ -119,7 +149,7 @@ export default function Habits({ items = [], setItems }) {
 
       <h1 style={styles.title}>🔥 Habits</h1>
 
-      {/* 🔥 PREMIUM VIEW SWITCH */}
+      {/* VIEW SWITCH */}
       <div style={styles.tabs}>
         {["today", "week", "month"].map(v => (
           <motion.button
@@ -155,41 +185,12 @@ export default function Habits({ items = [], setItems }) {
         <motion.form
           onSubmit={handleSubmit}
           style={styles.horizontalForm}
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
         >
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Habit"
-            style={styles.input}
-          />
-
-          <input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            style={styles.input}
-          />
-
-          <input
-            type="number"
-            value={targetDays}
-            onChange={(e) => setTargetDays(e.target.value)}
-            style={styles.input}
-          />
-
-          <button type="submit" style={styles.addBtn}>
-            Add
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowForm(false)}
-            style={styles.cancelBtn}
-          >
-            Cancel
-          </button>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Habit" style={styles.input}/>
+          <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={styles.input}/>
+          <input type="number" value={targetDays} onChange={(e) => setTargetDays(e.target.value)} style={styles.input}/>
+          <button type="submit" style={styles.addBtn}>Add</button>
+          <button type="button" onClick={() => setShowForm(false)} style={styles.cancelBtn}>Cancel</button>
         </motion.form>
       )}
 
@@ -202,6 +203,7 @@ export default function Habits({ items = [], setItems }) {
 
           return (
             <motion.div key={h.id} style={{ ...styles.card, background: bg }}>
+              
               <div style={styles.cardTop}>
                 <div>
                   <h3>{h.name}</h3>
@@ -215,16 +217,31 @@ export default function Habits({ items = [], setItems }) {
                 </div>
               </div>
 
-              <div style={styles.progressTrack}>
-                <motion.div
-                  style={styles.progressFill}
-                  animate={{ width: `${progress.percent}%` }}
-                />
+              {/* ✅ NEW DAY TRACKER */}
+              <div style={styles.dayRow}>
+                {dates.map((d, index) => {
+                  const key = getKey(d);
+                  const done = h.completed?.[key];
+
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => key === todayKey && toggleDay(h.id)}
+                      style={{
+                        ...styles.dayBox,
+                        background: done ? "#22c55e" : "#1e293b",
+                        opacity: key === todayKey ? 1 : 0.5,
+                        cursor: key === todayKey ? "pointer" : "not-allowed"
+                      }}
+                    />
+                  );
+                })}
               </div>
 
-              <button onClick={() => toggleDay(h.id)} style={styles.actionBtn}>
-                Mark Done
-              </button>
+              <div style={styles.progressTrack}>
+                <motion.div style={styles.progressFill} animate={{ width: `${progress.percent}%` }}/>
+              </div>
+
             </motion.div>
           );
         })}
@@ -252,18 +269,15 @@ export default function Habits({ items = [], setItems }) {
 // ===== STYLES =====
 const styles = {
   container: { padding: 24, maxWidth: 1000, margin: "0 auto" },
-
   title: { fontSize: 28, marginBottom: 20 },
 
-  // 🔥 PREMIUM TABS
   tabs: {
     display: "flex",
     gap: 12,
     marginBottom: 20,
     background: "#0f172a",
     padding: 6,
-    borderRadius: 14,
-    width: "fit-content"
+    borderRadius: 14
   },
 
   tab: {
@@ -272,15 +286,12 @@ const styles = {
     border: "none",
     background: "transparent",
     color: "#94a3b8",
-    fontWeight: 600,
-    cursor: "pointer",
-    transition: "all 0.2s ease"
+    cursor: "pointer"
   },
 
   activeTab: {
-    background: "linear-gradient(135deg,#22c55e,#16a34a)",
-    color: "#fff",
-    boxShadow: "0 4px 12px rgba(34,197,94,0.4)"
+    background: "#22c55e",
+    color: "#fff"
   },
 
   grid: {
@@ -301,14 +312,12 @@ const styles = {
   horizontalForm: {
     display: "flex",
     gap: 10,
-    marginBottom: 20,
-    flexWrap: "wrap"
+    marginBottom: 20
   },
 
   input: {
     padding: 10,
     borderRadius: 10,
-    border: "1px solid #333",
     background: "#020617",
     color: "#fff"
   },
@@ -355,11 +364,17 @@ const styles = {
     background: "#fff"
   },
 
-  actionBtn: {
+  // ✅ NEW
+  dayRow: {
+    display: "flex",
+    gap: 6,
     marginTop: 12,
-    padding: 10,
-    borderRadius: 10,
-    background: "#fff",
-    color: "#000"
+    flexWrap: "wrap"
+  },
+
+  dayBox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4
   }
 };
