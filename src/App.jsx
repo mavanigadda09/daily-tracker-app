@@ -26,6 +26,9 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { NotificationProvider } from "./context/NotificationContext";
 import ReminderSystem from "./system/ReminderSystem";
 
+// ✅ NEW IMPORT
+import HabitReminderSystem from "./system/HabitReminderSystem";
+
 export default function App() {
 
   // ===== THEME =====
@@ -164,7 +167,7 @@ export default function App() {
   // ===== LOADING =====
   if (loadingAuth) {
     return (
-      <div style={{ padding: 20, color: "#fff" }}>
+      <div style={{ padding: 20, color: "var(--text)" }}>
         Loading App...
       </div>
     );
@@ -173,10 +176,16 @@ export default function App() {
   return (
     <NotificationProvider>
 
+      {/* 🔔 GENERAL REMINDERS */}
       <ReminderSystem
         items={items}
         tasks={tasks}
         logs={logs}
+      />
+
+      {/* 🔥 HABIT REMINDERS (NEW) */}
+      <HabitReminderSystem
+        items={items}
       />
 
       <BrowserRouter>
@@ -241,27 +250,57 @@ export default function App() {
               }
             />
 
-            <Route path="weight" element={<Weight weightLogs={weightLogs} />} />
+            <Route
+              path="weight"
+              element={<Weight weightLogs={weightLogs} />}
+            />
 
             <Route
               path="habits"
-              element={<Habits items={items} setItems={setItems} />}
+              element={
+                <Habits
+                  items={items}
+                  setItems={setItems}
+                />
+              }
             />
 
             <Route
               path="tasks"
-              element={<Tasks tasks={tasks} setTasks={setTasks} />}
+              element={
+                <Tasks
+                  tasks={tasks}
+                  setTasks={setTasks}
+                />
+              }
             />
 
             <Route
               path="activities"
-              element={<Activities items={items} setItems={setItems} />}
+              element={
+                <Activities
+                  items={items}
+                  setItems={setItems}
+                />
+              }
             />
 
-            <Route path="analytics" element={<Analytics logs={logs} />} />
-            <Route path="insights" element={<Insights items={items} />} />
+            <Route
+              path="analytics"
+              element={<Analytics logs={logs} />}
+            />
+
+            <Route
+              path="insights"
+              element={<Insights items={items} />}
+            />
+
             <Route path="goals" element={<Goals />} />
-            <Route path="profile" element={<Profile user={user} />} />
+
+            <Route
+              path="profile"
+              element={<Profile user={user} />}
+            />
 
           </Route>
 
