@@ -8,12 +8,11 @@ export default function Habits({ items = [], setItems }) {
     [items]
   );
 
-  const [showForm, setShowForm] = useState(false); // ✅ NEW
+  const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [time, setTime] = useState("");
   const [targetDays, setTargetDays] = useState(30);
   const [view, setView] = useState("today");
-  const [selectedHabit, setSelectedHabit] = useState(null);
 
   const getKey = (d) =>
     `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
@@ -48,7 +47,7 @@ export default function Habits({ items = [], setItems }) {
     setName("");
     setTime("");
     setTargetDays(30);
-    setShowForm(false); // ✅ close after add
+    setShowForm(false);
   };
 
   const handleSubmit = (e) => {
@@ -63,9 +62,8 @@ export default function Habits({ items = [], setItems }) {
         if (item.id !== id) return item;
 
         const completed = { ...(item.completed || {}) };
-        const alreadyDone = completed[todayKey];
 
-        if (alreadyDone) {
+        if (completed[todayKey]) {
           delete completed[todayKey];
           return {
             ...item,
@@ -121,23 +119,25 @@ export default function Habits({ items = [], setItems }) {
 
       <h1 style={styles.title}>🔥 Habits</h1>
 
-      {/* VIEW SWITCH */}
+      {/* 🔥 PREMIUM VIEW SWITCH */}
       <div style={styles.tabs}>
         {["today", "week", "month"].map(v => (
-          <button
+          <motion.button
             key={v}
             onClick={() => setView(v)}
+            whileTap={{ scale: 0.9 }}
+            animate={{ scale: view === v ? 1.05 : 1 }}
             style={{
               ...styles.tab,
               ...(view === v ? styles.activeTab : {})
             }}
           >
             {v.toUpperCase()}
-          </button>
+          </motion.button>
         ))}
       </div>
 
-      {/* ✅ CREATE CARD */}
+      {/* CREATE BUTTON */}
       {!showForm && (
         <div style={styles.grid}>
           <motion.div
@@ -150,7 +150,7 @@ export default function Habits({ items = [], setItems }) {
         </div>
       )}
 
-      {/* ✅ HORIZONTAL FORM */}
+      {/* FORM */}
       {showForm && (
         <motion.form
           onSubmit={handleSubmit}
@@ -203,7 +203,7 @@ export default function Habits({ items = [], setItems }) {
           return (
             <motion.div key={h.id} style={{ ...styles.card, background: bg }}>
               <div style={styles.cardTop}>
-                <div onClick={() => setSelectedHabit(h)}>
+                <div>
                   <h3>{h.name}</h3>
                   <p>🔥 {h.streak}</p>
                   <p>⭐ {h.xp}</p>
@@ -251,21 +251,36 @@ export default function Habits({ items = [], setItems }) {
 
 // ===== STYLES =====
 const styles = {
-  container: { padding: 24, maxWidth: 900, margin: "0 auto" },
+  container: { padding: 24, maxWidth: 1000, margin: "0 auto" },
 
   title: { fontSize: 28, marginBottom: 20 },
 
-  tabs: { display: "flex", gap: 10, marginBottom: 10 },
+  // 🔥 PREMIUM TABS
+  tabs: {
+    display: "flex",
+    gap: 12,
+    marginBottom: 20,
+    background: "#0f172a",
+    padding: 6,
+    borderRadius: 14,
+    width: "fit-content"
+  },
 
   tab: {
-    padding: 8,
-    borderRadius: 8,
-    border: "1px solid #333"
+    padding: "10px 18px",
+    borderRadius: 10,
+    border: "none",
+    background: "transparent",
+    color: "#94a3b8",
+    fontWeight: 600,
+    cursor: "pointer",
+    transition: "all 0.2s ease"
   },
 
   activeTab: {
-    background: "#22c55e",
-    color: "#fff"
+    background: "linear-gradient(135deg,#22c55e,#16a34a)",
+    color: "#fff",
+    boxShadow: "0 4px 12px rgba(34,197,94,0.4)"
   },
 
   grid: {
