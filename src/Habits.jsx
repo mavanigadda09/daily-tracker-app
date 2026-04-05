@@ -14,17 +14,19 @@ export default function Habits({ items = [], setItems }) {
   const [targetDays, setTargetDays] = useState(30);
   const [view, setView] = useState("today");
 
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
   const getKey = (d) =>
     `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
-  const today = new Date();
-  const todayKey = getKey(today);
+  const activeKey = getKey(selectedDate);
 
   const dayNames = ["S","M","T","W","T","F","S"];
 
   // ===== DATE GENERATION =====
   const getDates = () => {
     const dates = [];
+    const today = new Date();
 
     let range = 1;
     if (view === "week") range = 7;
@@ -41,21 +43,11 @@ export default function Habits({ items = [], setItems }) {
 
   const dates = getDates();
 
-  // ===== FILTER LOGIC =====
-  const isCompletedInView = (habit) => {
-    if (view === "today") return habit.completed?.[todayKey];
+  // ===== FILTER =====
+  const isCompleted = (habit) => habit.completed?.[activeKey];
 
-    if (view === "week")
-      return dates.some(d => habit.completed?.[getKey(d)]);
-
-    if (view === "month")
-      return dates.some(d => habit.completed?.[getKey(d)]);
-
-    return false;
-  };
-
-  const completedHabits = habits.filter(h => isCompletedInView(h));
-  const pendingHabits = habits.filter(h => !isCompletedInView(h));
+  const completedHabits = habits.filter(h => isCompleted(h));
+  const pendingHabits = habits.filter(h => !isCompleted(h));
 
   const colors = [
     "linear-gradient(135deg,#6366f1,#8b5cf6)",
@@ -93,20 +85,20 @@ export default function Habits({ items = [], setItems }) {
     addHabit();
   };
 
-  // ===== TOGGLE =====
-  const toggleDay = (id) => {
+  // ===== TOGGLE (FIXED) =====
+  const toggleDay = (id, key) => {
     setItems(prev =>
       prev.map(item => {
         if (item.id !== id) return item;
 
         const completed = { ...(item.completed || {}) };
 
-        if (completed[todayKey]) {
-          delete completed[todayKey];
+        if (completed[key]) {
+          delete completed[key];
           return { ...item, completed };
         }
 
-        completed[todayKey] = true;
+        completed[key] = true;
 
         return {
           ...item,
@@ -144,7 +136,6 @@ export default function Habits({ items = [], setItems }) {
           <motion.button
             key={v}
             onClick={() => setView(v)}
-            whileTap={{ scale: 0.9 }}
             style={{
               ...styles.tab,
               ...(view === v ? styles.activeTab : {})
@@ -155,7 +146,31 @@ export default function Habits({ items = [], setItems }) {
         ))}
       </div>
 
-      {/* CREATE CARD */}
+      {/* DATE STRIP (NEW 🔥) */}
+      <div style={styles.dateRow}>
+        {dates.map((d, i) => {
+          const key = getKey(d);
+          const isActive = key === activeKey;
+
+          return (
+            <div
+              key={i}
+              onClick={() => setSelectedDate(d)}
+              style={{
+                ...styles.dateCard,
+                background: isActive ? "#ef4444" : "#111"
+              }}
+            >
+              <div>{d.getDate()}</div>
+              <div style={{ fontSize: 10 }}>
+                {dayNames[d.getDay()]}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* CREATE */}
       {!showForm && (
         <motion.div style={styles.createCard} onClick={() => setShowForm(true)}>
           ➕ Create Habit
@@ -180,7 +195,6 @@ export default function Habits({ items = [], setItems }) {
 
           return (
             <motion.div key={h.id} style={{ ...styles.card, background: bg }}>
-
               <div style={styles.cardTop}>
                 <h3>{h.name}</h3>
                 <div style={styles.actions}>
@@ -189,34 +203,12 @@ export default function Habits({ items = [], setItems }) {
                 </div>
               </div>
 
-              {/* DATE ROW */}
-              <div style={styles.dayRow}>
-                {dates.map((d, index) => {
-                  const key = getKey(d);
-                  const done = h.completed?.[key];
-
-                  return (
-                    <div key={index} style={styles.dayWrapper}>
-                      <span style={styles.dayLabel}>
-                        {view === "month"
-                          ? d.getDate()
-                          : dayNames[d.getDay()]}
-                      </span>
-
-                      <div
-                        onClick={() => key === todayKey && toggleDay(h.id)}
-                        style={{
-                          ...styles.dayBox,
-                          background: done ? "#22c55e" : "#1e293b",
-                          border: key === todayKey ? "2px solid #22c55e" : "none",
-                          cursor: key === todayKey ? "pointer" : "default"
-                        }}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-
+              <button
+                onClick={() => toggleDay(h.id, activeKey)}
+                style={styles.actionBtn}
+              >
+                Mark Done
+              </button>
             </motion.div>
           );
         })}
@@ -232,6 +224,11 @@ export default function Habits({ items = [], setItems }) {
             <motion.div key={h.id} style={{ ...styles.card, background: bg }}>
               <h3>{h.name}</h3>
               <p>Completed ✔</p>
+
+              <div style={styles.actions}>
+                <button onClick={() => editHabit(h.id)}>✏️</button>
+                <button onClick={() => deleteHabit(h.id)}>🗑</button>
+              </div>
             </motion.div>
           );
         })}
@@ -250,7 +247,7 @@ const styles = {
   tabs: {
     display: "flex",
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 16,
     background: "#0f172a",
     padding: 6,
     borderRadius: 14
@@ -267,6 +264,21 @@ const styles = {
   activeTab: {
     background: "#22c55e",
     color: "#fff"
+  },
+
+  dateRow: {
+    display: "flex",
+    gap: 10,
+    marginBottom: 20,
+    overflowX: "auto"
+  },
+
+  dateCard: {
+    minWidth: 50,
+    padding: 10,
+    borderRadius: 12,
+    textAlign: "center",
+    cursor: "pointer"
   },
 
   grid: {
@@ -316,31 +328,15 @@ const styles = {
 
   actions: {
     display: "flex",
-    gap: 6
+    gap: 6,
+    marginTop: 10
   },
 
-  dayRow: {
-    display: "flex",
-    gap: 8,
+  actionBtn: {
     marginTop: 12,
-    flexWrap: "wrap"
-  },
-
-  dayWrapper: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center"
-  },
-
-  dayLabel: {
-    fontSize: 10,
-    marginBottom: 4,
-    color: "#94a3b8"
-  },
-
-  dayBox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4
+    padding: 10,
+    borderRadius: 10,
+    background: "#fff",
+    color: "#000"
   }
 };
