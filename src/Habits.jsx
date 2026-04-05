@@ -17,12 +17,14 @@ export default function Habits({ items = [], setItems }) {
   const getKey = (d) =>
     `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
-  const todayKey = getKey(new Date());
+  const today = new Date();
+  const todayKey = getKey(today);
 
-  // ✅ FIXED DATE GENERATION
+  const dayNames = ["S","M","T","W","T","F","S"];
+
+  // ===== DATE GENERATION =====
   const getDates = () => {
     const dates = [];
-    const today = new Date();
 
     let range = 1;
     if (view === "week") range = 7;
@@ -39,19 +41,15 @@ export default function Habits({ items = [], setItems }) {
 
   const dates = getDates();
 
-  // ✅ FIXED FILTER LOGIC
+  // ===== FILTER LOGIC =====
   const isCompletedInView = (habit) => {
-    if (view === "today") {
-      return habit.completed?.[todayKey];
-    }
+    if (view === "today") return habit.completed?.[todayKey];
 
-    if (view === "week") {
-      return dates.slice(-7).some(d => habit.completed?.[getKey(d)]);
-    }
-
-    if (view === "month") {
+    if (view === "week")
       return dates.some(d => habit.completed?.[getKey(d)]);
-    }
+
+    if (view === "month")
+      return dates.some(d => habit.completed?.[getKey(d)]);
 
     return false;
   };
@@ -105,12 +103,7 @@ export default function Habits({ items = [], setItems }) {
 
         if (completed[todayKey]) {
           delete completed[todayKey];
-          return {
-            ...item,
-            completed,
-            xp: Math.max(0, (item.xp || 0) - 10),
-            streak: 0
-          };
+          return { ...item, completed };
         }
 
         completed[todayKey] = true;
@@ -140,17 +133,6 @@ export default function Habits({ items = [], setItems }) {
     );
   };
 
-  const getProgress = (habit) => {
-    const total = habit.targetDays || 30;
-    const done = Object.keys(habit.completed || {}).length;
-
-    return {
-      percent: Math.min(100, (done / total) * 100),
-      done,
-      total
-    };
-  };
-
   return (
     <div style={styles.container}>
 
@@ -163,7 +145,6 @@ export default function Habits({ items = [], setItems }) {
             key={v}
             onClick={() => setView(v)}
             whileTap={{ scale: 0.9 }}
-            animate={{ scale: view === v ? 1.05 : 1 }}
             style={{
               ...styles.tab,
               ...(view === v ? styles.activeTab : {})
@@ -174,77 +155,66 @@ export default function Habits({ items = [], setItems }) {
         ))}
       </div>
 
-      {/* CREATE */}
+      {/* CREATE CARD */}
       {!showForm && (
-        <div style={styles.grid}>
-          <motion.div
-            style={styles.createCard}
-            whileHover={{ scale: 1.05 }}
-            onClick={() => setShowForm(true)}
-          >
-            ➕ Create Habit
-          </motion.div>
-        </div>
+        <motion.div style={styles.createCard} onClick={() => setShowForm(true)}>
+          ➕ Create Habit
+        </motion.div>
       )}
 
       {/* FORM */}
       {showForm && (
-        <motion.form onSubmit={handleSubmit} style={styles.horizontalForm}>
+        <form onSubmit={handleSubmit} style={styles.horizontalForm}>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Habit" style={styles.input}/>
           <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={styles.input}/>
           <input type="number" value={targetDays} onChange={(e) => setTargetDays(e.target.value)} style={styles.input}/>
           <button type="submit" style={styles.addBtn}>Add</button>
-          <button type="button" onClick={() => setShowForm(false)} style={styles.cancelBtn}>Cancel</button>
-        </motion.form>
+        </form>
       )}
 
       {/* PENDING */}
       <h3>Pending</h3>
       <div style={styles.grid}>
         {pendingHabits.map((h, i) => {
-          const progress = getProgress(h);
           const bg = colors[i % colors.length];
 
           return (
             <motion.div key={h.id} style={{ ...styles.card, background: bg }}>
 
               <div style={styles.cardTop}>
-                <div>
-                  <h3>{h.name}</h3>
-                  <p>🔥 {h.streak}</p>
-                  <p>⭐ {h.xp}</p>
-                </div>
-
+                <h3>{h.name}</h3>
                 <div style={styles.actions}>
                   <button onClick={() => editHabit(h.id)}>✏️</button>
                   <button onClick={() => deleteHabit(h.id)}>🗑</button>
                 </div>
               </div>
 
-              {/* DAYS */}
+              {/* DATE ROW */}
               <div style={styles.dayRow}>
                 {dates.map((d, index) => {
                   const key = getKey(d);
                   const done = h.completed?.[key];
 
                   return (
-                    <div
-                      key={index}
-                      onClick={() => key === todayKey && toggleDay(h.id)}
-                      style={{
-                        ...styles.dayBox,
-                        background: done ? "#22c55e" : "#1e293b",
-                        opacity: key === todayKey ? 1 : 0.4,
-                        cursor: key === todayKey ? "pointer" : "not-allowed"
-                      }}
-                    />
+                    <div key={index} style={styles.dayWrapper}>
+                      <span style={styles.dayLabel}>
+                        {view === "month"
+                          ? d.getDate()
+                          : dayNames[d.getDay()]}
+                      </span>
+
+                      <div
+                        onClick={() => key === todayKey && toggleDay(h.id)}
+                        style={{
+                          ...styles.dayBox,
+                          background: done ? "#22c55e" : "#1e293b",
+                          border: key === todayKey ? "2px solid #22c55e" : "none",
+                          cursor: key === todayKey ? "pointer" : "default"
+                        }}
+                      />
+                    </div>
                   );
                 })}
-              </div>
-
-              {/* PROGRESS */}
-              <div style={styles.progressTrack}>
-                <motion.div style={styles.progressFill} animate={{ width: `${progress.percent}%` }}/>
               </div>
 
             </motion.div>
@@ -252,7 +222,7 @@ export default function Habits({ items = [], setItems }) {
         })}
       </div>
 
-      {/* COMPLETED (FIXED EDIT + DELETE) */}
+      {/* COMPLETED */}
       <h3>Completed</h3>
       <div style={styles.grid}>
         {completedHabits.map((h, i) => {
@@ -260,19 +230,8 @@ export default function Habits({ items = [], setItems }) {
 
           return (
             <motion.div key={h.id} style={{ ...styles.card, background: bg }}>
-
-              <div style={styles.cardTop}>
-                <div>
-                  <h3>{h.name}</h3>
-                  <p>Completed ✔</p>
-                </div>
-
-                <div style={styles.actions}>
-                  <button onClick={() => editHabit(h.id)}>✏️</button>
-                  <button onClick={() => deleteHabit(h.id)}>🗑</button>
-                </div>
-              </div>
-
+              <h3>{h.name}</h3>
+              <p>Completed ✔</p>
             </motion.div>
           );
         })}
@@ -300,16 +259,14 @@ const styles = {
   tab: {
     padding: "10px 18px",
     borderRadius: 10,
-    border: "none",
     background: "transparent",
     color: "#94a3b8",
-    cursor: "pointer"
+    border: "none"
   },
 
   activeTab: {
     background: "#22c55e",
-    color: "#fff",
-    boxShadow: "0 0 10px rgba(34,197,94,0.6)"
+    color: "#fff"
   },
 
   grid: {
@@ -323,7 +280,8 @@ const styles = {
     borderRadius: 20,
     background: "#111",
     textAlign: "center",
-    cursor: "pointer"
+    cursor: "pointer",
+    marginBottom: 20
   },
 
   horizontalForm: {
@@ -336,8 +294,7 @@ const styles = {
     padding: 10,
     borderRadius: 10,
     background: "#020617",
-    color: "#fff",
-    border: "1px solid #333"
+    color: "#fff"
   },
 
   addBtn: {
@@ -347,17 +304,9 @@ const styles = {
     color: "#fff"
   },
 
-  cancelBtn: {
-    background: "#ef4444",
-    padding: "10px 16px",
-    borderRadius: 10,
-    color: "#fff"
-  },
-
   card: {
     padding: 18,
-    borderRadius: 20,
-    color: "#fff"
+    borderRadius: 20
   },
 
   cardTop: {
@@ -372,26 +321,26 @@ const styles = {
 
   dayRow: {
     display: "flex",
-    gap: 6,
+    gap: 8,
     marginTop: 12,
     flexWrap: "wrap"
+  },
+
+  dayWrapper: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center"
+  },
+
+  dayLabel: {
+    fontSize: 10,
+    marginBottom: 4,
+    color: "#94a3b8"
   },
 
   dayBox: {
     width: 18,
     height: 18,
     borderRadius: 4
-  },
-
-  progressTrack: {
-    height: 6,
-    background: "rgba(255,255,255,0.3)",
-    borderRadius: 10,
-    marginTop: 12
-  },
-
-  progressFill: {
-    height: "100%",
-    background: "#fff"
   }
 };
