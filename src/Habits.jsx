@@ -68,7 +68,9 @@ export default function Habits({ items = [], setItems }) {
         return {
           ...item,
           completed: updated,
-          xp: alreadyDone ? Math.max(0, item.xp - 10) : item.xp + 10
+          xp: alreadyDone
+            ? Math.max(0, item.xp - 10)
+            : item.xp + 10
         };
       })
     );
@@ -91,7 +93,7 @@ export default function Habits({ items = [], setItems }) {
     return streak;
   };
 
-  // ===== LEVEL SYSTEM =====
+  // ===== LEVEL =====
   const getLevel = (xp) => {
     if (xp >= 500) return 5;
     if (xp >= 250) return 4;
@@ -100,7 +102,7 @@ export default function Habits({ items = [], setItems }) {
     return 1;
   };
 
-  // ===== BADGES =====
+  // ===== BADGE =====
   const getBadge = (streak) => {
     if (streak >= 30) return "🥇 Gold";
     if (streak >= 14) return "🥈 Silver";
@@ -153,14 +155,20 @@ export default function Habits({ items = [], setItems }) {
           const badge = getBadge(streak);
 
           return (
-            <div key={h.id} style={styles.card}>
+            <div
+              key={h.id}
+              style={styles.card}
+              onMouseEnter={e => e.currentTarget.style.transform = "scale(1.01)"}
+              onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+            >
 
+              {/* HEADER */}
               <div style={styles.header}>
                 <h3>{h.name}</h3>
                 <button onClick={() => deleteHabit(h.id)}>❌</button>
               </div>
 
-              {/* 🎮 GAME STATS */}
+              {/* STATS */}
               <div style={styles.stats}>
                 <span>🔥 {streak}</span>
                 <span>⭐ {h.xp || 0} XP</span>
@@ -187,8 +195,11 @@ export default function Habits({ items = [], setItems }) {
                     style={{
                       ...styles.day,
                       background: completed[d.key]
-                        ? "#22c55e"
-                        : "#1e293b"
+                        ? "var(--accent)"
+                        : "var(--card)",
+                      color: completed[d.key]
+                        ? "#fff"
+                        : "var(--text)"
                     }}
                   >
                     {completed[d.key] ? "✔" : ""}
@@ -207,70 +218,108 @@ export default function Habits({ items = [], setItems }) {
 
 // ===== STYLES =====
 const styles = {
-  container: { padding: 20, color: "white" },
+  container: {
+    padding: 20,
+    color: "var(--text)"
+  },
 
-  title: { fontSize: 26 },
+  title: {
+    fontSize: 26
+  },
 
-  nav: { display: "flex", gap: 10, marginBottom: 10 },
+  nav: {
+    display: "flex",
+    gap: 10,
+    marginBottom: 10
+  },
 
-  addBox: { display: "flex", gap: 10, marginBottom: 20 },
+  addBox: {
+    display: "flex",
+    gap: 10,
+    marginBottom: 20
+  },
 
   input: {
     flex: 1,
-    padding: 10,
-    background: "#020617",
-    color: "#fff"
+    padding: 12,
+    background: "var(--card)",
+    color: "var(--text)",
+    border: "1px solid var(--border)",
+    borderRadius: 10
   },
 
   addBtn: {
-    background: "#22c55e",
+    background: "var(--accent)",
     border: "none",
-    padding: 10,
-    color: "#fff"
+    padding: "12px 16px",
+    color: "#fff",
+    borderRadius: 10,
+    cursor: "pointer"
   },
 
-  empty: { color: "#94a3b8" },
+  empty: {
+    color: "var(--text-muted)"
+  },
 
-  list: { display: "flex", flexDirection: "column", gap: 15 },
+  list: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 16
+  },
 
   card: {
-    background: "#0f172a",
-    padding: 16,
-    borderRadius: 12
+    background: "var(--card)",
+    padding: 18,
+    borderRadius: 16,
+    border: "1px solid var(--border)",
+    boxShadow: "0 8px 25px rgba(0,0,0,0.2)",
+    transition: "0.2s ease"
   },
 
   header: {
     display: "flex",
-    justifyContent: "space-between"
+    justifyContent: "space-between",
+    alignItems: "center"
   },
 
   stats: {
     display: "flex",
-    gap: 12,
+    gap: 14,
     marginTop: 10,
-    flexWrap: "wrap"
+    flexWrap: "wrap",
+    color: "var(--text-muted)"
   },
 
   progressBar: {
-    height: 6,
-    background: "#1e293b",
-    marginTop: 10
+    height: 8,
+    background: "var(--border)",
+    marginTop: 12,
+    borderRadius: 10,
+    overflow: "hidden"
   },
 
   progressFill: {
     height: "100%",
-    background: "#22c55e"
+    background: "var(--accent)",
+    borderRadius: 10,
+    transition: "0.3s ease"
   },
 
-  week: { display: "flex", gap: 6, marginTop: 12 },
+  week: {
+    display: "flex",
+    gap: 8,
+    marginTop: 14
+  },
 
   day: {
-    width: 30,
-    height: 30,
-    borderRadius: 6,
+    width: 34,
+    height: 34,
+    borderRadius: 8,
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    cursor: "pointer"
+    cursor: "pointer",
+    border: "1px solid var(--border)",
+    transition: "0.2s ease"
   }
 };
