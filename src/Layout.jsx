@@ -39,27 +39,30 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
     return location.pathname.startsWith(path);
   };
 
+  // 🔒 SAFE STYLES fallback
+  const s = styles || {};
+
   return (
-    <div style={styles.container}>
+    <div style={s.container || { display: "flex" }}>
 
       {/* SIDEBAR */}
       <motion.aside
         animate={{ width: collapsed ? 70 : 240 }}
         transition={{ duration: 0.25 }}
-        style={styles.sidebar}
+        style={s.sidebar || {}}
       >
 
         {/* TOP */}
         <div>
-          <div style={styles.topRow}>
+          <div style={s.topRow || {}}>
 
-            {!collapsed && <h2 style={styles.logo}>🚀 Tracker</h2>}
+            {!collapsed && <h2 style={s.logo || {}}>🚀 Tracker</h2>}
 
             <div style={{ display: "flex", gap: 8 }}>
 
               {/* THEME */}
               <button
-                style={styles.iconBtn}
+                style={s.iconBtn || {}}
                 onClick={() =>
                   setTheme(prev => prev === "dark" ? "light" : "dark")
                 }
@@ -69,7 +72,7 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
 
               {/* MENU */}
               <button
-                style={styles.iconBtn}
+                style={s.iconBtn || {}}
                 onClick={() => setCollapsed(prev => !prev)}
               >
                 <Menu size={18} />
@@ -79,7 +82,7 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
           </div>
 
           {/* NAV */}
-          <nav style={styles.nav}>
+          <nav style={s.nav || {}}>
             {navItems.map(item => {
               const Icon = item.icon;
               const active = isActive(item.path);
@@ -90,12 +93,12 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
                   to={item.path}
                   title={collapsed ? item.label : ""}
                   style={{
-                    ...styles.link,
-                    ...(active ? styles.active : {})
+                    ...(s.link || {}),
+                    ...(active ? s.active || {} : {})
                   }}
                 >
 
-                  {active && <div style={styles.activeBar} />}
+                  {active && <div style={s.activeBar || {}} />}
 
                   <Icon size={18} />
 
@@ -108,21 +111,21 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
         </div>
 
         {/* BOTTOM */}
-        <div style={styles.bottom}>
+        <div style={s.bottom || {}}>
 
           {!collapsed && (
-            <div style={styles.userBox}>
-              <div style={styles.avatar}>👤</div>
+            <div style={s.userBox || {}}>
+              <div style={s.avatar || {}}>👤</div>
               <div>
-                <p style={styles.userName}>
+                <p style={s.userName || {}}>
                   {user?.name || "User"}
                 </p>
-                <p style={styles.userSub}>Active</p>
+                <p style={s.userSub || {}}>Active</p>
               </div>
             </div>
           )}
 
-          <button style={styles.logout} onClick={onLogout}>
+          <button style={s.logout || {}} onClick={onLogout}>
             {collapsed ? "⏻" : "Logout"}
           </button>
 
@@ -131,7 +134,7 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
       </motion.aside>
 
       {/* MAIN */}
-      <main style={styles.main}>
+      <main style={s.main || { flex: 1 }}>
         <Outlet />
       </main>
 
@@ -140,7 +143,8 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
 }
 
 // ================= STYLES =================
-const styles = {
+
+const styles = Object.freeze({
   container: {
     display: "flex",
     minHeight: "100vh",
@@ -260,4 +264,4 @@ const styles = {
     flex: 1,
     padding: 24
   }
-};
+});

@@ -39,7 +39,7 @@ export default function App() {
   }, [theme]);
 
   // ===== AUTH =====
-  const [firebaseUser, setFirebaseUser] = useState(undefined);
+  const [firebaseUser, setFirebaseUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
@@ -51,15 +51,23 @@ export default function App() {
   }, []);
 
   const handleLogout = async () => {
-    await signOut(auth);
-    localStorage.clear();
-    window.location.href = "/login";
+    try {
+      await signOut(auth);
+      localStorage.clear();
+      window.location.href = "/login";
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
   };
 
   // ===== USER =====
-  const [user, setUser] = useState(
-    () => JSON.parse(localStorage.getItem("user")) || null
-  );
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user")) || null;
+    } catch {
+      return null;
+    }
+  });
 
   const handleLoginUser = (userData) => {
     localStorage.setItem("user", JSON.stringify(userData));
@@ -71,7 +79,7 @@ export default function App() {
   const [goal, setGoal] = useState({});
   const [weightLogs, setWeightLogs] = useState([]);
   const [weightGoal, setWeightGoal] = useState(null);
-  const [logs, setLogs] = useState([]);
+  const [logs, setLogs] = useState({});
   const [tasks, setTasks] = useState([]);
   const [financeData, setFinanceData] = useState([]);
   const [chatHistory, setChatHistory] = useState([]);
@@ -125,16 +133,20 @@ export default function App() {
   useEffect(() => {
     if (!firebaseUser || initialLoad) return;
 
-    queueSave({
-      items,
-      logs,
-      weightLogs,
-      weightGoal,
-      tasks,
-      goal,
-      financeData,
-      chatHistory
-    });
+    try {
+      queueSave({
+        items,
+        logs,
+        weightLogs,
+        weightGoal,
+        tasks,
+        goal,
+        financeData,
+        chatHistory
+      });
+    } catch (err) {
+      console.error("Save error:", err);
+    }
 
   }, [
     items,
@@ -152,7 +164,7 @@ export default function App() {
   // ===== LOADING =====
   if (loadingAuth) {
     return (
-      <div style={{ color: "white", padding: 20 }}>
+      <div style={{ padding: 20, color: "#fff" }}>
         Loading App...
       </div>
     );
@@ -161,7 +173,6 @@ export default function App() {
   return (
     <NotificationProvider>
 
-      {/* 🔔 REMINDERS */}
       <ReminderSystem
         items={items}
         tasks={tasks}
@@ -217,7 +228,6 @@ export default function App() {
               }
             />
 
-            {/* ✅ FIXED CHAT */}
             <Route
               path="chat"
               element={
@@ -238,7 +248,6 @@ export default function App() {
               element={<Habits items={items} setItems={setItems} />}
             />
 
-            {/* ✅ FIXED TASKS */}
             <Route
               path="tasks"
               element={<Tasks tasks={tasks} setTasks={setTasks} />}

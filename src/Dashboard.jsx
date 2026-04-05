@@ -11,7 +11,6 @@ import {
 import { useNotification } from "./context/NotificationContext.jsx";
 import { motion } from "framer-motion";
 
-// ✅ FIXED IMPORT (correct path)
 import {
   getConsistencyScore,
   getDailyData,
@@ -29,14 +28,12 @@ export default function Dashboard({
   const navigate = useNavigate();
   const { showNotification } = useNotification();
 
-  // ===== WELCOME NOTIFICATION =====
   useEffect(() => {
     if (user?.name) {
       showNotification(`Welcome back, ${user.name} 🚀`, "success");
     }
   }, [user?.name]);
 
-  // ===== AI ENGINE =====
   const { streak, consistency, message } = useMemo(() => {
     const daily = getDailyData(logs, tasks);
     const heatmap = getHeatmapData(daily);
@@ -44,23 +41,16 @@ export default function Dashboard({
     const streak = getStreak(heatmap);
     const consistency = getConsistencyScore(heatmap);
 
-    // ✅ SAFE MESSAGE GENERATOR (replacing missing function)
     let message = "Keep going 💪";
 
-    if (streak === 0) {
-      message = "Start today — small steps matter 🚀";
-    } else if (streak < 3) {
-      message = "You're getting started — stay consistent 👍";
-    } else if (streak < 7) {
-      message = "Nice progress! Keep pushing 🔥";
-    } else {
-      message = "You're on fire! Amazing consistency 🚀";
-    }
+    if (streak === 0) message = "Start today 🚀";
+    else if (streak < 3) message = "Stay consistent 👍";
+    else if (streak < 7) message = "Nice progress 🔥";
+    else message = "You're on fire 🚀";
 
     return { streak, consistency, message };
-  }, [logs, tasks, items]);
+  }, [logs, tasks]);
 
-  // ===== WEIGHT DATA =====
   const weightData = useMemo(() => {
     if (!Array.isArray(weightLogs)) return [];
 
@@ -70,55 +60,31 @@ export default function Dashboard({
     }));
   }, [weightLogs]);
 
-  const handleStatClick = (type) => {
-    showNotification(`${type} insights coming soon 🚀`, "info");
-  };
-
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      style={styles.container}
-    >
+    <motion.div style={styles.container}>
       {/* HEADER */}
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>
-            Welcome back, {user?.name || "User"} 👋
-          </h1>
-
-          <p style={{ color: "var(--accent)", marginTop: 6 }}>
-            🔥 {streak} day streak
-          </p>
-
-          <p style={styles.subtitle}>
-            Consistency: {consistency}%
-          </p>
+          <h1>Welcome back, {user?.name || "User"} 👋</h1>
+          <p>🔥 {streak} day streak</p>
+          <p>Consistency: {consistency}%</p>
         </div>
 
-        <motion.div
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
+        <div
           style={styles.profile}
           onClick={() => navigate("/profile")}
         >
           👤
-        </motion.div>
+        </div>
       </div>
 
       {/* STATS */}
       <div style={styles.stats}>
         {["Steps", "Calories", "Active Time"].map((item, i) => (
-          <motion.div
-            key={item}
-            whileHover={{ scale: 1.05 }}
-            style={styles.statCard}
-            onClick={() => handleStatClick(item)}
-          >
+          <div key={item} style={styles.card}>
             <span>{["🚶", "🔥", "⏱"][i]}</span>
             <h3>{item}</h3>
-            <p>Coming soon</p>
-          </motion.div>
+          </div>
         ))}
       </div>
 
@@ -126,69 +92,57 @@ export default function Dashboard({
       <div style={styles.grid}>
         {/* WEIGHT */}
         {weightData.length > 0 && (
-          <motion.div whileHover={{ y: -6 }} style={styles.card}>
-            <h3 style={styles.cardTitle}>🏋️ Weight Progress</h3>
-            <ResponsiveContainer width="100%" height={250}>
+          <div style={styles.card}>
+            <h3>🏋️ Weight Progress</h3>
+            <ResponsiveContainer width="100%" height={200}>
               <LineChart data={weightData}>
-                <XAxis dataKey="date" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
+                <XAxis dataKey="date" />
+                <YAxis />
                 <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="weight"
-                  stroke="#4ade80"
-                  strokeWidth={3}
-                />
+                <Line dataKey="weight" stroke="#4ade80" />
               </LineChart>
             </ResponsiveContainer>
-          </motion.div>
+          </div>
         )}
 
-        {/* 🤖 AI COACH */}
-        <motion.div style={styles.aiCard}>
+        {/* AI */}
+        <div style={styles.card}>
           <h3>🤖 AI Coach</h3>
+          <p>{message}</p>
 
-          <div style={styles.chatBox}>
-            <p style={styles.botMsg}>{message}</p>
-
-            {streak === 0 && (
-              <p style={styles.botMsg}>
-                💡 Start your first habit today!
-              </p>
-            )}
-
-            {streak >= 3 && (
-              <p style={styles.botMsg}>
-                🔥 You're building strong momentum!
-              </p>
-            )}
-          </div>
-
-          {/* ACTIONS */}
-          <div style={styles.actions}>
-            <button
-              style={styles.actionBtn}
-              onClick={() => navigate("/chat")}
-            >
-              🤖 Open AI Chat
-            </button>
-
-            <button
-              style={styles.actionBtn}
-              onClick={() => navigate("/habits")}
-            >
-              ✅ Manage Habits
-            </button>
-
-            <button
-              style={styles.actionBtn}
-              onClick={() => navigate("/tasks")}
-            >
-              📌 Manage Tasks
-            </button>
-          </div>
-        </motion.div>
+          <button onClick={() => navigate("/chat")}>
+            Open Chat
+          </button>
+        </div>
       </div>
     </motion.div>
   );
 }
+
+// ✅ FIXED STYLES
+const styles = {
+  container: {
+    padding: 20,
+    color: "white"
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between"
+  },
+  profile: {
+    cursor: "pointer"
+  },
+  stats: {
+    display: "flex",
+    gap: 10,
+    marginTop: 20
+  },
+  grid: {
+    marginTop: 20
+  },
+  card: {
+    padding: 16,
+    background: "#111",
+    borderRadius: 10
+  }
+};
