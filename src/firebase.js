@@ -9,19 +9,19 @@ import { getFirestore } from "firebase/firestore";
 
 // ================= CONFIG =================
 
-// ✅ Use ENV (fallback for safety)
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "your_api_key",
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "your_auth_domain",
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "your_project_id",
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "your_bucket",
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MSG_ID || "your_msg_id",
-  appId: process.env.REACT_APP_FIREBASE_APP_ID || "your_app_id"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // ================= INIT (SAFE) =================
 
-// Prevent multiple initializations
+// Prevent multiple Firebase instances
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 // ================= SERVICES =================
@@ -42,7 +42,6 @@ export const signInWithGoogle = async () => {
       user: result.user,
       success: true
     };
-
   } catch (error) {
     console.error("❌ Google Login Error:", error);
 
@@ -57,9 +56,7 @@ export const signInWithGoogle = async () => {
 export const logoutUser = async () => {
   try {
     await signOut(auth);
-
     return { success: true };
-
   } catch (error) {
     console.error("❌ Logout Error:", error);
 
