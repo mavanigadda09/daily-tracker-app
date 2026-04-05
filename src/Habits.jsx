@@ -3,21 +3,18 @@ import { motion } from "framer-motion";
 
 export default function Habits({ items = [], setItems }) {
 
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const getKey = (d) =>
+    `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+
+  const selectedKey = getKey(selectedDate);
+
   const habits = useMemo(
     () => items.filter(i => i.type === "habit"),
     [items]
   );
 
-  const [name, setName] = useState("");
-  const [time, setTime] = useState("");
-  const [targetDays, setTargetDays] = useState(30);
-
-  const getKey = (d) =>
-    `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-
-  const todayKey = getKey(new Date());
-
-  // 🎨 COLORS (like reference UI)
   const colors = [
     "linear-gradient(135deg,#6366f1,#8b5cf6)",
     "linear-gradient(135deg,#f97316,#fb7185)",
@@ -26,53 +23,34 @@ export default function Habits({ items = [], setItems }) {
   ];
 
   // ===== ADD =====
-  const addHabit = () => {
-    if (!name.trim()) return;
-
+  const addHabit = (data) => {
     setItems(prev => [
       ...prev,
       {
         id: crypto.randomUUID(),
-        name: name.trim(),
         type: "habit",
         completed: {},
         xp: 0,
         streak: 0,
-        time,
-        targetDays: Number(targetDays)
+        ...data
       }
     ]);
-
-    setName("");
-    setTime("");
-    setTargetDays(30);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    addHabit();
-  };
-
-  // ===== FIXED TOGGLE =====
+  // ===== TOGGLE =====
   const toggleDay = (id) => {
     setItems(prev =>
       prev.map(item => {
         if (item.id !== id) return item;
 
         const completed = { ...(item.completed || {}) };
-        const alreadyDone = completed[todayKey];
 
-        if (alreadyDone) {
-          delete completed[todayKey];
-          return {
-            ...item,
-            completed,
-            xp: Math.max(0, (item.xp || 0) - 10),
-            streak: 0
-          };
+        if (completed[selectedKey]) {
+          delete completed[selectedKey];
+          return { ...item, completed, streak: 0 };
         }
 
-        completed[todayKey] = true;
+        completed[selectedKey] = true;
 
         return {
           ...item,
@@ -90,157 +68,173 @@ export default function Habits({ items = [], setItems }) {
   };
 
   // ===== PROGRESS =====
-  const getProgress = (habit) => {
-    const total = habit.targetDays || 30;
-    const done = Object.keys(habit.completed || {}).length;
-
-    return {
-      percent: Math.min(100, (done / total) * 100),
-      done,
-      total
-    };
+  const getProgress = (h) => {
+    const done = Object.keys(h.completed || {}).length;
+    const total = h.targetDays || 30;
+    return Math.min(100, (done / total) * 100);
   };
+
+  // ===== DATE STRIP =====
+  const days = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7 + i);
+    return d;
+  });
+
+  // ===== SPLIT =====
+  const completedHabits = habits.filter(h => h.completed?.[selectedKey]);
+  const pendingHabits = habits.filter(h => !h.completed?.[selectedKey]);
 
   return (
     <div style={styles.container}>
 
       <h1 style={styles.title}>🔥 Habits</h1>
 
-      {/* ADD FORM */}
-      <form onSubmit={handleSubmit} style={styles.addBox}>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Habit"
-          style={styles.input}
-        />
+      {/* DATE STRIP */}
+      <div style={styles.dateStrip}>
+        {days.map(d => {
+          const key = getKey(d);
+          const active = key === selectedKey;
 
-        <input
-          type="time"
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-          style={styles.input}
-        />
+          return (
+            <div
+              key={key}
+              onClick={() => setSelectedDate(d)}
+              style={{
+                ...styles.dateCard,
+                ...(active ? styles.activeDate : {})
+              }}
+            >
+              <div>{d.getDate()}</div>
+              <small>{["S","M","T","W","T","F","S"][d.getDay()]}</small>
+            </div>
+          );
+        })}
+      </div>
 
-        <input
-          type="number"
-          value={targetDays}
-          onChange={(e) => setTargetDays(e.target.value)}
-          style={styles.input}
-        />
+      {/* CREATE CARD */}
+      <div style={styles.grid}>
+        <div
+          style={styles.createCard}
+          onClick={() => {
+            const name = prompt("Habit name?");
+            if (!name) return;
+            addHabit({ name, targetDays: 30 });
+          }}
+        >
+          ➕ Create Habit
+        </div>
+      </div>
 
-        <button type="submit" style={styles.addBtn}>
-          Add
-        </button>
-      </form>
-
-      {/* HABITS */}
-      {habits.map((h, i) => {
-        const progress = getProgress(h);
-        const bg = colors[i % colors.length];
-
-        return (
-          <motion.div
+      {/* PENDING */}
+      <h3 style={styles.section}>Pending</h3>
+      <div style={styles.grid}>
+        {pendingHabits.map((h, i) => (
+          <HabitCard
             key={h.id}
-            style={{ ...styles.card, background: bg }}
-            whileHover={{ scale: 1.02 }}
-          >
+            h={h}
+            bg={colors[i % colors.length]}
+            toggleDay={toggleDay}
+            deleteHabit={deleteHabit}
+            progress={getProgress(h)}
+          />
+        ))}
+      </div>
 
-            {/* HEADER */}
-            <div style={styles.cardTop}>
-              <div>
-                <h3 style={styles.cardTitle}>{h.name}</h3>
-                <p style={styles.sub}>
-                  🔥 {h.streak || 0} day streak
-                </p>
-                <p style={styles.sub}>
-                  ⭐ {h.xp || 0} XP
-                </p>
-              </div>
-
-              <div style={styles.circle}>
-                {h.completed?.[todayKey] ? "✔" : ""}
-              </div>
-            </div>
-
-            {/* PROGRESS */}
-            <div style={styles.progressTrack}>
-              <motion.div
-                style={styles.progressFill}
-                animate={{ width: `${progress.percent}%` }}
-              />
-            </div>
-
-            <p style={styles.meta}>
-              {progress.done} / {progress.total} days
-            </p>
-
-            {/* ACTION */}
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={() => toggleDay(h.id)}
-              style={styles.actionBtn}
-            >
-              {h.completed?.[todayKey]
-                ? "Completed ✔"
-                : "Mark Done"}
-            </motion.button>
-
-            <button
-              onClick={() => deleteHabit(h.id)}
-              style={styles.delete}
-            >
-              Delete
-            </button>
-
-          </motion.div>
-        );
-      })}
+      {/* COMPLETED */}
+      <h3 style={styles.section}>Completed</h3>
+      <div style={styles.grid}>
+        {completedHabits.map((h, i) => (
+          <HabitCard
+            key={h.id}
+            h={h}
+            bg={colors[i % colors.length]}
+            toggleDay={toggleDay}
+            deleteHabit={deleteHabit}
+            progress={getProgress(h)}
+          />
+        ))}
+      </div>
 
     </div>
   );
 }
 
+// ===== CARD COMPONENT =====
+function HabitCard({ h, bg, toggleDay, deleteHabit, progress }) {
+
+  return (
+    <motion.div style={{ ...styles.card, background: bg }}>
+
+      <div style={styles.cardTop}>
+        <h3>{h.name}</h3>
+        <div style={styles.menu}>
+          <button onClick={() => deleteHabit(h.id)}>🗑</button>
+        </div>
+      </div>
+
+      <p style={styles.sub}>🔥 {h.streak || 0} streak</p>
+      <p style={styles.sub}>⭐ {h.xp || 0} XP</p>
+
+      <div style={styles.progress}>
+        <div style={{ ...styles.fill, width: `${progress}%` }} />
+      </div>
+
+      <button onClick={() => toggleDay(h.id)} style={styles.btn}>
+        Mark Done
+      </button>
+
+    </motion.div>
+  );
+}
+
 // ===== STYLES =====
 const styles = {
-  container: {
-    padding: 24,
-    maxWidth: 600,
-    margin: "0 auto"
-  },
+  container: { padding: 20 },
 
-  title: {
-    fontSize: 28,
-    marginBottom: 20
-  },
+  title: { fontSize: 28 },
 
-  addBox: {
+  section: { marginTop: 20 },
+
+  dateStrip: {
     display: "flex",
     gap: 10,
-    marginBottom: 20
+    overflowX: "auto",
+    margin: "20px 0"
   },
 
-  input: {
+  dateCard: {
     padding: 10,
     borderRadius: 10,
-    border: "1px solid #333",
-    background: "#020617",
-    color: "#fff"
+    background: "#111",
+    color: "#fff",
+    minWidth: 50,
+    textAlign: "center",
+    cursor: "pointer"
   },
 
-  addBtn: {
-    background: "#22c55e",
-    padding: "10px 16px",
-    borderRadius: 10,
-    color: "#fff"
+  activeDate: {
+    background: "#22c55e"
+  },
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))",
+    gap: 15
+  },
+
+  createCard: {
+    padding: 20,
+    borderRadius: 20,
+    background: "#111",
+    textAlign: "center",
+    cursor: "pointer"
   },
 
   card: {
-    padding: 18,
+    padding: 16,
     borderRadius: 20,
-    marginBottom: 16,
-    color: "#fff",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
+    color: "#fff"
   },
 
   cardTop: {
@@ -248,60 +242,22 @@ const styles = {
     justifyContent: "space-between"
   },
 
-  cardTitle: {
-    fontSize: 18
-  },
+  sub: { fontSize: 12 },
 
-  sub: {
-    fontSize: 12,
-    opacity: 0.8
-  },
-
-  circle: {
-    width: 32,
-    height: 32,
-    borderRadius: "50%",
-    background: "rgba(255,255,255,0.3)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-
-  progressTrack: {
+  progress: {
     height: 6,
     background: "rgba(255,255,255,0.3)",
-    borderRadius: 10,
-    marginTop: 12
+    marginTop: 10
   },
 
-  progressFill: {
+  fill: {
     height: "100%",
-    background: "#fff",
+    background: "#fff"
+  },
+
+  btn: {
+    marginTop: 10,
+    padding: 8,
     borderRadius: 10
-  },
-
-  meta: {
-    fontSize: 12,
-    marginTop: 6
-  },
-
-  actionBtn: {
-    marginTop: 12,
-    padding: 10,
-    borderRadius: 10,
-    border: "none",
-    background: "#fff",
-    color: "#000",
-    fontWeight: "bold",
-    cursor: "pointer"
-  },
-
-  delete: {
-    marginTop: 8,
-    background: "#ef4444",
-    padding: 6,
-    borderRadius: 6,
-    color: "#fff",
-    border: "none"
   }
 };
