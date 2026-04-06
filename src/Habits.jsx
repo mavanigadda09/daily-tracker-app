@@ -49,6 +49,10 @@ export default function Habits({ items = [], setItems }) {
   const completedHabits = habits.filter(h => isCompleted(h));
   const pendingHabits = habits.filter(h => !isCompleted(h));
 
+  const completionRate = habits.length
+    ? Math.round((completedHabits.length / habits.length) * 100)
+    : 0;
+
   const colors = [
     "linear-gradient(135deg,#6366f1,#8b5cf6)",
     "linear-gradient(135deg,#f97316,#fb7185)",
@@ -85,7 +89,7 @@ export default function Habits({ items = [], setItems }) {
     addHabit();
   };
 
-  // ===== TOGGLE (FIXED) =====
+  // ===== TOGGLE =====
   const toggleDay = (id, key) => {
     setItems(prev =>
       prev.map(item => {
@@ -130,6 +134,11 @@ export default function Habits({ items = [], setItems }) {
 
       <h1 style={styles.title}>🔥 Habits</h1>
 
+      {/* COMPLETION RATE */}
+      <h2 style={styles.progressText}>
+        {completionRate}% completed today
+      </h2>
+
       {/* VIEW SWITCH */}
       <div style={styles.tabs}>
         {["today", "week", "month"].map(v => (
@@ -140,13 +149,14 @@ export default function Habits({ items = [], setItems }) {
               ...styles.tab,
               ...(view === v ? styles.activeTab : {})
             }}
+            whileTap={{ scale: 0.95 }}
           >
             {v.toUpperCase()}
           </motion.button>
         ))}
       </div>
 
-      {/* DATE STRIP (NEW 🔥) */}
+      {/* DATE STRIP */}
       <div style={styles.dateRow}>
         {dates.map((d, i) => {
           const key = getKey(d);
@@ -172,7 +182,11 @@ export default function Habits({ items = [], setItems }) {
 
       {/* CREATE */}
       {!showForm && (
-        <motion.div style={styles.createCard} onClick={() => setShowForm(true)}>
+        <motion.div
+          style={styles.createCard}
+          onClick={() => setShowForm(true)}
+          whileHover={{ scale: 1.02 }}
+        >
           ➕ Create Habit
         </motion.div>
       )}
@@ -180,11 +194,18 @@ export default function Habits({ items = [], setItems }) {
       {/* FORM */}
       {showForm && (
         <form onSubmit={handleSubmit} style={styles.horizontalForm}>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Habit" style={styles.input}/>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Habit name" style={styles.input}/>
           <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={styles.input}/>
           <input type="number" value={targetDays} onChange={(e) => setTargetDays(e.target.value)} style={styles.input}/>
           <button type="submit" style={styles.addBtn}>Add</button>
         </form>
+      )}
+
+      {/* EMPTY STATE */}
+      {habits.length === 0 && (
+        <div style={styles.empty}>
+          No habits yet 🚀 Start building your streak!
+        </div>
       )}
 
       {/* PENDING */}
@@ -194,13 +215,30 @@ export default function Habits({ items = [], setItems }) {
           const bg = colors[i % colors.length];
 
           return (
-            <motion.div key={h.id} style={{ ...styles.card, background: bg }}>
+            <motion.div
+              key={h.id}
+              style={{ ...styles.card, background: bg }}
+              whileHover={{ scale: 1.03 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
               <div style={styles.cardTop}>
                 <h3>{h.name}</h3>
                 <div style={styles.actions}>
                   <button onClick={() => editHabit(h.id)}>✏️</button>
                   <button onClick={() => deleteHabit(h.id)}>🗑</button>
                 </div>
+              </div>
+
+              <p>🔥 {h.streak} day streak</p>
+              <p>⚡ {h.xp} XP</p>
+
+              {/* PROGRESS */}
+              <div style={styles.progressBar}>
+                <div style={{
+                  width: `${(h.streak / h.targetDays) * 100}%`,
+                  ...styles.progressFill
+                }} />
               </div>
 
               <button
@@ -221,9 +259,15 @@ export default function Habits({ items = [], setItems }) {
           const bg = colors[i % colors.length];
 
           return (
-            <motion.div key={h.id} style={{ ...styles.card, background: bg }}>
+            <motion.div
+              key={h.id}
+              style={{ ...styles.card, background: bg }}
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+            >
               <h3>{h.name}</h3>
               <p>Completed ✔</p>
+              <p>🔥 {h.streak} | ⚡ {h.xp}</p>
 
               <div style={styles.actions}>
                 <button onClick={() => editHabit(h.id)}>✏️</button>
@@ -242,7 +286,9 @@ export default function Habits({ items = [], setItems }) {
 const styles = {
   container: { padding: 24, maxWidth: 1000, margin: "0 auto", color: "#fff" },
 
-  title: { fontSize: 28, marginBottom: 20 },
+  title: { fontSize: 28, marginBottom: 10 },
+
+  progressText: { opacity: 0.7, marginBottom: 20 },
 
   tabs: {
     display: "flex",
@@ -306,19 +352,22 @@ const styles = {
     padding: 10,
     borderRadius: 10,
     background: "#020617",
-    color: "#fff"
+    color: "#fff",
+    border: "none"
   },
 
   addBtn: {
     background: "#22c55e",
     padding: "10px 16px",
     borderRadius: 10,
-    color: "#fff"
+    color: "#fff",
+    border: "none"
   },
 
   card: {
     padding: 18,
-    borderRadius: 20
+    borderRadius: 20,
+    boxShadow: "0 10px 25px rgba(0,0,0,0.3)"
   },
 
   cardTop: {
@@ -337,6 +386,26 @@ const styles = {
     padding: 10,
     borderRadius: 10,
     background: "#fff",
-    color: "#000"
+    color: "#000",
+    border: "none"
+  },
+
+  progressBar: {
+    height: 6,
+    background: "rgba(255,255,255,0.3)",
+    borderRadius: 10,
+    marginTop: 10
+  },
+
+  progressFill: {
+    height: "100%",
+    background: "#fff",
+    borderRadius: 10
+  },
+
+  empty: {
+    textAlign: "center",
+    opacity: 0.6,
+    marginBottom: 20
   }
 };
