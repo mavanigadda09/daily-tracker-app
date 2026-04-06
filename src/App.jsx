@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import Dashboard from "./Dashboard";
 import Analytics from "./Analytics";
@@ -25,8 +25,6 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 
 import { NotificationProvider } from "./context/NotificationContext";
 import ReminderSystem from "./system/ReminderSystem";
-
-// ✅ NEW IMPORT
 import HabitReminderSystem from "./system/HabitReminderSystem";
 
 export default function App() {
@@ -54,13 +52,9 @@ export default function App() {
   }, []);
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      localStorage.clear();
-      window.location.href = "/login";
-    } catch (err) {
-      console.error("Logout error:", err);
-    }
+    await signOut(auth);
+    localStorage.clear();
+    window.location.href = "/login";
   };
 
   // ===== USER =====
@@ -86,38 +80,20 @@ export default function App() {
   const [tasks, setTasks] = useState([]);
   const [financeData, setFinanceData] = useState([]);
   const [chatHistory, setChatHistory] = useState([]);
+
   const [initialLoad, setInitialLoad] = useState(true);
+
+  // 🔥 CRITICAL FIX FLAG
+  const isLocalUpdate = useRef(false);
 
   // ===== LOAD DATA =====
   useEffect(() => {
     if (!firebaseUser) return;
 
     const fetchData = async () => {
-      try {
-        const data = await loadData();
-        if (!data) return;
+      const data = await loadData();
+      if (!data) return;
 
-        setItems(data.items || []);
-        setLogs(data.logs || {});
-        setWeightLogs(data.weightLogs || []);
-        setWeightGoal(data.weightGoal || null);
-        setTasks(data.tasks || []);
-        setGoal(data.goal || {});
-        setFinanceData(data.financeData || []);
-        setChatHistory(data.chatHistory || []);
-      } catch (err) {
-        console.error("Load error:", err);
-      }
-    };
-
-    fetchData();
-  }, [firebaseUser]);
-
-  // ===== REALTIME SYNC =====
-  useEffect(() => {
-    if (!firebaseUser) return;
-
-    const unsub = subscribeToData((data) => {
       setItems(data.items || []);
       setLogs(data.logs || {});
       setWeightLogs(data.weightLogs || []);
@@ -126,30 +102,67 @@ export default function App() {
       setGoal(data.goal || {});
       setFinanceData(data.financeData || []);
       setChatHistory(data.chatHistory || []);
+    };
+
+    fetchData();
+  }, [firebaseUser]);
+
+  // ===== REALTIME SYNC (FIXED) =====
+  useEffect(() => {
+    if (!firebaseUser) return;
+
+    const unsub = subscribeToData((data) => {
+
+      // ❌ prevent overwrite after local changes
+      if (isLocalUpdate.current) return;
+
+      setItems(data.items || []);
+      setLogs(data.logs || {});
+      setWeightLogs(data.weightLogs || []);
+      setWeightGoal(data.weightGoal || null);
+      setTasks(data.tasks || []);
+      setGoal(data.goal || {});
+      setFinanceData(data.financeData || []);
+      setChatHistory(data.chatHistory || []);
+
       setInitialLoad(false);
     });
 
     return () => unsub && unsub();
   }, [firebaseUser]);
 
+  // ===== SAFE SETTERS =====
+  const safeSetItems = (updater) => {
+    isLocalUpdate.current = true;
+
+    setItems(prev => {
+      const updated = typeof updater === "function"
+        ? updater(prev)
+        : updater;
+
+      return updated;
+    });
+
+    // reset flag after short delay
+    setTimeout(() => {
+      isLocalUpdate.current = false;
+    }, 300);
+  };
+
   // ===== SAVE DATA =====
   useEffect(() => {
     if (!firebaseUser || initialLoad) return;
 
-    try {
-      queueSave({
-        items,
-        logs,
-        weightLogs,
-        weightGoal,
-        tasks,
-        goal,
-        financeData,
-        chatHistory
-      });
-    } catch (err) {
-      console.error("Save error:", err);
-    }
+    queueSave({
+      items,
+      logs,
+      weightLogs,
+      weightGoal,
+      tasks,
+      goal,
+      financeData,
+      chatHistory
+    });
 
   }, [
     items,
@@ -164,34 +177,19 @@ export default function App() {
     initialLoad
   ]);
 
-  // ===== LOADING =====
   if (loadingAuth) {
-    return (
-      <div style={{ padding: 20, color: "var(--text)" }}>
-        Loading App...
-      </div>
-    );
+    return <div style={{ padding: 20 }}>Loading App...</div>;
   }
 
   return (
     <NotificationProvider>
 
-      {/* 🔔 GENERAL REMINDERS */}
-      <ReminderSystem
-        items={items}
-        tasks={tasks}
-        logs={logs}
-      />
-
-      {/* 🔥 HABIT REMINDERS (NEW) */}
-      <HabitReminderSystem
-        items={items}
-      />
+      <ReminderSystem items={items} tasks={tasks} logs={logs} />
+      <HabitReminderSystem items={items} />
 
       <BrowserRouter>
         <Routes>
 
-          {/* PUBLIC */}
           <Route
             path="/login"
             element={<Login onLogin={handleLoginUser} />}
@@ -199,7 +197,6 @@ export default function App() {
 
           <Route path="/onboarding" element={<Onboarding />} />
 
-          {/* PROTECTED */}
           <Route
             path="/"
             element={
@@ -214,97 +211,58 @@ export default function App() {
             }
           >
 
-            <Route
-              index
-              element={
-                <Dashboard
-                  logs={logs}
-                  tasks={tasks}
-                  items={items}
-                  user={user}
-                  weightLogs={weightLogs}
-                />
-              }
-            />
+            <Route index element={
+              <Dashboard
+                logs={logs}
+                tasks={tasks}
+                items={items}
+                user={user}
+                weightLogs={weightLogs}
+              />
+            }/>
 
-            <Route
-              path="finance"
-              element={
-                <Finance
-                  financeData={financeData}
-                  setFinanceData={setFinanceData}
-                />
-              }
-            />
+            <Route path="finance" element={
+              <Finance
+                financeData={financeData}
+                setFinanceData={setFinanceData}
+              />
+            }/>
 
-            <Route
-              path="chat"
-              element={
-                <Chat
-                  chatHistory={chatHistory}
-                  setChatHistory={setChatHistory}
-                  items={items}
-                  tasks={tasks}
-                  weightLogs={weightLogs}
-                />
-              }
-            />
+            <Route path="chat" element={
+              <Chat
+                chatHistory={chatHistory}
+                setChatHistory={setChatHistory}
+                items={items}
+                tasks={tasks}
+                weightLogs={weightLogs}
+              />
+            }/>
 
-            <Route
-              path="weight"
-              element={<Weight weightLogs={weightLogs} />}
-            />
+            <Route path="weight" element={<Weight weightLogs={weightLogs} />} />
 
-            <Route
-              path="habits"
-              element={
-                <Habits
-                  items={items}
-                  setItems={setItems}
-                />
-              }
-            />
+            {/* 🔥 FIXED PASS */}
+            <Route path="habits" element={
+              <Habits
+                items={items}
+                setItems={safeSetItems} // ✅ IMPORTANT
+              />
+            }/>
 
-            <Route
-              path="tasks"
-              element={
-                <Tasks
-                  tasks={tasks}
-                  setTasks={setTasks}
-                />
-              }
-            />
+            <Route path="tasks" element={
+              <Tasks tasks={tasks} setTasks={setTasks} />
+            }/>
 
-            <Route
-              path="activities"
-              element={
-                <Activities
-                  items={items}
-                  setItems={setItems}
-                />
-              }
-            />
+            <Route path="activities" element={
+              <Activities items={items} setItems={safeSetItems} />
+            }/>
 
-            <Route
-              path="analytics"
-              element={<Analytics logs={logs} />}
-            />
-
-            <Route
-              path="insights"
-              element={<Insights items={items} />}
-            />
-
+            <Route path="analytics" element={<Analytics logs={logs} />} />
+            <Route path="insights" element={<Insights items={items} />} />
             <Route path="goals" element={<Goals />} />
-
-            <Route
-              path="profile"
-              element={<Profile user={user} />}
-            />
+            <Route path="profile" element={<Profile user={user} />} />
 
           </Route>
 
-          {/* FALLBACK */}
           <Route path="*" element={<Navigate to="/" />} />
 
         </Routes>
