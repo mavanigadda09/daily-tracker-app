@@ -1,25 +1,19 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 
-// ===== UTIL =====
+// ===== DATE UTILS =====
 const getKey = (d) =>
   `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
-const isYesterday = (d1, d2) => {
-  const a = new Date(d1);
-  const b = new Date(d2);
-  a.setDate(a.getDate() - 1);
-  return getKey(a) === getKey(b);
-};
+export default function Habits({ items = [], setItems }) {
 
-// ===== COMPONENT =====
-export default function Habits() {
-
-  // ✅ LOCAL STORAGE STATE (FIXES DELETE BUG)
-  const [items, setItems] = useState(() => {
+  // ✅ LOCAL STORAGE SYNC (FIX DELETE BUG)
+  useEffect(() => {
     const saved = localStorage.getItem("habits");
-    return saved ? JSON.parse(saved) : [];
-  });
+    if (saved) {
+      setItems(JSON.parse(saved));
+    }
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("habits", JSON.stringify(items));
@@ -41,6 +35,8 @@ export default function Habits() {
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const activeKey = getKey(selectedDate);
+
+  const dayNames = ["S","M","T","W","T","F","S"];
 
   // ===== DATE =====
   const getDates = () => {
@@ -127,7 +123,7 @@ export default function Habits() {
     setEditId(null);
   };
 
-  // ===== TOGGLE (FIXED CORE LOGIC) =====
+  // ===== TRUE STREAK + XP FIX =====
   const toggleDay = (id) => {
     setItems(prev =>
       prev.map(item => {
@@ -135,10 +131,9 @@ export default function Habits() {
 
         const completed = { ...(item.completed || {}) };
 
-        // ❌ Prevent XP abuse
+        // ❌ prevent XP abuse
         if (completed[activeKey]?.done) return item;
 
-        // ===== STREAK LOGIC =====
         const yesterday = new Date(selectedDate);
         yesterday.setDate(yesterday.getDate() - 1);
         const yKey = getKey(yesterday);
@@ -153,7 +148,11 @@ export default function Habits() {
           ...item,
           completed: {
             ...completed,
-            [activeKey]: { done: true, value: 1, note: "" }
+            [activeKey]: {
+              done: true,
+              value: 1,
+              note: ""
+            }
           },
           xp: item.xp + 10,
           streak: newStreak,
@@ -191,23 +190,23 @@ export default function Habits() {
   return (
     <div style={styles.container}>
 
-      <h1>🔥 Habits</h1>
-      <h2>{completionRate}% completed today</h2>
+      <h1 style={styles.title}>🔥 Habits</h1>
+      <h2 style={styles.progressText}>{completionRate}% completed today</h2>
 
       {/* VIEW */}
       <div style={styles.tabs}>
         {["today","week","month"].map(v => (
-          <button key={v} onClick={()=>setView(v)}>
-            {v}
+          <button key={v} onClick={()=>setView(v)} style={{
+            ...styles.tab,
+            ...(view===v?styles.activeTab:{})
+          }}>
+            {v.toUpperCase()}
           </button>
         ))}
       </div>
 
       {/* DATE */}
-      <div style={{
-        ...styles.dateRow,
-        flexWrap: view === "month" ? "wrap" : "nowrap"
-      }}>
+      <div style={styles.dateRow}>
         {dates.map((d,i)=>{
           const key = getKey(d);
           const active = key === activeKey;
@@ -221,7 +220,10 @@ export default function Habits() {
                 color:"#fff"
               }}
             >
-              {d.getDate()}
+              <div>{d.getDate()}</div>
+              <div style={{fontSize:10}}>
+                {dayNames[d.getDay()]}
+              </div>
             </div>
           );
         })}
@@ -229,57 +231,102 @@ export default function Habits() {
 
       {/* CREATE */}
       {!showForm && (
-        <div onClick={()=>setShowForm(true)} style={styles.createCard}>
+        <div style={styles.createCard} onClick={()=>setShowForm(true)}>
           ➕ Create Habit
         </div>
       )}
 
       {/* FORM */}
       {showForm && (
-        <form onSubmit={handleSubmit}>
-          <input value={name} onChange={e=>setName(e.target.value)} />
-          <input type="time" value={time} onChange={e=>setTime(e.target.value)} />
-          <input type="number" value={targetDays} onChange={e=>setTargetDays(e.target.value)} />
+        <form onSubmit={handleSubmit} style={styles.horizontalForm}>
+          <input value={name} onChange={e=>setName(e.target.value)} style={styles.input}/>
+          <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={styles.input}/>
+          <input type="number" value={targetDays} onChange={e=>setTargetDays(e.target.value)} style={styles.input}/>
 
-          <button type="submit">{editId ? "Update":"Add"}</button>
-          <button type="button" onClick={resetForm}>Close</button>
+          <button type="submit" style={styles.addBtn}>
+            {editId ? "Update" : "Add"}
+          </button>
+
+          <button type="button" onClick={resetForm} style={styles.closeBtn}>
+            Close
+          </button>
         </form>
       )}
 
       {/* PENDING */}
       <h3>Pending</h3>
-      {pendingHabits.map((h,i)=>(
-        <div key={h.id} style={{...styles.card, background:colors[i%4]}}>
-          <h3>{h.name}</h3>
-          <p>🔥 {h.streak}</p>
-          <p>🏆 Best: {h.bestStreak || 0}</p>
-          <p>⚡ {h.xp}</p>
+      <div style={styles.grid}>
+        {pendingHabits.map((h,i)=>(
+          <motion.div key={h.id} style={{...styles.card, background:colors[i%4]}}>
+            <div style={styles.cardTop}>
+              <h3>{h.name}</h3>
+              <div>
+                <button onClick={()=>editHabit(h)}>🖊</button>
+                <button onClick={()=>deleteHabit(h.id)}>🗑</button>
+              </div>
+            </div>
 
-          <button onClick={()=>toggleDay(h.id)}>Done</button>
-          <button onClick={()=>editHabit(h)}>Edit</button>
-          <button onClick={()=>deleteHabit(h.id)}>Delete</button>
-        </div>
-      ))}
+            <p>🔥 {h.streak}</p>
+            <p>🏆 Best: {h.bestStreak || 0}</p>
+            <p>⚡ {h.xp}</p>
+
+            <button onClick={()=>toggleDay(h.id)} style={styles.actionBtn}>
+              Done
+            </button>
+          </motion.div>
+        ))}
+      </div>
 
       {/* COMPLETED */}
       <h3>Completed</h3>
-      {completedHabits.map((h,i)=>(
-        <div key={h.id} style={{...styles.card, background:colors[i%4]}}>
-          <h3>{h.name}</h3>
+      <div style={styles.grid}>
+        {completedHabits.map((h,i)=>(
+          <div key={h.id} style={{...styles.card, background:colors[i%4]}}>
+            <h3>{h.name}</h3>
 
-          <button onClick={()=>unmarkDay(h.id)}>Undo</button>
-          <button onClick={()=>deleteHabit(h.id)}>Delete</button>
-        </div>
-      ))}
+            <button onClick={()=>unmarkDay(h.id)} style={styles.unmarkBtn}>
+              Undo
+            </button>
+
+            <button onClick={()=>deleteHabit(h.id)}>🗑</button>
+          </div>
+        ))}
+      </div>
 
     </div>
   );
 }
 
+// ===== STYLES (UNCHANGED VIEW) =====
 const styles = {
-  container:{padding:20},
-  dateRow:{display:"flex",gap:8},
-  dateCard:{padding:10,cursor:"pointer"},
-  createCard:{padding:20,background:"#111",color:"#fff",cursor:"pointer"},
-  card:{padding:16,borderRadius:16,color:"#fff",margin:10}
+  container:{padding:24,maxWidth:1000,margin:"0 auto"},
+  title:{fontSize:28},
+  progressText:{opacity:0.7},
+
+  tabs:{display:"flex",gap:10,background:"#0f172a",padding:6,borderRadius:12},
+
+  tab:{padding:10,borderRadius:8,color:"#94a3b8",border:"none"},
+  activeTab:{background:"#22c55e",color:"#fff"},
+
+  dateRow:{display:"flex",gap:8,margin:"20px 0",overflowX:"auto"},
+
+  dateCard:{padding:10,borderRadius:10,minWidth:45,textAlign:"center",cursor:"pointer"},
+
+  createCard:{padding:20,background:"#111",color:"#fff",borderRadius:16,textAlign:"center",cursor:"pointer",marginBottom:20},
+
+  horizontalForm:{display:"flex",gap:10,marginBottom:20},
+
+  input:{padding:10,borderRadius:10},
+
+  addBtn:{background:"#22c55e",color:"#fff",borderRadius:10,padding:10},
+  closeBtn:{background:"#ef4444",color:"#fff",borderRadius:10,padding:10},
+
+  grid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))",gap:16},
+
+  card:{padding:16,borderRadius:20,color:"#fff"},
+
+  cardTop:{display:"flex",justifyContent:"space-between"},
+
+  actionBtn:{marginTop:10,padding:10,borderRadius:10,background:"#fff"},
+  unmarkBtn:{marginTop:10,padding:8,borderRadius:8,background:"#fff"}
 };
