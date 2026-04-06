@@ -61,88 +61,178 @@ export default function Dashboard({
   }, [weightLogs]);
 
   return (
-    <motion.div style={styles.container}>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={styles.container}
+    >
       {/* HEADER */}
       <div style={styles.header}>
         <div>
-          <h1>Welcome back, {user?.name || "User"} 👋</h1>
-          <p>🔥 {streak} day streak</p>
-          <p>Consistency: {consistency}%</p>
+          <h1 style={styles.title}>
+            Welcome back, {user?.name || "User"} 👋
+          </h1>
+
+          <div style={styles.badges}>
+            <span style={styles.badge}>🔥 {streak} day streak</span>
+            <span style={styles.badge}>⚡ {consistency}% consistency</span>
+          </div>
         </div>
 
-        <div
-          style={styles.profile}
-          onClick={() => navigate("/profile")}
-        >
+        <div style={styles.profile} onClick={() => navigate("/profile")}>
           👤
         </div>
       </div>
 
       {/* STATS */}
       <div style={styles.stats}>
-        {["Steps", "Calories", "Active Time"].map((item, i) => (
-          <div key={item} style={styles.card}>
-            <span>{["🚶", "🔥", "⏱"][i]}</span>
-            <h3>{item}</h3>
-          </div>
+        {[
+          { label: "Steps", icon: "🚶" },
+          { label: "Calories", icon: "🔥" },
+          { label: "Active Time", icon: "⏱" }
+        ].map((item) => (
+          <motion.div
+            key={item.label}
+            whileHover={{ scale: 1.05 }}
+            style={styles.statCard}
+          >
+            <span style={styles.statIcon}>{item.icon}</span>
+            <h3>{item.label}</h3>
+          </motion.div>
         ))}
       </div>
 
       {/* GRID */}
       <div style={styles.grid}>
-        {/* WEIGHT */}
+        {/* WEIGHT CHART */}
         {weightData.length > 0 && (
-          <div style={styles.card}>
-            <h3>🏋️ Weight Progress</h3>
-            <ResponsiveContainer width="100%" height={200}>
+          <motion.div whileHover={{ scale: 1.01 }} style={styles.card}>
+            <h3 style={styles.cardTitle}>🏋️ Weight Progress</h3>
+
+            <ResponsiveContainer width="100%" height={220}>
               <LineChart data={weightData}>
-                <XAxis dataKey="date" />
-                <YAxis />
+                <XAxis dataKey="date" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
                 <Tooltip />
-                <Line dataKey="weight" stroke="#4ade80" />
+                <Line
+                  type="monotone"
+                  dataKey="weight"
+                  stroke="#facc15"
+                  strokeWidth={3}
+                  dot={{ r: 4 }}
+                />
               </LineChart>
             </ResponsiveContainer>
-          </div>
+          </motion.div>
         )}
 
-        {/* AI */}
-        <div style={styles.card}>
-          <h3>🤖 AI Coach</h3>
-          <p>{message}</p>
+        {/* AI COACH */}
+        <motion.div whileHover={{ scale: 1.01 }} style={styles.card}>
+          <h3 style={styles.cardTitle}>🤖 AI Coach</h3>
 
-          <button onClick={() => navigate("/chat")}>
+          <p style={styles.message}>{message}</p>
+
+          <button
+            onClick={() => navigate("/chat")}
+            style={styles.primaryBtn}
+          >
             Open Chat
           </button>
-        </div>
+        </motion.div>
       </div>
     </motion.div>
   );
 }
 
-// ✅ FIXED STYLES
+// ===== STYLES (PHOENIX THEME) =====
 const styles = {
   container: {
-    padding: 20,
-    color: "white"
+    padding: 24,
+    color: "#fff"
   },
+
+  title: {
+    color: "#facc15",
+    textShadow: "0 0 10px #facc15"
+  },
+
   header: {
     display: "flex",
-    justifyContent: "space-between"
+    justifyContent: "space-between",
+    alignItems: "center"
   },
+
   profile: {
-    cursor: "pointer"
+    cursor: "pointer",
+    fontSize: 22
   },
-  stats: {
+
+  badges: {
     display: "flex",
     gap: 10,
-    marginTop: 20
+    marginTop: 8
   },
+
+  badge: {
+    background: "rgba(250,204,21,0.15)",
+    padding: "6px 12px",
+    borderRadius: 20,
+    fontSize: 12,
+    color: "#facc15"
+  },
+
+  stats: {
+    display: "flex",
+    gap: 16,
+    marginTop: 24,
+    flexWrap: "wrap"
+  },
+
+  statCard: {
+    flex: 1,
+    minWidth: 150,
+    padding: 20,
+    borderRadius: 16,
+    background: "#020617",
+    boxShadow: "0 0 15px rgba(250,204,21,0.2)",
+    textAlign: "center"
+  },
+
+  statIcon: {
+    fontSize: 24
+  },
+
   grid: {
-    marginTop: 20
+    marginTop: 30,
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+    gap: 20
   },
+
   card: {
-    padding: 16,
-    background: "#111",
-    borderRadius: 10
+    padding: 20,
+    borderRadius: 18,
+    background: "#020617",
+    boxShadow: "0 0 20px rgba(250,204,21,0.15)"
+  },
+
+  cardTitle: {
+    marginBottom: 10,
+    color: "#facc15"
+  },
+
+  message: {
+    marginBottom: 12,
+    opacity: 0.9
+  },
+
+  primaryBtn: {
+    padding: "10px 16px",
+    borderRadius: 10,
+    border: "none",
+    background: "linear-gradient(135deg,#facc15,#f97316)",
+    color: "#000",
+    cursor: "pointer",
+    fontWeight: "bold"
   }
 };

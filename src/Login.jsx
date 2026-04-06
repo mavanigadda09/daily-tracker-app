@@ -29,7 +29,7 @@ export default function Login({ onLogin }) {
     }
   }, []);
 
-  // ================= EMAIL LOGIN =================
+  // ===== EMAIL LOGIN =====
   const handleSubmit = async () => {
     if (!email || !password) {
       showNotification("Enter email & password", "error");
@@ -91,16 +91,14 @@ export default function Login({ onLogin }) {
     setLoading(false);
   };
 
-  // ================= GOOGLE LOGIN =================
+  // ===== GOOGLE LOGIN =====
   const handleGoogleLogin = async () => {
     setLoading(true);
 
     try {
       const result = await signInWithGoogle();
 
-      if (!result.success) {
-        throw new Error(result.error);
-      }
+      if (!result.success) throw new Error(result.error);
 
       const user = result.user;
 
@@ -136,22 +134,23 @@ export default function Login({ onLogin }) {
   return (
     <div style={styles.container}>
       <div style={styles.wrapper}>
+
         {/* LEFT */}
         <div style={styles.left}>
-          <h2>Welcome Back!</h2>
-          <p>Login to continue your journey</p>
+          <img src="/phoenix.png" style={styles.logo} />
+          <h2 style={styles.brand}>Phoenix Tracker</h2>
+          <p>Rise. Track. Conquer 🔥</p>
 
-          <button
-            onClick={() => setIsRegister(false)}
-            style={styles.ghostBtn}
-          >
+          <button onClick={() => setIsRegister(false)} style={styles.ghostBtn}>
             SIGN IN
           </button>
         </div>
 
         {/* RIGHT */}
         <div style={styles.right}>
-          <h2>{isRegister ? "Create Account" : "Sign In"}</h2>
+          <h2 style={styles.title}>
+            {isRegister ? "Create Account" : "Welcome Back"}
+          </h2>
 
           {isRegister && (
             <>
@@ -183,19 +182,11 @@ export default function Login({ onLogin }) {
 
           {error && <p style={styles.error}>{error}</p>}
 
-          <button
-            onClick={handleSubmit}
-            style={styles.primaryBtn}
-            disabled={loading}
-          >
+          <button onClick={handleSubmit} style={styles.primaryBtn}>
             {loading ? "Loading..." : isRegister ? "REGISTER" : "LOGIN"}
           </button>
 
-          <button
-            onClick={handleGoogleLogin}
-            style={styles.googleBtn}
-            disabled={loading}
-          >
+          <button onClick={handleGoogleLogin} style={styles.googleBtn}>
             Continue with Google
           </button>
 
@@ -205,21 +196,20 @@ export default function Login({ onLogin }) {
               : "Create new account"}
           </p>
         </div>
+
       </div>
     </div>
   );
 }
 
-// ================= STYLES =================
-
-const styles = Object.freeze({
+// ===== STYLES =====
+const styles = {
   container: {
     height: "100vh",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    background: "linear-gradient(135deg, #0f2027, #203a43, #2c5364)",
-    padding: 20
+    background: "radial-gradient(circle at top, #0f172a, #020617)"
   },
 
   wrapper: {
@@ -228,13 +218,13 @@ const styles = Object.freeze({
     display: "flex",
     borderRadius: 20,
     overflow: "hidden",
-    boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
+    boxShadow: "0 20px 80px rgba(250,204,21,0.2)"
   },
 
   left: {
     flex: 1,
-    background: "linear-gradient(135deg, #1b5e20, #66bb6a)",
-    color: "#fff",
+    background: "linear-gradient(135deg,#facc15,#f97316)",
+    color: "#000",
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
@@ -243,9 +233,21 @@ const styles = Object.freeze({
     textAlign: "center"
   },
 
+  logo: {
+    width: 80,
+    marginBottom: 10,
+    filter: "drop-shadow(0 0 20px #fff)"
+  },
+
+  brand: {
+    marginBottom: 10,
+    fontWeight: "bold"
+  },
+
   right: {
     flex: 1,
-    background: "#ffffff",
+    background: "#020617",
+    color: "#fff",
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
@@ -253,18 +255,24 @@ const styles = Object.freeze({
     gap: 14
   },
 
+  title: {
+    color: "#facc15"
+  },
+
   input: {
     padding: 14,
     borderRadius: 12,
-    border: "1px solid #ddd"
+    border: "1px solid #334155",
+    background: "#0f172a",
+    color: "#fff"
   },
 
   primaryBtn: {
     padding: 14,
     borderRadius: 12,
     border: "none",
-    background: "linear-gradient(135deg, #2e7d32, #43a047)",
-    color: "#fff",
+    background: "linear-gradient(135deg,#facc15,#f97316)",
+    color: "#000",
     fontWeight: "bold",
     cursor: "pointer"
   },
@@ -272,30 +280,30 @@ const styles = Object.freeze({
   googleBtn: {
     padding: 14,
     borderRadius: 12,
-    border: "1px solid #ccc",
-    background: "#fff",
+    border: "1px solid #334155",
+    background: "#0f172a",
+    color: "#fff",
     cursor: "pointer"
   },
 
   ghostBtn: {
     marginTop: 20,
     padding: "12px 28px",
-    border: "1px solid #fff",
+    border: "2px solid #000",
     background: "transparent",
-    color: "#fff",
     borderRadius: 30,
     cursor: "pointer"
   },
 
   switch: {
     textAlign: "center",
-    color: "#2e7d32",
+    color: "#facc15",
     cursor: "pointer"
   },
 
   error: {
-    color: "red",
+    color: "#ef4444",
     fontSize: 12,
     textAlign: "center"
   }
-});
+};
