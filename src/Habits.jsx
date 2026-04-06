@@ -294,3 +294,111 @@ export default function Habits({ items = [], setItems }) {
     </div>
   );
 }
+
+const styles = {
+  container:{padding:24,maxWidth:1000,margin:"0 auto"},
+  title:{fontSize:28},
+  progressText:{opacity:0.7},
+
+  tabs:{
+    display:"flex",
+    gap:10,
+    background:"#0f172a",
+    padding:6,
+    borderRadius:12
+  },
+
+  tab:{
+    padding:10,
+    borderRadius:8,
+    color:"#94a3b8",
+    border:"none",
+    background:"transparent"
+  },
+
+  activeTab:{
+    background:"#22c55e",
+    color:"#fff"
+  },
+
+  dateRow:{
+    display:"flex",
+    gap:8,
+    margin:"20px 0",
+    overflowX:"auto"
+  },
+
+  dateCard:{
+    padding:10,
+    borderRadius:10,
+    minWidth:45,
+    textAlign:"center",
+    cursor:"pointer"
+  },
+
+  createCard:{
+    padding:20,
+    background:"#111",
+    color:"#fff",
+    borderRadius:16,
+    textAlign:"center",
+    cursor:"pointer",
+    marginBottom:20
+  },
+
+  horizontalForm:{
+    display:"flex",
+    gap:10,
+    marginBottom:20
+  },
+
+  input:{
+    padding:10,
+    borderRadius:10
+  },
+
+  addBtn:{
+    background:"#22c55e",
+    color:"#fff",
+    borderRadius:10,
+    padding:10
+  },
+
+  closeBtn:{
+    background:"#ef4444",
+    color:"#fff",
+    borderRadius:10,
+    padding:10
+  },
+
+  grid:{
+    display:"grid",
+    gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))",
+    gap:16
+  },
+
+  card:{
+    padding:16,
+    borderRadius:20,
+    color:"#fff"
+  },
+
+  cardTop:{
+    display:"flex",
+    justifyContent:"space-between"
+  },
+
+  actionBtn:{
+    marginTop:10,
+    padding:10,
+    borderRadius:10,
+    background:"#fff"
+  },
+
+  unmarkBtn:{
+    marginTop:10,
+    padding:8,
+    borderRadius:8,
+    background:"#fff"
+  }
+};
