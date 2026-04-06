@@ -41,7 +41,6 @@ export default function Habits({ items = [], setItems }) {
   const activeKey = getKey(selectedDate);
   const dayNames = ["S","M","T","W","T","F","S"];
 
-  // ===== DATE =====
   const getDates = () => {
     const today = new Date();
 
@@ -66,7 +65,6 @@ export default function Habits({ items = [], setItems }) {
 
   const dates = getDates();
 
-  // ===== FILTER =====
   const isCompleted = (habit) =>
     habit.completed?.[activeKey]?.done;
 
@@ -77,14 +75,14 @@ export default function Habits({ items = [], setItems }) {
     ? Math.round((completedHabits.length / habits.length) * 100)
     : 0;
 
+  // 🔥 PHOENIX COLORS
   const colors = [
-    "linear-gradient(135deg,#6366f1,#8b5cf6)",
-    "linear-gradient(135deg,#f97316,#fb7185)",
-    "linear-gradient(135deg,#22c55e,#4ade80)",
-    "linear-gradient(135deg,#06b6d4,#3b82f6)"
+    "linear-gradient(135deg,#facc15,#f97316)",
+    "linear-gradient(135deg,#f97316,#ef4444)",
+    "linear-gradient(135deg,#facc15,#ef4444)",
+    "linear-gradient(135deg,#fb923c,#facc15)"
   ];
 
-  // ===== ADD / EDIT =====
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -125,7 +123,6 @@ export default function Habits({ items = [], setItems }) {
     setEditId(null);
   };
 
-  // ===== STREAK + XP =====
   const toggleDay = (id) => {
     setItems(prev =>
       prev.map(item => {
@@ -188,7 +185,6 @@ export default function Habits({ items = [], setItems }) {
       <h1 style={styles.title}>🔥 Habits</h1>
       <h2 style={styles.progressText}>{completionRate}% completed today</h2>
 
-      {/* VIEW */}
       <div style={styles.tabs}>
         {["today","week","month"].map(v => (
           <button key={v} onClick={()=>setView(v)} style={{
@@ -200,12 +196,7 @@ export default function Habits({ items = [], setItems }) {
         ))}
       </div>
 
-      {/* DATE */}
-      <div style={
-        view === "month"
-          ? styles.monthGrid
-          : styles.dateRow
-      }>
+      <div style={view === "month" ? styles.monthGrid : styles.dateRow}>
         {dates.map((d,i)=>{
           const key = getKey(d);
           const active = key === activeKey;
@@ -215,8 +206,8 @@ export default function Habits({ items = [], setItems }) {
               onClick={()=>setSelectedDate(d)}
               style={{
                 ...styles.dateCard,
-                background: active ? "#ef4444" : "#111",
-                color:"#fff"
+                background: active ? "#facc15" : "#111",
+                color: active ? "#000" : "#fff"
               }}
             >
               <div>{d.getDate()}</div>
@@ -228,14 +219,12 @@ export default function Habits({ items = [], setItems }) {
         })}
       </div>
 
-      {/* CREATE */}
       {!showForm && (
         <div style={styles.createCard} onClick={()=>setShowForm(true)}>
           ➕ Create Habit
         </div>
       )}
 
-      {/* FORM */}
       {showForm && (
         <form onSubmit={handleSubmit} style={styles.horizontalForm}>
           <input value={name} onChange={e=>setName(e.target.value)} style={styles.input}/>
@@ -252,15 +241,18 @@ export default function Habits({ items = [], setItems }) {
         </form>
       )}
 
-      {/* PENDING */}
-      <h3>Pending</h3>
+      <h3 style={styles.section}>Pending</h3>
       <div style={styles.grid}>
         {pendingHabits.map((h,i)=>(
-          <motion.div key={h.id} style={{...styles.card, background:colors[i%4]}}>
+          <motion.div
+            key={h.id}
+            whileHover={{ scale: 1.03 }}
+            style={{...styles.card, background:colors[i%4]}}
+          >
             <div style={styles.cardTop}>
               <h3>{h.name}</h3>
               <div>
-                <button onClick={()=>editHabit(h)}>🖊</button>
+                <button onClick={()=>editHabit(h)}>✏️</button>
                 <button onClick={()=>deleteHabit(h.id)}>🗑</button>
               </div>
             </div>
@@ -276,11 +268,10 @@ export default function Habits({ items = [], setItems }) {
         ))}
       </div>
 
-      {/* COMPLETED */}
-      <h3>Completed</h3>
+      <h3 style={styles.section}>Completed</h3>
       <div style={styles.grid}>
         {completedHabits.map((h,i)=>(
-          <div key={h.id} style={{...styles.card, background:colors[i%4]}}>
+          <div key={h.id} style={{...styles.card, background:colors[i%4], opacity:0.7}}>
             <h3>{h.name}</h3>
 
             <button onClick={()=>unmarkDay(h.id)} style={styles.unmarkBtn}>
@@ -299,13 +290,19 @@ export default function Habits({ items = [], setItems }) {
 // ===== STYLES =====
 const styles = {
   container:{padding:24,maxWidth:1000,margin:"0 auto"},
-  title:{fontSize:28},
+  title:{
+    fontSize:28,
+    color:"#facc15",
+    textShadow:"0 0 10px #facc15"
+  },
   progressText:{opacity:0.7},
+
+  section:{marginTop:20},
 
   tabs:{
     display:"flex",
     gap:10,
-    background:"#0f172a",
+    background:"#020617",
     padding:6,
     borderRadius:12
   },
@@ -319,8 +316,8 @@ const styles = {
   },
 
   activeTab:{
-    background:"#22c55e",
-    color:"#fff"
+    background:"#facc15",
+    color:"#000"
   },
 
   dateRow:{
@@ -330,7 +327,6 @@ const styles = {
     overflowX:"auto"
   },
 
-  // ✅ NO SCROLL MONTH VIEW
   monthGrid:{
     display:"grid",
     gridTemplateColumns:"repeat(10, 1fr)",
@@ -353,7 +349,8 @@ const styles = {
     borderRadius:16,
     textAlign:"center",
     cursor:"pointer",
-    marginBottom:20
+    marginBottom:20,
+    boxShadow:"0 0 10px rgba(250,204,21,0.3)"
   },
 
   horizontalForm:{
@@ -368,8 +365,8 @@ const styles = {
   },
 
   addBtn:{
-    background:"#22c55e",
-    color:"#fff",
+    background:"#facc15",
+    color:"#000",
     borderRadius:10,
     padding:10
   },
@@ -390,7 +387,8 @@ const styles = {
   card:{
     padding:16,
     borderRadius:20,
-    color:"#fff"
+    color:"#fff",
+    boxShadow:"0 0 15px rgba(250,204,21,0.3)"
   },
 
   cardTop:{

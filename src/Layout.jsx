@@ -39,30 +39,39 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
     return location.pathname.startsWith(path);
   };
 
-  // 🔒 SAFE STYLES fallback
-  const s = styles || {};
+  const s = styles;
 
   return (
-    <div style={s.container || { display: "flex" }}>
+    <div style={s.container}>
 
       {/* SIDEBAR */}
       <motion.aside
         animate={{ width: collapsed ? 70 : 240 }}
         transition={{ duration: 0.25 }}
-        style={s.sidebar || {}}
+        style={s.sidebar}
       >
 
         {/* TOP */}
         <div>
-          <div style={s.topRow || {}}>
+          <div style={s.topRow}>
 
-            {!collapsed && <h2 style={s.logo || {}}>🚀 Tracker</h2>}
+            {/* 🔥 LOGO + TITLE */}
+            {!collapsed && (
+              <div style={s.logoWrapper}>
+                <img
+                  src="/phoenix.png"
+                  alt="phoenix"
+                  style={s.logoImg}
+                />
+                <h2 style={s.logoText}>Tracker</h2>
+              </div>
+            )}
 
             <div style={{ display: "flex", gap: 8 }}>
 
               {/* THEME */}
               <button
-                style={s.iconBtn || {}}
+                style={s.iconBtn}
                 onClick={() =>
                   setTheme(prev => prev === "dark" ? "light" : "dark")
                 }
@@ -72,7 +81,7 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
 
               {/* MENU */}
               <button
-                style={s.iconBtn || {}}
+                style={s.iconBtn}
                 onClick={() => setCollapsed(prev => !prev)}
               >
                 <Menu size={18} />
@@ -82,7 +91,7 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
           </div>
 
           {/* NAV */}
-          <nav style={s.nav || {}}>
+          <nav style={s.nav}>
             {navItems.map(item => {
               const Icon = item.icon;
               const active = isActive(item.path);
@@ -93,12 +102,12 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
                   to={item.path}
                   title={collapsed ? item.label : ""}
                   style={{
-                    ...(s.link || {}),
-                    ...(active ? s.active || {} : {})
+                    ...s.link,
+                    ...(active ? s.active : {})
                   }}
                 >
 
-                  {active && <div style={s.activeBar || {}} />}
+                  {active && <div style={s.activeBar} />}
 
                   <Icon size={18} />
 
@@ -111,21 +120,21 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
         </div>
 
         {/* BOTTOM */}
-        <div style={s.bottom || {}}>
+        <div style={s.bottom}>
 
           {!collapsed && (
-            <div style={s.userBox || {}}>
-              <div style={s.avatar || {}}>👤</div>
+            <div style={s.userBox}>
+              <div style={s.avatar}>👤</div>
               <div>
-                <p style={s.userName || {}}>
+                <p style={s.userName}>
                   {user?.name || "User"}
                 </p>
-                <p style={s.userSub || {}}>Active</p>
+                <p style={s.userSub}>Active</p>
               </div>
             </div>
           )}
 
-          <button style={s.logout || {}} onClick={onLogout}>
+          <button style={s.logout} onClick={onLogout}>
             {collapsed ? "⏻" : "Logout"}
           </button>
 
@@ -134,7 +143,7 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
       </motion.aside>
 
       {/* MAIN */}
-      <main style={s.main || { flex: 1 }}>
+      <main style={s.main}>
         <Outlet />
       </main>
 
@@ -148,16 +157,16 @@ const styles = Object.freeze({
   container: {
     display: "flex",
     minHeight: "100vh",
-    background: "var(--bg)"
+    background: "radial-gradient(circle at top, #0f172a, #020617)"
   },
 
   sidebar: {
-    background: "var(--sidebar)",
+    background: "#020617",
     padding: 16,
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
-    borderRight: "1px solid var(--border)"
+    borderRight: "1px solid rgba(250,204,21,0.15)"
   },
 
   topRow: {
@@ -167,15 +176,30 @@ const styles = Object.freeze({
     marginBottom: 20
   },
 
-  logo: {
-    fontWeight: "600",
-    color: "var(--text)"
+  logoWrapper: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10
+  },
+
+  logoImg: {
+    width: 36,
+    height: 36,
+    objectFit: "contain",
+    filter: "drop-shadow(0 0 10px #facc15)"
+  },
+
+  logoText: {
+    margin: 0,
+    fontWeight: 600,
+    color: "#facc15",
+    textShadow: "0 0 10px #facc15"
   },
 
   iconBtn: {
-    background: "var(--card)",
+    background: "#0f172a",
     border: "none",
-    color: "var(--text)",
+    color: "#fff",
     cursor: "pointer",
     padding: 6,
     borderRadius: 8
@@ -195,13 +219,14 @@ const styles = Object.freeze({
     padding: "10px 14px",
     borderRadius: 10,
     textDecoration: "none",
-    color: "var(--text-muted)",
+    color: "#94a3b8",
     transition: "0.2s"
   },
 
   active: {
-    background: "rgba(34,197,94,0.15)",
-    color: "var(--accent)"
+    background: "rgba(250,204,21,0.15)",
+    color: "#facc15",
+    boxShadow: "0 0 10px rgba(250,204,21,0.4)"
   },
 
   activeBar: {
@@ -211,7 +236,7 @@ const styles = Object.freeze({
     bottom: 8,
     width: 4,
     borderRadius: 4,
-    background: "var(--accent)"
+    background: "#facc15"
   },
 
   bottom: {
@@ -225,7 +250,7 @@ const styles = Object.freeze({
     alignItems: "center",
     gap: 10,
     padding: 10,
-    background: "var(--card)",
+    background: "#0f172a",
     borderRadius: 12
   },
 
@@ -233,7 +258,7 @@ const styles = Object.freeze({
     width: 36,
     height: 36,
     borderRadius: "50%",
-    background: "var(--accent)",
+    background: "#facc15",
     display: "flex",
     alignItems: "center",
     justifyContent: "center"
@@ -242,13 +267,13 @@ const styles = Object.freeze({
   userName: {
     margin: 0,
     fontSize: 14,
-    color: "var(--text)"
+    color: "#fff"
   },
 
   userSub: {
     margin: 0,
     fontSize: 12,
-    color: "var(--text-muted)"
+    color: "#94a3b8"
   },
 
   logout: {
