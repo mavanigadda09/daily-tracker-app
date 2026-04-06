@@ -28,17 +28,30 @@ export default function Habits({ items = [], setItems }) {
     const dates = [];
     const today = new Date();
 
-    let range = 1;
-    if (view === "week") range = 7;
-    if (view === "month") range = 30;
+    if (view === "today") return [today];
 
-    for (let i = 0; i < range; i++) {
-      const d = new Date();
-      d.setDate(today.getDate() - (range - 1 - i));
-      dates.push(d);
+    if (view === "week") {
+      for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(today.getDate() - (6 - i));
+        dates.push(d);
+      }
+      return dates;
     }
 
-    return dates;
+    // 🔥 FIXED: FULL CURRENT MONTH
+    if (view === "month") {
+      const year = today.getFullYear();
+      const month = today.getMonth();
+
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      for (let i = 1; i <= daysInMonth; i++) {
+        dates.push(new Date(year, month, i));
+      }
+
+      return dates;
+    }
   };
 
   const dates = getDates();
@@ -114,6 +127,20 @@ export default function Habits({ items = [], setItems }) {
     );
   };
 
+  // 🔥 NEW: UNMARK FUNCTION
+  const unmarkDay = (id, key) => {
+    setItems(prev =>
+      prev.map(item => {
+        if (item.id !== id) return item;
+
+        const completed = { ...(item.completed || {}) };
+        delete completed[key];
+
+        return { ...item, completed };
+      })
+    );
+  };
+
   const deleteHabit = (id) => {
     setItems(prev => prev.filter(i => i.id !== id));
   };
@@ -134,7 +161,6 @@ export default function Habits({ items = [], setItems }) {
 
       <h1 style={styles.title}>🔥 Habits</h1>
 
-      {/* COMPLETION RATE */}
       <h2 style={styles.progressText}>
         {completionRate}% completed today
       </h2>
@@ -149,7 +175,6 @@ export default function Habits({ items = [], setItems }) {
               ...styles.tab,
               ...(view === v ? styles.activeTab : {})
             }}
-            whileTap={{ scale: 0.95 }}
           >
             {v.toUpperCase()}
           </motion.button>
@@ -168,7 +193,8 @@ export default function Habits({ items = [], setItems }) {
               onClick={() => setSelectedDate(d)}
               style={{
                 ...styles.dateCard,
-                background: isActive ? "#ef4444" : "#111"
+                background: isActive ? "#ef4444" : "#111",
+                color: "#fff"
               }}
             >
               <div>{d.getDate()}</div>
@@ -185,7 +211,6 @@ export default function Habits({ items = [], setItems }) {
         <motion.div
           style={styles.createCard}
           onClick={() => setShowForm(true)}
-          whileHover={{ scale: 1.02 }}
         >
           ➕ Create Habit
         </motion.div>
@@ -194,18 +219,21 @@ export default function Habits({ items = [], setItems }) {
       {/* FORM */}
       {showForm && (
         <form onSubmit={handleSubmit} style={styles.horizontalForm}>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Habit name" style={styles.input}/>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Habit" style={styles.input}/>
           <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={styles.input}/>
           <input type="number" value={targetDays} onChange={(e) => setTargetDays(e.target.value)} style={styles.input}/>
-          <button type="submit" style={styles.addBtn}>Add</button>
-        </form>
-      )}
 
-      {/* EMPTY STATE */}
-      {habits.length === 0 && (
-        <div style={styles.empty}>
-          No habits yet 🚀 Start building your streak!
-        </div>
+          <button type="submit" style={styles.addBtn}>Add</button>
+
+          {/* 🔥 CLOSE BUTTON */}
+          <button
+            type="button"
+            onClick={() => setShowForm(false)}
+            style={styles.closeBtn}
+          >
+            Close
+          </button>
+        </form>
       )}
 
       {/* PENDING */}
@@ -215,31 +243,17 @@ export default function Habits({ items = [], setItems }) {
           const bg = colors[i % colors.length];
 
           return (
-            <motion.div
-              key={h.id}
-              style={{ ...styles.card, background: bg }}
-              whileHover={{ scale: 1.03 }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
+            <motion.div key={h.id} style={{ ...styles.card, background: bg }}>
               <div style={styles.cardTop}>
                 <h3>{h.name}</h3>
                 <div style={styles.actions}>
-                  <button onClick={() => editHabit(h.id)}>✏️</button>
+                  <button onClick={() => editHabit(h.id)}>🖊</button>
                   <button onClick={() => deleteHabit(h.id)}>🗑</button>
                 </div>
               </div>
 
               <p>🔥 {h.streak} day streak</p>
               <p>⚡ {h.xp} XP</p>
-
-              {/* PROGRESS */}
-              <div style={styles.progressBar}>
-                <div style={{
-                  width: `${(h.streak / h.targetDays) * 100}%`,
-                  ...styles.progressFill
-                }} />
-              </div>
 
               <button
                 onClick={() => toggleDay(h.id, activeKey)}
@@ -259,18 +273,19 @@ export default function Habits({ items = [], setItems }) {
           const bg = colors[i % colors.length];
 
           return (
-            <motion.div
-              key={h.id}
-              style={{ ...styles.card, background: bg }}
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-            >
+            <motion.div key={h.id} style={{ ...styles.card, background: bg }}>
               <h3>{h.name}</h3>
               <p>Completed ✔</p>
-              <p>🔥 {h.streak} | ⚡ {h.xp}</p>
+
+              <button
+                onClick={() => unmarkDay(h.id, activeKey)}
+                style={styles.unmarkBtn}
+              >
+                Undo
+              </button>
 
               <div style={styles.actions}>
-                <button onClick={() => editHabit(h.id)}>✏️</button>
+                <button onClick={() => editHabit(h.id)}>🖊</button>
                 <button onClick={() => deleteHabit(h.id)}>🗑</button>
               </div>
             </motion.div>
@@ -284,7 +299,7 @@ export default function Habits({ items = [], setItems }) {
 
 // ===== STYLES =====
 const styles = {
-  container: { padding: 24, maxWidth: 1000, margin: "0 auto", color: "#fff" },
+  container: { padding: 24, maxWidth: 1000, margin: "0 auto", color: "#111" },
 
   title: { fontSize: 28, marginBottom: 10 },
 
@@ -337,6 +352,7 @@ const styles = {
     padding: 20,
     borderRadius: 20,
     background: "#111",
+    color: "#fff",
     textAlign: "center",
     cursor: "pointer",
     marginBottom: 20
@@ -351,9 +367,7 @@ const styles = {
   input: {
     padding: 10,
     borderRadius: 10,
-    background: "#020617",
-    color: "#fff",
-    border: "none"
+    background: "#eee"
   },
 
   addBtn: {
@@ -364,10 +378,18 @@ const styles = {
     border: "none"
   },
 
+  closeBtn: {
+    background: "#ef4444",
+    padding: "10px 16px",
+    borderRadius: 10,
+    color: "#fff",
+    border: "none"
+  },
+
   card: {
     padding: 18,
     borderRadius: 20,
-    boxShadow: "0 10px 25px rgba(0,0,0,0.3)"
+    color: "#fff"
   },
 
   cardTop: {
@@ -390,22 +412,12 @@ const styles = {
     border: "none"
   },
 
-  progressBar: {
-    height: 6,
-    background: "rgba(255,255,255,0.3)",
-    borderRadius: 10,
-    marginTop: 10
-  },
-
-  progressFill: {
-    height: "100%",
+  unmarkBtn: {
+    marginTop: 10,
+    padding: 8,
+    borderRadius: 8,
     background: "#fff",
-    borderRadius: 10
-  },
-
-  empty: {
-    textAlign: "center",
-    opacity: 0.6,
-    marginBottom: 20
+    color: "#000",
+    border: "none"
   }
 };
