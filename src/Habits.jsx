@@ -7,7 +7,6 @@ const getKey = (d) =>
 
 export default function Habits({ items = [], setItems }) {
 
-  // ✅ HYDRATE ONLY ONCE (FIX DELETE BUG)
   const hydrated = useRef(false);
 
   useEffect(() => {
@@ -20,7 +19,6 @@ export default function Habits({ items = [], setItems }) {
     }
   }, [items, setItems]);
 
-  // ✅ ALWAYS SAVE CLEAN STATE
   useEffect(() => {
     localStorage.setItem("habits", JSON.stringify(items));
   }, [items]);
@@ -127,7 +125,7 @@ export default function Habits({ items = [], setItems }) {
     setEditId(null);
   };
 
-  // ===== TRUE STREAK + XP FIX =====
+  // ===== STREAK + XP =====
   const toggleDay = (id) => {
     setItems(prev =>
       prev.map(item => {
@@ -135,7 +133,6 @@ export default function Habits({ items = [], setItems }) {
 
         const completed = { ...(item.completed || {}) };
 
-        // ❌ prevent XP abuse
         if (completed[activeKey]?.done) return item;
 
         const yesterday = new Date(selectedDate);
@@ -203,8 +200,12 @@ export default function Habits({ items = [], setItems }) {
         ))}
       </div>
 
-      {/* DATE (UNCHANGED UI) */}
-      <div style={styles.dateRow}>
+      {/* DATE */}
+      <div style={
+        view === "month"
+          ? styles.monthGrid
+          : styles.dateRow
+      }>
         {dates.map((d,i)=>{
           const key = getKey(d);
           const active = key === activeKey;
@@ -295,6 +296,7 @@ export default function Habits({ items = [], setItems }) {
   );
 }
 
+// ===== STYLES =====
 const styles = {
   container:{padding:24,maxWidth:1000,margin:"0 auto"},
   title:{fontSize:28},
@@ -326,6 +328,14 @@ const styles = {
     gap:8,
     margin:"20px 0",
     overflowX:"auto"
+  },
+
+  // ✅ NO SCROLL MONTH VIEW
+  monthGrid:{
+    display:"grid",
+    gridTemplateColumns:"repeat(10, 1fr)",
+    gap:8,
+    margin:"20px 0"
   },
 
   dateCard:{
