@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 
 // ===== DATE UTILS =====
@@ -7,14 +7,20 @@ const getKey = (d) =>
 
 export default function Habits({ items = [], setItems }) {
 
-  // ✅ LOCAL STORAGE SYNC (FIX DELETE BUG)
-  useEffect(() => {
-    const saved = localStorage.getItem("habits");
-    if (saved) {
-      setItems(JSON.parse(saved));
-    }
-  }, []);
+  // ✅ HYDRATE ONLY ONCE (FIX DELETE BUG)
+  const hydrated = useRef(false);
 
+  useEffect(() => {
+    if (!hydrated.current) {
+      const saved = localStorage.getItem("habits");
+      if (saved && items.length === 0) {
+        setItems(JSON.parse(saved));
+      }
+      hydrated.current = true;
+    }
+  }, [items, setItems]);
+
+  // ✅ ALWAYS SAVE CLEAN STATE
   useEffect(() => {
     localStorage.setItem("habits", JSON.stringify(items));
   }, [items]);
@@ -35,7 +41,6 @@ export default function Habits({ items = [], setItems }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const activeKey = getKey(selectedDate);
-
   const dayNames = ["S","M","T","W","T","F","S"];
 
   // ===== DATE =====
@@ -84,7 +89,6 @@ export default function Habits({ items = [], setItems }) {
   // ===== ADD / EDIT =====
   const handleSubmit = (e) => {
     e.preventDefault();
-
     if (!name.trim()) return;
 
     if (editId) {
@@ -138,9 +142,7 @@ export default function Habits({ items = [], setItems }) {
         yesterday.setDate(yesterday.getDate() - 1);
         const yKey = getKey(yesterday);
 
-        const hadYesterday = completed[yKey]?.done;
-
-        const newStreak = hadYesterday
+        const newStreak = completed[yKey]?.done
           ? item.streak + 1
           : 1;
 
@@ -148,11 +150,7 @@ export default function Habits({ items = [], setItems }) {
           ...item,
           completed: {
             ...completed,
-            [activeKey]: {
-              done: true,
-              value: 1,
-              note: ""
-            }
+            [activeKey]: { done: true, value: 1, note: "" }
           },
           xp: item.xp + 10,
           streak: newStreak,
@@ -205,7 +203,7 @@ export default function Habits({ items = [], setItems }) {
         ))}
       </div>
 
-      {/* DATE */}
+      {/* DATE (UNCHANGED UI) */}
       <div style={styles.dateRow}>
         {dates.map((d,i)=>{
           const key = getKey(d);
@@ -296,37 +294,3 @@ export default function Habits({ items = [], setItems }) {
     </div>
   );
 }
-
-// ===== STYLES (UNCHANGED VIEW) =====
-const styles = {
-  container:{padding:24,maxWidth:1000,margin:"0 auto"},
-  title:{fontSize:28},
-  progressText:{opacity:0.7},
-
-  tabs:{display:"flex",gap:10,background:"#0f172a",padding:6,borderRadius:12},
-
-  tab:{padding:10,borderRadius:8,color:"#94a3b8",border:"none"},
-  activeTab:{background:"#22c55e",color:"#fff"},
-
-  dateRow:{display:"flex",gap:8,margin:"20px 0",overflowX:"auto"},
-
-  dateCard:{padding:10,borderRadius:10,minWidth:45,textAlign:"center",cursor:"pointer"},
-
-  createCard:{padding:20,background:"#111",color:"#fff",borderRadius:16,textAlign:"center",cursor:"pointer",marginBottom:20},
-
-  horizontalForm:{display:"flex",gap:10,marginBottom:20},
-
-  input:{padding:10,borderRadius:10},
-
-  addBtn:{background:"#22c55e",color:"#fff",borderRadius:10,padding:10},
-  closeBtn:{background:"#ef4444",color:"#fff",borderRadius:10,padding:10},
-
-  grid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))",gap:16},
-
-  card:{padding:16,borderRadius:20,color:"#fff"},
-
-  cardTop:{display:"flex",justifyContent:"space-between"},
-
-  actionBtn:{marginTop:10,padding:10,borderRadius:10,background:"#fff"},
-  unmarkBtn:{marginTop:10,padding:8,borderRadius:8,background:"#fff"}
-};
