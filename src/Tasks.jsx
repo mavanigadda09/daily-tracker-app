@@ -1,5 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer
+} from "recharts";
 
 // ===== UTIL =====
 const formatDuration = (sec = 0) => {
@@ -64,10 +72,9 @@ export default function Tasks() {
             currentStart: Date.now()
           };
         }
-        // stop others
+
         if (t.status === "running") {
-          const duration =
-            (Date.now() - t.currentStart) / 1000;
+          const duration = (Date.now() - t.currentStart) / 1000;
 
           return {
             ...t,
@@ -75,14 +82,11 @@ export default function Tasks() {
             totalDuration: t.totalDuration + duration,
             sessions: [
               ...t.sessions,
-              {
-                start: t.currentStart,
-                end: Date.now(),
-                duration
-              }
+              { start: t.currentStart, end: Date.now(), duration }
             ]
           };
         }
+
         return t;
       })
     );
@@ -94,8 +98,7 @@ export default function Tasks() {
       prev.map(t => {
         if (t.id !== id) return t;
 
-        const duration =
-          (Date.now() - t.currentStart) / 1000;
+        const duration = (Date.now() - t.currentStart) / 1000;
 
         return {
           ...t,
@@ -103,11 +106,7 @@ export default function Tasks() {
           totalDuration: t.totalDuration + duration,
           sessions: [
             ...t.sessions,
-            {
-              start: t.currentStart,
-              end: Date.now(),
-              duration
-            }
+            { start: t.currentStart, end: Date.now(), duration }
           ]
         };
       })
@@ -130,9 +129,13 @@ export default function Tasks() {
     );
   };
 
-  // ===== DELETE =====
+  // ===== DELETE (FIXED BUG) =====
   const deleteTask = (id) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
+    setTasks(prev => {
+      const updated = prev.filter(t => t.id !== id);
+      localStorage.setItem("tasks", JSON.stringify(updated)); // 🔥 FORCE SAVE
+      return updated;
+    });
   };
 
   // ===== SUMMARY =====
@@ -183,6 +186,12 @@ export default function Tasks() {
           Add
         </button>
       </div>
+
+      {/* 🍅 POMODORO */}
+      <Pomodoro />
+
+      {/* 📊 ANALYTICS */}
+      <WeeklyAnalytics tasks={tasks} />
 
       {/* LIST */}
       <div style={styles.grid}>
@@ -237,7 +246,6 @@ function TaskCard({ task, startTask, stopTask, deleteTask, completeTask }) {
 
       <p>⏳ {formatDuration(duration)}</p>
 
-      {/* ACTIONS */}
       {task.status !== "running" ? (
         <button onClick={()=>startTask(task.id)} style={styles.start}>
           ▶
@@ -261,44 +269,78 @@ function TaskCard({ task, startTask, stopTask, deleteTask, completeTask }) {
   );
 }
 
+// ===== 🍅 POMODORO =====
+function Pomodoro() {
+  const [sec, setSec] = useState(1500);
+  const [run, setRun] = useState(false);
+
+  useEffect(() => {
+    if (!run) return;
+    const i = setInterval(() => setSec(s => s - 1), 1000);
+    return () => clearInterval(i);
+  }, [run]);
+
+  return (
+    <div style={styles.card}>
+      <h3>🍅 Pomodoro</h3>
+      <h1>{Math.floor(sec/60)}:{(sec%60).toString().padStart(2,"0")}</h1>
+      <button onClick={()=>setRun(!run)}>{run?"Pause":"Start"}</button>
+    </div>
+  );
+}
+
+// ===== 📊 ANALYTICS =====
+function WeeklyAnalytics({ tasks }) {
+
+  const data = useMemo(() => {
+    const map = {};
+
+    tasks.forEach(t => {
+      t.sessions?.forEach(s => {
+        const d = new Date(s.start).toDateString();
+
+        if (!map[d]) map[d] = { date: d, time: 0 };
+
+        map[d].time += s.duration || 0;
+      });
+    });
+
+    return Object.values(map).slice(-7);
+  }, [tasks]);
+
+  return (
+    <div style={styles.card}>
+      <h3>📊 Weekly Analytics</h3>
+
+      <ResponsiveContainer width="100%" height={200}>
+        <LineChart data={data}>
+          <XAxis dataKey="date" hide />
+          <YAxis />
+          <Tooltip />
+          <Line dataKey="time" stroke="#facc15" />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 // ===== STYLES =====
 const styles = {
   container:{padding:20,color:"#fff"},
   title:{color:"#facc15"},
 
-  summary:{
-    display:"flex",
-    gap:20,
-    marginBottom:20
-  },
+  summary:{display:"flex",gap:20,marginBottom:20},
 
   addBox:{display:"flex",gap:10,marginBottom:20},
   input:{flex:1,padding:10},
 
-  addBtn:{
-    background:"#22c55e",
-    border:"none",
-    padding:"10px 16px",
-    borderRadius:6,
-    color:"#fff"
-  },
+  addBtn:{background:"#22c55e",border:"none",padding:"10px 16px",borderRadius:6,color:"#fff"},
 
-  grid:{
-    display:"grid",
-    gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))",
-    gap:16
-  },
+  grid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))",gap:16},
 
-  card:{
-    padding:16,
-    background:"#020617",
-    borderRadius:12
-  },
+  card:{padding:16,background:"#020617",borderRadius:12,marginBottom:16},
 
-  activeCard:{
-    border:"1px solid #facc15",
-    boxShadow:"0 0 15px #facc15"
-  },
+  activeCard:{border:"1px solid #facc15",boxShadow:"0 0 15px #facc15"},
 
   status:{fontSize:12,opacity:0.7},
 
