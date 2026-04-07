@@ -9,7 +9,7 @@ import {
   ResponsiveContainer
 } from "recharts";
 
-/* ================= UTIL ================= */
+/* ===== UTIL ===== */
 const formatDuration = (sec = 0) => {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
@@ -18,22 +18,10 @@ const formatDuration = (sec = 0) => {
 
 const todayKey = () => new Date().toDateString();
 
-/* ================= MAIN ================= */
-export default function Tasks() {
-
-  const [tasks, setTasks] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("tasks")) || [];
-    } catch {
-      return [];
-    }
-  });
+/* ===== MAIN ===== */
+export default function Tasks({ tasks = [], setTasks }) {
 
   const [name, setName] = useState("");
-
-  useEffect(() => {
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-  }, [tasks]);
 
   /* ================= ADD ================= */
   const addTask = () => {
@@ -41,7 +29,7 @@ export default function Tasks() {
     if (!trimmed) return;
 
     const exists = tasks.some(
-      t => t.name.trim().toLowerCase() === trimmed.toLowerCase()
+      t => t.name.toLowerCase() === trimmed.toLowerCase()
     );
     if (exists) return;
 
@@ -137,25 +125,24 @@ export default function Tasks() {
   /* ================= ACTIVE ================= */
   const activeTask = tasks.find(t => t.status === "running");
 
-  /* ================= SUMMARY FIX ================= */
+  /* ================= SUMMARY ================= */
   const totalToday = useMemo(() => {
     return tasks.reduce((sum, t) => {
       const todaySessions = t.sessions.filter(
         s => new Date(s.start).toDateString() === todayKey()
       );
 
-      const total = todaySessions.reduce(
-        (acc, s) => acc + s.duration,
-        0
+      return (
+        sum +
+        todaySessions.reduce((acc, s) => acc + s.duration, 0)
       );
-
-      return sum + total;
     }, 0);
   }, [tasks]);
 
   const completedToday = tasks.filter(
-    t => t.completed &&
-    new Date(t.completedAt).toDateString() === todayKey()
+    t =>
+      t.completed &&
+      new Date(t.completedAt).toDateString() === todayKey()
   ).length;
 
   const productivity =
@@ -186,7 +173,7 @@ export default function Tasks() {
 
       {/* ACTIVE */}
       {activeTask && (
-        <motion.div style={styles.active} animate={{ scale: 1.02 }}>
+        <motion.div style={styles.active}>
           🔥 {activeTask.name}
         </motion.div>
       )}
@@ -202,10 +189,7 @@ export default function Tasks() {
         <button onClick={addTask}>Add</button>
       </div>
 
-      {/* POMODORO */}
       <Pomodoro activeTask={activeTask} />
-
-      {/* ANALYTICS */}
       <WeeklyAnalytics tasks={tasks} />
 
       {/* TASKS */}
@@ -226,7 +210,7 @@ export default function Tasks() {
   );
 }
 
-/* ================= TASK CARD ================= */
+/* ===== TASK CARD ===== */
 function TaskCard({ task, startTask, stopTask, deleteTask, completeTask }) {
 
   const [now, setNow] = useState(Date.now());
@@ -244,16 +228,7 @@ function TaskCard({ task, startTask, stopTask, deleteTask, completeTask }) {
   }
 
   return (
-    <motion.div
-      style={{
-        ...styles.card,
-        border:
-          task.status === "running"
-            ? "2px solid #22c55e"
-            : "1px solid #333"
-      }}
-      whileHover={{ scale: 1.03 }}
-    >
+    <motion.div style={styles.card}>
       <h3>{task.name}</h3>
       <p>{task.status}</p>
       <p>⏳ {formatDuration(duration)}</p>
@@ -273,7 +248,7 @@ function TaskCard({ task, startTask, stopTask, deleteTask, completeTask }) {
   );
 }
 
-/* ================= 🍅 ================= */
+/* ===== 🍅 ===== */
 function Pomodoro({ activeTask }) {
   const [sec, setSec] = useState(1500);
   const [run, setRun] = useState(false);
@@ -300,7 +275,7 @@ function Pomodoro({ activeTask }) {
   );
 }
 
-/* ================= 📊 ================= */
+/* ===== 📊 ===== */
 function WeeklyAnalytics({ tasks }) {
 
   const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
@@ -328,9 +303,9 @@ function WeeklyAnalytics({ tasks }) {
 
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={data}>
-          <XAxis dataKey="date" stroke="#ccc"/>
-          <YAxis stroke="#ccc"/>
-          <Tooltip />
+          <XAxis dataKey="date"/>
+          <YAxis/>
+          <Tooltip/>
           <Line dataKey="time" stroke="#facc15"/>
         </LineChart>
       </ResponsiveContainer>
@@ -338,7 +313,7 @@ function WeeklyAnalytics({ tasks }) {
   );
 }
 
-/* ================= STYLES ================= */
+/* ===== STYLES ===== */
 const styles = {
   container:{padding:20,color:"#fff"},
   title:{color:"#facc15"},
