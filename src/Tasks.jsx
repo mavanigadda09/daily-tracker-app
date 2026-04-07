@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { motion } from "framer-motion";
 import {
   LineChart,
   Line,
@@ -8,114 +9,161 @@ import {
   ResponsiveContainer
 } from "recharts";
 
-/* =========================
-   UTILITIES
-========================= */
-
+/* ================= UTIL ================= */
 const formatDuration = (sec = 0) => {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return m === 0 ? `${s}s` : `${m}m ${s}s`;
 };
 
-const getToday = () => new Date().toDateString();
+const todayKey = () => new Date().toDateString();
 
-/* =========================
-   COMPONENT
-========================= */
+/* ================= MAIN ================= */
+export default function Tasks() {
 
-export default function Tasks({
-  tasks = [],
-  addTask,
-  startTask,
-  endTask,
-  deleteTask
-}) {
+  const [tasks, setTasks] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("tasks")) || [];
+    } catch {
+      return [];
+    }
+  });
+
   const [name, setName] = useState("");
-  const [now, setNow] = useState(Date.now());
-  const [pomodoro, setPomodoro] = useState(25 * 60);
-  const [runningPomodoro, setRunningPomodoro] = useState(false);
 
-  /* =========================
-     TIMER (optimized)
-  ========================= */
   useEffect(() => {
-    const i = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(i);
-  }, []);
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+  }, [tasks]);
 
-  /* =========================
-     POMODORO LOGIC
-  ========================= */
-  useEffect(() => {
-    if (!runningPomodoro) return;
-
-    const timer = setInterval(() => {
-      setPomodoro((p) => {
-        if (p <= 1) {
-          setRunningPomodoro(false);
-          return 25 * 60;
-        }
-        return p - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [runningPomodoro]);
-
-  /* =========================
-     ADD TASK (VALIDATION FIX)
-  ========================= */
-  const handleAdd = () => {
+  /* ================= ADD ================= */
+  const addTask = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
 
     const exists = tasks.some(
       t => t.name.trim().toLowerCase() === trimmed.toLowerCase()
     );
-
     if (exists) return;
 
-    addTask({
-      id: Date.now(),
-      name: trimmed,
-      status: "idle",
-      totalDuration: 0,
-      sessions: [],
-      createdAt: Date.now()
-    });
+    setTasks(prev => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        name: trimmed,
+        status: "idle",
+        completed: false,
+        sessions: [],
+        totalDuration: 0,
+        scheduledFor: todayKey(),
+        priority: "medium"
+      }
+    ]);
 
     setName("");
   };
 
-  /* =========================
-     START TASK (ONLY ONE RUNNING)
-  ========================= */
-  const handleStart = (task) => {
-    tasks.forEach(t => {
-      if (t.status === "running") {
-        handleStop(t);
-      }
-    });
+  /* ================= START ================= */
+  const startTask = (id) => {
+    setTasks(prev =>
+      prev.map(t => {
+        if (t.id === id) {
+          return {
+            ...t,
+            status: "running",
+            currentStart: Date.now()
+          };
+        }
 
-    startTask(task.id);
+        if (t.status === "running") {
+          const duration = (Date.now() - t.currentStart) / 1000;
+
+          return {
+            ...t,
+            status: "paused",
+            totalDuration: t.totalDuration + duration,
+            sessions: [
+              ...t.sessions,
+              { start: t.currentStart, end: Date.now(), duration }
+            ]
+          };
+        }
+
+        return t;
+      })
+    );
   };
 
-  /* =========================
-     STOP TASK (FIXED DURATION)
-  ========================= */
-  const handleStop = (task) => {
-    const end = Date.now();
-    const start = new Date(task.start).getTime();
+  /* ================= STOP ================= */
+  const stopTask = (id) => {
+    setTasks(prev =>
+      prev.map(t => {
+        if (t.id !== id) return t;
 
-    const duration = (end - start) / 1000;
+        const duration = (Date.now() - t.currentStart) / 1000;
 
-    endTask(task.id, duration, getToday());
+        return {
+          ...t,
+          status: "idle",
+          totalDuration: t.totalDuration + duration,
+          sessions: [
+            ...t.sessions,
+            { start: t.currentStart, end: Date.now(), duration }
+          ]
+        };
+      })
+    );
   };
 
-  /* =========================
-     SORT TASKS
-  ========================= */
+  /* ================= COMPLETE ================= */
+  const completeTask = (id) => {
+    setTasks(prev =>
+      prev.map(t =>
+        t.id === id
+          ? {
+              ...t,
+              completed: true,
+              completedAt: Date.now(),
+              status: "completed"
+            }
+          : t
+      )
+    );
+  };
+
+  const deleteTask = (id) => {
+    setTasks(prev => prev.filter(t => t.id !== id));
+  };
+
+  /* ================= ACTIVE ================= */
+  const activeTask = tasks.find(t => t.status === "running");
+
+  /* ================= SUMMARY FIX ================= */
+  const totalToday = useMemo(() => {
+    return tasks.reduce((sum, t) => {
+      const todaySessions = t.sessions.filter(
+        s => new Date(s.start).toDateString() === todayKey()
+      );
+
+      const total = todaySessions.reduce(
+        (acc, s) => acc + s.duration,
+        0
+      );
+
+      return sum + total;
+    }, 0);
+  }, [tasks]);
+
+  const completedToday = tasks.filter(
+    t => t.completed &&
+    new Date(t.completedAt).toDateString() === todayKey()
+  ).length;
+
+  const productivity =
+    tasks.length === 0
+      ? 0
+      : Math.round((completedToday / tasks.length) * 100);
+
+  /* ================= SORT ================= */
   const sortedTasks = useMemo(() => {
     return [...tasks].sort((a, b) => {
       if (a.status === "running") return -1;
@@ -124,183 +172,182 @@ export default function Tasks({
     });
   }, [tasks]);
 
-  /* =========================
-     ACTIVE TASK
-  ========================= */
-  const activeTask = tasks.find(t => t.status === "running");
-
-  /* =========================
-     ANALYTICS (FIXED)
-  ========================= */
-  const weeklyData = useMemo(() => {
-    const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-    const map = {};
-
-    days.forEach(d => (map[d] = 0));
-
-    tasks.forEach(t => {
-      t.sessions?.forEach(s => {
-        const d = new Date(s.start).getDay();
-        map[days[d]] += s.duration / 60; // minutes
-      });
-    });
-
-    return days.map(d => ({
-      day: d,
-      minutes: Math.round(map[d])
-    }));
-  }, [tasks]);
-
-  /* =========================
-     SUMMARY
-  ========================= */
-  const totalToday = useMemo(() => {
-    return tasks.reduce((acc, t) => {
-      return acc + (t.totalDuration || 0);
-    }, 0);
-  }, [tasks]);
-
-  const completedToday = tasks.filter(
-    t => t.completed && new Date(t.completedAt).toDateString() === getToday()
-  ).length;
-
-  /* =========================
-     UI
-  ========================= */
-
   return (
     <div style={styles.container}>
 
-      {/* HEADER */}
-      <h1>📌 Tasks</h1>
-      <p>⏱ {formatDuration(totalToday)} | ✅ {completedToday} done</p>
+      <h1 style={styles.title}>📌 Tasks</h1>
+
+      {/* SUMMARY */}
+      <div style={styles.summary}>
+        <div>⏱ {formatDuration(totalToday)}</div>
+        <div>✅ {completedToday}</div>
+        <div>📊 {productivity}%</div>
+      </div>
+
+      {/* ACTIVE */}
+      {activeTask && (
+        <motion.div style={styles.active} animate={{ scale: 1.02 }}>
+          🔥 {activeTask.name}
+        </motion.div>
+      )}
 
       {/* INPUT */}
       <div style={styles.addBox}>
         <input
           style={styles.input}
-          placeholder="Enter task..."
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e)=>setName(e.target.value)}
+          placeholder="Enter task..."
         />
-        <button onClick={handleAdd}>Add</button>
+        <button onClick={addTask}>Add</button>
       </div>
-
-      {/* ACTIVE TASK */}
-      {activeTask && (
-        <div style={styles.active}>
-          🔥 Working on: <b>{activeTask.name}</b>
-        </div>
-      )}
 
       {/* POMODORO */}
-      <div style={styles.card}>
-        <h3>🍅 Pomodoro</h3>
-        <h1>{formatDuration(pomodoro)}</h1>
-
-        <button onClick={() => setRunningPomodoro(!runningPomodoro)}>
-          {runningPomodoro ? "Pause" : "Start"}
-        </button>
-
-        <button onClick={() => setPomodoro(25 * 60)}>
-          Reset
-        </button>
-      </div>
+      <Pomodoro activeTask={activeTask} />
 
       {/* ANALYTICS */}
-      <div style={styles.card}>
-        <h3>📊 Weekly Focus (minutes)</h3>
+      <WeeklyAnalytics tasks={tasks} />
 
-        <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={weeklyData}>
-            <XAxis dataKey="day" stroke="#ccc" />
-            <YAxis stroke="#ccc" />
-            <Tooltip />
-            <Line
-              type="monotone"
-              dataKey="minutes"
-              stroke="#22c55e"
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* TASK LIST */}
+      {/* TASKS */}
       <div style={styles.grid}>
-        {sortedTasks.map(t => {
-          let duration = t.totalDuration || 0;
-
-          if (t.status === "running" && t.start) {
-            duration += (now - new Date(t.start)) / 1000;
-          }
-
-          return (
-            <div
-              key={t.id}
-              style={{
-                ...styles.card,
-                border:
-                  t.status === "running"
-                    ? "2px solid #22c55e"
-                    : "1px solid #333"
-              }}
-            >
-              <h3>{t.name}</h3>
-
-              <p>
-                {t.status === "running" ? "🟢 Running" : "⚪ Idle"}
-              </p>
-
-              <p>⏳ {formatDuration(duration)}</p>
-
-              {t.status !== "running" ? (
-                <button onClick={() => handleStart(t)}>
-                  ▶ Start
-                </button>
-              ) : (
-                <button onClick={() => handleStop(t)}>
-                  ⏹ Stop
-                </button>
-              )}
-
-              <button onClick={() => deleteTask(t.id)}>
-                🗑 Delete
-              </button>
-            </div>
-          );
-        })}
+        {sortedTasks.map(t => (
+          <TaskCard
+            key={t.id}
+            task={t}
+            startTask={startTask}
+            stopTask={stopTask}
+            deleteTask={deleteTask}
+            completeTask={completeTask}
+          />
+        ))}
       </div>
 
     </div>
   );
 }
 
-/* =========================
-   STYLES
-========================= */
+/* ================= TASK CARD ================= */
+function TaskCard({ task, startTask, stopTask, deleteTask, completeTask }) {
 
-const styles = {
-  container: { padding: 20, color: "white" },
-  addBox: { display: "flex", gap: 10 },
-  input: { flex: 1, padding: 8 },
+  const [now, setNow] = useState(Date.now());
 
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
-    gap: 12,
-    marginTop: 20
-  },
+  useEffect(() => {
+    if (task.status !== "running") return;
+    const i = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(i);
+  }, [task.status]);
 
-  card: {
-    padding: 12,
-    background: "#0f172a",
-    borderRadius: 8
-  },
+  let duration = task.totalDuration;
 
-  active: {
-    marginTop: 10,
-    padding: 10,
-    background: "#022c22",
-    borderRadius: 8
+  if (task.status === "running") {
+    duration += (now - task.currentStart) / 1000;
   }
+
+  return (
+    <motion.div
+      style={{
+        ...styles.card,
+        border:
+          task.status === "running"
+            ? "2px solid #22c55e"
+            : "1px solid #333"
+      }}
+      whileHover={{ scale: 1.03 }}
+    >
+      <h3>{task.name}</h3>
+      <p>{task.status}</p>
+      <p>⏳ {formatDuration(duration)}</p>
+
+      {task.status !== "running" ? (
+        <button onClick={()=>startTask(task.id)}>▶</button>
+      ) : (
+        <button onClick={()=>stopTask(task.id)}>⏹</button>
+      )}
+
+      {!task.completed && (
+        <button onClick={()=>completeTask(task.id)}>✔</button>
+      )}
+
+      <button onClick={()=>deleteTask(task.id)}>🗑</button>
+    </motion.div>
+  );
+}
+
+/* ================= 🍅 ================= */
+function Pomodoro({ activeTask }) {
+  const [sec, setSec] = useState(1500);
+  const [run, setRun] = useState(false);
+
+  useEffect(() => {
+    if (!run) return;
+    const i = setInterval(() => {
+      setSec(s => (s <= 1 ? 1500 : s - 1));
+    }, 1000);
+    return () => clearInterval(i);
+  }, [run]);
+
+  return (
+    <div style={styles.card}>
+      <h3>🍅 Pomodoro</h3>
+      <h1>{Math.floor(sec/60)}:{(sec%60).toString().padStart(2,"0")}</h1>
+
+      {activeTask && <p>🎯 {activeTask.name}</p>}
+
+      <button onClick={()=>setRun(!run)}>
+        {run ? "Pause" : "Start"}
+      </button>
+    </div>
+  );
+}
+
+/* ================= 📊 ================= */
+function WeeklyAnalytics({ tasks }) {
+
+  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  const data = useMemo(() => {
+    const map = {};
+    days.forEach(d => (map[d] = 0));
+
+    tasks.forEach(t => {
+      t.sessions?.forEach(s => {
+        const d = new Date(s.start).getDay();
+        map[days[d]] += s.duration / 60;
+      });
+    });
+
+    return days.map(d => ({
+      date: d,
+      time: Math.round(map[d])
+    }));
+  }, [tasks]);
+
+  return (
+    <div style={styles.card}>
+      <h3>📊 Weekly Analytics</h3>
+
+      <ResponsiveContainer width="100%" height={200}>
+        <LineChart data={data}>
+          <XAxis dataKey="date" stroke="#ccc"/>
+          <YAxis stroke="#ccc"/>
+          <Tooltip />
+          <Line dataKey="time" stroke="#facc15"/>
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/* ================= STYLES ================= */
+const styles = {
+  container:{padding:20,color:"#fff"},
+  title:{color:"#facc15"},
+  summary:{display:"flex",gap:20,marginBottom:10},
+  active:{padding:10,background:"#022c22",marginBottom:10,borderRadius:8},
+
+  addBox:{display:"flex",gap:10,marginBottom:20},
+  input:{flex:1,padding:10},
+
+  grid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))",gap:16},
+  card:{padding:16,background:"#020617",borderRadius:12}
 };
