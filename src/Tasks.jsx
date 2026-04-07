@@ -29,12 +29,10 @@ export default function Tasks() {
 
   const [name, setName] = useState("");
 
-  // ===== SAVE =====
   useEffect(() => {
     localStorage.setItem("tasks", JSON.stringify(tasks));
   }, [tasks]);
 
-  // ===== ADD =====
   const addTask = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -61,7 +59,6 @@ export default function Tasks() {
     setName("");
   };
 
-  // ===== START =====
   const startTask = (id) => {
     setTasks(prev =>
       prev.map(t => {
@@ -92,7 +89,6 @@ export default function Tasks() {
     );
   };
 
-  // ===== STOP =====
   const stopTask = (id) => {
     setTasks(prev =>
       prev.map(t => {
@@ -113,7 +109,6 @@ export default function Tasks() {
     );
   };
 
-  // ===== COMPLETE =====
   const completeTask = (id) => {
     setTasks(prev =>
       prev.map(t =>
@@ -129,21 +124,19 @@ export default function Tasks() {
     );
   };
 
-  // ===== DELETE (FIXED BUG) =====
   const deleteTask = (id) => {
     setTasks(prev => {
       const updated = prev.filter(t => t.id !== id);
-      localStorage.setItem("tasks", JSON.stringify(updated)); // 🔥 FORCE SAVE
+      localStorage.setItem("tasks", JSON.stringify(updated));
       return updated;
     });
   };
 
+  // ===== ACTIVE TASK =====
+  const activeTask = tasks.find(t => t.status === "running");
+
   // ===== SUMMARY =====
   const today = new Date().toDateString();
-
-  const todayTasks = tasks.filter(
-    t => t.scheduledFor === today
-  );
 
   const totalTimeToday = tasks.reduce(
     (sum, t) => sum + t.totalDuration,
@@ -171,8 +164,14 @@ export default function Tasks() {
       <div style={styles.summary}>
         <div>⏱ {formatDuration(totalTimeToday)}</div>
         <div>✅ {completedToday} done</div>
-        <div>📋 {todayTasks.length} planned</div>
       </div>
+
+      {/* 🎯 ACTIVE TASK */}
+      {activeTask && (
+        <div style={styles.activeFocus}>
+          🎯 Focus: {activeTask.name}
+        </div>
+      )}
 
       {/* INPUT */}
       <div style={styles.addBox}>
@@ -187,13 +186,13 @@ export default function Tasks() {
         </button>
       </div>
 
-      {/* 🍅 POMODORO */}
+      {/* 🍅 */}
       <Pomodoro />
 
-      {/* 📊 ANALYTICS */}
+      {/* 📊 */}
       <WeeklyAnalytics tasks={tasks} />
 
-      {/* LIST */}
+      {/* TASKS */}
       <div style={styles.grid}>
         {sortedTasks.map(t => (
           <TaskCard
@@ -206,12 +205,11 @@ export default function Tasks() {
           />
         ))}
       </div>
-
     </div>
   );
 }
 
-// ===== CARD =====
+// ===== TASK CARD =====
 function TaskCard({ task, startTask, stopTask, deleteTask, completeTask }) {
 
   const [now, setNow] = useState(Date.now());
@@ -233,38 +231,22 @@ function TaskCard({ task, startTask, stopTask, deleteTask, completeTask }) {
   }
 
   return (
-    <motion.div
-      whileHover={{ scale: 1.02 }}
-      style={{
-        ...styles.card,
-        ...(task.status === "running" ? styles.activeCard : {})
-      }}
-    >
+    <motion.div style={styles.card} whileHover={{ scale: 1.02 }}>
       <h3>{task.name}</h3>
-
-      <p style={styles.status}>{task.status}</p>
-
+      <p>{task.status}</p>
       <p>⏳ {formatDuration(duration)}</p>
 
       {task.status !== "running" ? (
-        <button onClick={()=>startTask(task.id)} style={styles.start}>
-          ▶
-        </button>
+        <button onClick={()=>startTask(task.id)}>▶</button>
       ) : (
-        <button onClick={()=>stopTask(task.id)} style={styles.stop}>
-          ⏹
-        </button>
+        <button onClick={()=>stopTask(task.id)}>⏹</button>
       )}
 
       {!task.completed && (
-        <button onClick={()=>completeTask(task.id)} style={styles.complete}>
-          ✔
-        </button>
+        <button onClick={()=>completeTask(task.id)}>✔</button>
       )}
 
-      <button onClick={()=>deleteTask(task.id)} style={styles.delete}>
-        🗑
-      </button>
+      <button onClick={()=>deleteTask(task.id)}>🗑</button>
     </motion.div>
   );
 }
@@ -273,18 +255,41 @@ function TaskCard({ task, startTask, stopTask, deleteTask, completeTask }) {
 function Pomodoro() {
   const [sec, setSec] = useState(1500);
   const [run, setRun] = useState(false);
+  const [mode, setMode] = useState("focus");
 
   useEffect(() => {
     if (!run) return;
-    const i = setInterval(() => setSec(s => s - 1), 1000);
+
+    const i = setInterval(() => {
+      setSec(s => {
+        if (s <= 1) {
+          if (mode === "focus") {
+            setMode("break");
+            return 300;
+          } else {
+            setMode("focus");
+            return 1500;
+          }
+        }
+        return s - 1;
+      });
+    }, 1000);
+
     return () => clearInterval(i);
-  }, [run]);
+  }, [run, mode]);
 
   return (
     <div style={styles.card}>
-      <h3>🍅 Pomodoro</h3>
+      <h3>🍅 {mode}</h3>
       <h1>{Math.floor(sec/60)}:{(sec%60).toString().padStart(2,"0")}</h1>
-      <button onClick={()=>setRun(!run)}>{run?"Pause":"Start"}</button>
+
+      <button onClick={()=>setRun(!run)}>
+        {run ? "Pause" : "Start"}
+      </button>
+
+      <button onClick={()=>setSec(mode==="focus"?1500:300)}>
+        Reset
+      </button>
     </div>
   );
 }
@@ -297,16 +302,20 @@ function WeeklyAnalytics({ tasks }) {
 
     tasks.forEach(t => {
       t.sessions?.forEach(s => {
-        const d = new Date(s.start).toDateString();
+        const d = new Date(s.start).toLocaleDateString("en-US",{weekday:"short"});
 
         if (!map[d]) map[d] = { date: d, time: 0 };
 
-        map[d].time += s.duration || 0;
+        map[d].time += (s.duration || 0) / 60; // minutes
       });
     });
 
-    return Object.values(map).slice(-7);
+    return Object.values(map);
   }, [tasks]);
+
+  if (data.length === 0) {
+    return <div style={styles.card}>No data yet 🚀</div>;
+  }
 
   return (
     <div style={styles.card}>
@@ -314,7 +323,7 @@ function WeeklyAnalytics({ tasks }) {
 
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={data}>
-          <XAxis dataKey="date" hide />
+          <XAxis dataKey="date" />
           <YAxis />
           <Tooltip />
           <Line dataKey="time" stroke="#facc15" />
@@ -328,24 +337,13 @@ function WeeklyAnalytics({ tasks }) {
 const styles = {
   container:{padding:20,color:"#fff"},
   title:{color:"#facc15"},
-
-  summary:{display:"flex",gap:20,marginBottom:20},
+  summary:{display:"flex",gap:20,marginBottom:10},
+  activeFocus:{marginBottom:10,color:"#facc15"},
 
   addBox:{display:"flex",gap:10,marginBottom:20},
   input:{flex:1,padding:10},
-
-  addBtn:{background:"#22c55e",border:"none",padding:"10px 16px",borderRadius:6,color:"#fff"},
+  addBtn:{background:"#22c55e",border:"none",padding:"10px",color:"#fff"},
 
   grid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))",gap:16},
-
-  card:{padding:16,background:"#020617",borderRadius:12,marginBottom:16},
-
-  activeCard:{border:"1px solid #facc15",boxShadow:"0 0 15px #facc15"},
-
-  status:{fontSize:12,opacity:0.7},
-
-  start:{background:"#22c55e",marginTop:10},
-  stop:{background:"#ef4444",marginTop:10},
-  complete:{background:"#3b82f6",marginTop:10},
-  delete:{background:"#374151",marginTop:10}
+  card:{padding:16,background:"#020617",borderRadius:12}
 };
