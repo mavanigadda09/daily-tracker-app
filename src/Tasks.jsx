@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from "react";
-import { motion } from "framer-motion";
 import {
   LineChart,
   Line,
@@ -9,144 +8,114 @@ import {
   ResponsiveContainer
 } from "recharts";
 
-// ===== UTIL =====
+/* =========================
+   UTILITIES
+========================= */
+
 const formatDuration = (sec = 0) => {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return m === 0 ? `${s}s` : `${m}m ${s}s`;
 };
 
-// ===== MAIN =====
-export default function Tasks() {
+const getToday = () => new Date().toDateString();
 
-  const [tasks, setTasks] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("tasks")) || [];
-    } catch {
-      return [];
-    }
-  });
+/* =========================
+   COMPONENT
+========================= */
 
+export default function Tasks({
+  tasks = [],
+  addTask,
+  startTask,
+  endTask,
+  deleteTask
+}) {
   const [name, setName] = useState("");
+  const [now, setNow] = useState(Date.now());
+  const [pomodoro, setPomodoro] = useState(25 * 60);
+  const [runningPomodoro, setRunningPomodoro] = useState(false);
 
+  /* =========================
+     TIMER (optimized)
+  ========================= */
   useEffect(() => {
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-  }, [tasks]);
+    const i = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(i);
+  }, []);
 
-  const addTask = () => {
+  /* =========================
+     POMODORO LOGIC
+  ========================= */
+  useEffect(() => {
+    if (!runningPomodoro) return;
+
+    const timer = setInterval(() => {
+      setPomodoro((p) => {
+        if (p <= 1) {
+          setRunningPomodoro(false);
+          return 25 * 60;
+        }
+        return p - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [runningPomodoro]);
+
+  /* =========================
+     ADD TASK (VALIDATION FIX)
+  ========================= */
+  const handleAdd = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
 
     const exists = tasks.some(
       t => t.name.trim().toLowerCase() === trimmed.toLowerCase()
     );
+
     if (exists) return;
 
-    setTasks(prev => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        name: trimmed,
-        status: "idle",
-        completed: false,
-        sessions: [],
-        totalDuration: 0,
-        scheduledFor: new Date().toDateString(),
-        priority: "medium"
-      }
-    ]);
+    addTask({
+      id: Date.now(),
+      name: trimmed,
+      status: "idle",
+      totalDuration: 0,
+      sessions: [],
+      createdAt: Date.now()
+    });
 
     setName("");
   };
 
-  const startTask = (id) => {
-    setTasks(prev =>
-      prev.map(t => {
-        if (t.id === id) {
-          return {
-            ...t,
-            status: "running",
-            currentStart: Date.now()
-          };
-        }
-
-        if (t.status === "running") {
-          const duration = (Date.now() - t.currentStart) / 1000;
-
-          return {
-            ...t,
-            status: "paused",
-            totalDuration: t.totalDuration + duration,
-            sessions: [
-              ...t.sessions,
-              { start: t.currentStart, end: Date.now(), duration }
-            ]
-          };
-        }
-
-        return t;
-      })
-    );
-  };
-
-  const stopTask = (id) => {
-    setTasks(prev =>
-      prev.map(t => {
-        if (t.id !== id) return t;
-
-        const duration = (Date.now() - t.currentStart) / 1000;
-
-        return {
-          ...t,
-          status: "idle",
-          totalDuration: t.totalDuration + duration,
-          sessions: [
-            ...t.sessions,
-            { start: t.currentStart, end: Date.now(), duration }
-          ]
-        };
-      })
-    );
-  };
-
-  const completeTask = (id) => {
-    setTasks(prev =>
-      prev.map(t =>
-        t.id === id
-          ? {
-              ...t,
-              completed: true,
-              completedAt: Date.now(),
-              status: "completed"
-            }
-          : t
-      )
-    );
-  };
-
-  const deleteTask = (id) => {
-    setTasks(prev => {
-      const updated = prev.filter(t => t.id !== id);
-      localStorage.setItem("tasks", JSON.stringify(updated));
-      return updated;
+  /* =========================
+     START TASK (ONLY ONE RUNNING)
+  ========================= */
+  const handleStart = (task) => {
+    tasks.forEach(t => {
+      if (t.status === "running") {
+        handleStop(t);
+      }
     });
+
+    startTask(task.id);
   };
 
-  // ===== ACTIVE TASK =====
-  const activeTask = tasks.find(t => t.status === "running");
+  /* =========================
+     STOP TASK (FIXED DURATION)
+  ========================= */
+  const handleStop = (task) => {
+    const end = Date.now();
+    const start = new Date(task.start).getTime();
 
-  // ===== SUMMARY =====
-  const today = new Date().toDateString();
+    const duration = (end - start) / 1000;
 
-  const totalTimeToday = tasks.reduce(
-    (sum, t) => sum + t.totalDuration,
-    0
-  );
+    endTask(task.id, duration, getToday());
+  };
 
-  const completedToday = tasks.filter(
-    t => t.completed && new Date(t.completedAt).toDateString() === today
-  ).length;
-
+  /* =========================
+     SORT TASKS
+  ========================= */
   const sortedTasks = useMemo(() => {
     return [...tasks].sort((a, b) => {
       if (a.status === "running") return -1;
@@ -155,195 +124,183 @@ export default function Tasks() {
     });
   }, [tasks]);
 
+  /* =========================
+     ACTIVE TASK
+  ========================= */
+  const activeTask = tasks.find(t => t.status === "running");
+
+  /* =========================
+     ANALYTICS (FIXED)
+  ========================= */
+  const weeklyData = useMemo(() => {
+    const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    const map = {};
+
+    days.forEach(d => (map[d] = 0));
+
+    tasks.forEach(t => {
+      t.sessions?.forEach(s => {
+        const d = new Date(s.start).getDay();
+        map[days[d]] += s.duration / 60; // minutes
+      });
+    });
+
+    return days.map(d => ({
+      day: d,
+      minutes: Math.round(map[d])
+    }));
+  }, [tasks]);
+
+  /* =========================
+     SUMMARY
+  ========================= */
+  const totalToday = useMemo(() => {
+    return tasks.reduce((acc, t) => {
+      return acc + (t.totalDuration || 0);
+    }, 0);
+  }, [tasks]);
+
+  const completedToday = tasks.filter(
+    t => t.completed && new Date(t.completedAt).toDateString() === getToday()
+  ).length;
+
+  /* =========================
+     UI
+  ========================= */
+
   return (
     <div style={styles.container}>
 
-      <h1 style={styles.title}>📌 Tasks</h1>
-
-      {/* SUMMARY */}
-      <div style={styles.summary}>
-        <div>⏱ {formatDuration(totalTimeToday)}</div>
-        <div>✅ {completedToday} done</div>
-      </div>
-
-      {/* 🎯 ACTIVE TASK */}
-      {activeTask && (
-        <div style={styles.activeFocus}>
-          🎯 Focus: {activeTask.name}
-        </div>
-      )}
+      {/* HEADER */}
+      <h1>📌 Tasks</h1>
+      <p>⏱ {formatDuration(totalToday)} | ✅ {completedToday} done</p>
 
       {/* INPUT */}
       <div style={styles.addBox}>
         <input
           style={styles.input}
-          value={name}
-          onChange={(e)=>setName(e.target.value)}
           placeholder="Enter task..."
+          value={name}
+          onChange={(e) => setName(e.target.value)}
         />
-        <button onClick={addTask} style={styles.addBtn}>
-          Add
+        <button onClick={handleAdd}>Add</button>
+      </div>
+
+      {/* ACTIVE TASK */}
+      {activeTask && (
+        <div style={styles.active}>
+          🔥 Working on: <b>{activeTask.name}</b>
+        </div>
+      )}
+
+      {/* POMODORO */}
+      <div style={styles.card}>
+        <h3>🍅 Pomodoro</h3>
+        <h1>{formatDuration(pomodoro)}</h1>
+
+        <button onClick={() => setRunningPomodoro(!runningPomodoro)}>
+          {runningPomodoro ? "Pause" : "Start"}
+        </button>
+
+        <button onClick={() => setPomodoro(25 * 60)}>
+          Reset
         </button>
       </div>
 
-      {/* 🍅 */}
-      <Pomodoro />
+      {/* ANALYTICS */}
+      <div style={styles.card}>
+        <h3>📊 Weekly Focus (minutes)</h3>
 
-      {/* 📊 */}
-      <WeeklyAnalytics tasks={tasks} />
-
-      {/* TASKS */}
-      <div style={styles.grid}>
-        {sortedTasks.map(t => (
-          <TaskCard
-            key={t.id}
-            task={t}
-            startTask={startTask}
-            stopTask={stopTask}
-            deleteTask={deleteTask}
-            completeTask={completeTask}
-          />
-        ))}
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={weeklyData}>
+            <XAxis dataKey="day" stroke="#ccc" />
+            <YAxis stroke="#ccc" />
+            <Tooltip />
+            <Line
+              type="monotone"
+              dataKey="minutes"
+              stroke="#22c55e"
+            />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
-    </div>
-  );
-}
 
-// ===== TASK CARD =====
-function TaskCard({ task, startTask, stopTask, deleteTask, completeTask }) {
+      {/* TASK LIST */}
+      <div style={styles.grid}>
+        {sortedTasks.map(t => {
+          let duration = t.totalDuration || 0;
 
-  const [now, setNow] = useState(Date.now());
-
-  useEffect(() => {
-    if (task.status !== "running") return;
-
-    const i = setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
-
-    return () => clearInterval(i);
-  }, [task.status]);
-
-  let duration = task.totalDuration;
-
-  if (task.status === "running") {
-    duration += (now - task.currentStart) / 1000;
-  }
-
-  return (
-    <motion.div style={styles.card} whileHover={{ scale: 1.02 }}>
-      <h3>{task.name}</h3>
-      <p>{task.status}</p>
-      <p>⏳ {formatDuration(duration)}</p>
-
-      {task.status !== "running" ? (
-        <button onClick={()=>startTask(task.id)}>▶</button>
-      ) : (
-        <button onClick={()=>stopTask(task.id)}>⏹</button>
-      )}
-
-      {!task.completed && (
-        <button onClick={()=>completeTask(task.id)}>✔</button>
-      )}
-
-      <button onClick={()=>deleteTask(task.id)}>🗑</button>
-    </motion.div>
-  );
-}
-
-// ===== 🍅 POMODORO =====
-function Pomodoro() {
-  const [sec, setSec] = useState(1500);
-  const [run, setRun] = useState(false);
-  const [mode, setMode] = useState("focus");
-
-  useEffect(() => {
-    if (!run) return;
-
-    const i = setInterval(() => {
-      setSec(s => {
-        if (s <= 1) {
-          if (mode === "focus") {
-            setMode("break");
-            return 300;
-          } else {
-            setMode("focus");
-            return 1500;
+          if (t.status === "running" && t.start) {
+            duration += (now - new Date(t.start)) / 1000;
           }
-        }
-        return s - 1;
-      });
-    }, 1000);
 
-    return () => clearInterval(i);
-  }, [run, mode]);
+          return (
+            <div
+              key={t.id}
+              style={{
+                ...styles.card,
+                border:
+                  t.status === "running"
+                    ? "2px solid #22c55e"
+                    : "1px solid #333"
+              }}
+            >
+              <h3>{t.name}</h3>
 
-  return (
-    <div style={styles.card}>
-      <h3>🍅 {mode}</h3>
-      <h1>{Math.floor(sec/60)}:{(sec%60).toString().padStart(2,"0")}</h1>
+              <p>
+                {t.status === "running" ? "🟢 Running" : "⚪ Idle"}
+              </p>
 
-      <button onClick={()=>setRun(!run)}>
-        {run ? "Pause" : "Start"}
-      </button>
+              <p>⏳ {formatDuration(duration)}</p>
 
-      <button onClick={()=>setSec(mode==="focus"?1500:300)}>
-        Reset
-      </button>
+              {t.status !== "running" ? (
+                <button onClick={() => handleStart(t)}>
+                  ▶ Start
+                </button>
+              ) : (
+                <button onClick={() => handleStop(t)}>
+                  ⏹ Stop
+                </button>
+              )}
+
+              <button onClick={() => deleteTask(t.id)}>
+                🗑 Delete
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
     </div>
   );
 }
 
-// ===== 📊 ANALYTICS =====
-function WeeklyAnalytics({ tasks }) {
+/* =========================
+   STYLES
+========================= */
 
-  const data = useMemo(() => {
-    const map = {};
-
-    tasks.forEach(t => {
-      t.sessions?.forEach(s => {
-        const d = new Date(s.start).toLocaleDateString("en-US",{weekday:"short"});
-
-        if (!map[d]) map[d] = { date: d, time: 0 };
-
-        map[d].time += (s.duration || 0) / 60; // minutes
-      });
-    });
-
-    return Object.values(map);
-  }, [tasks]);
-
-  if (data.length === 0) {
-    return <div style={styles.card}>No data yet 🚀</div>;
-  }
-
-  return (
-    <div style={styles.card}>
-      <h3>📊 Weekly Analytics</h3>
-
-      <ResponsiveContainer width="100%" height={200}>
-        <LineChart data={data}>
-          <XAxis dataKey="date" />
-          <YAxis />
-          <Tooltip />
-          <Line dataKey="time" stroke="#facc15" />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-// ===== STYLES =====
 const styles = {
-  container:{padding:20,color:"#fff"},
-  title:{color:"#facc15"},
-  summary:{display:"flex",gap:20,marginBottom:10},
-  activeFocus:{marginBottom:10,color:"#facc15"},
+  container: { padding: 20, color: "white" },
+  addBox: { display: "flex", gap: 10 },
+  input: { flex: 1, padding: 8 },
 
-  addBox:{display:"flex",gap:10,marginBottom:20},
-  input:{flex:1,padding:10},
-  addBtn:{background:"#22c55e",border:"none",padding:"10px",color:"#fff"},
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
+    gap: 12,
+    marginTop: 20
+  },
 
-  grid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))",gap:16},
-  card:{padding:16,background:"#020617",borderRadius:12}
+  card: {
+    padding: 12,
+    background: "#0f172a",
+    borderRadius: 8
+  },
+
+  active: {
+    marginTop: 10,
+    padding: 10,
+    background: "#022c22",
+    borderRadius: 8
+  }
 };
