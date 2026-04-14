@@ -11,12 +11,9 @@ import {
 } from "recharts";
 
 import { theme } from "./theme";
+import { analyzeWeightWithHabits } from "./ai/ai";
 
-import {
-  analyzeWeightWithHabits
-} from "./ai/ai";
-
-/* ===== DATE UTILS ===== */
+/* ===== DATE ===== */
 const getKey = (d) =>
   `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
@@ -24,13 +21,14 @@ export default function Habits({
   items = [],
   setItems,
   weightLogs = [],
-  addWeight,
-  weightGoal
+  addWeight
 }) {
 
+  const todayKey = getKey(new Date());
+
+  /* ================= STORAGE ================= */
   const hydrated = useRef(false);
 
-  /* ================= LOCAL STORAGE ================= */
   useEffect(() => {
     if (!hydrated.current) {
       const saved = localStorage.getItem("habits");
@@ -39,75 +37,24 @@ export default function Habits({
       }
       hydrated.current = true;
     }
-  }, [items, setItems]);
+  }, [items]);
 
   useEffect(() => {
     localStorage.setItem("habits", JSON.stringify(items));
   }, [items]);
 
+  /* ================= VIEW ================= */
+  const [view, setView] = useState("day"); // day/week/month
+
   /* ================= HABITS ================= */
-  const habits = useMemo(
-    () => items.filter(i => i.type === "habit"),
-    [items]
-  );
+  const habits = items.filter(i => i.type === "habit");
 
-  const todayKey = getKey(new Date());
+  const completed = habits.filter(h => h.completed?.[todayKey]?.done);
+  const pending = habits.filter(h => !h.completed?.[todayKey]?.done);
 
-  const completedHabits = habits.filter(
-    h => h.completed?.[todayKey]?.done
-  );
+  const totalXP = habits.reduce((s, h) => s + (h.xp || 0), 0);
 
-  const completionRate = habits.length
-    ? Math.round((completedHabits.length / habits.length) * 100)
-    : 0;
-
-  const totalXP = habits.reduce((sum, h) => sum + (h.xp || 0), 0);
-
-  /* ================= WEIGHT ================= */
-  const sorted = useMemo(() => {
-    return [...weightLogs].sort(
-      (a, b) => new Date(a.date) - new Date(b.date)
-    );
-  }, [weightLogs]);
-
-  const start = sorted[0]?.weight || 0;
-  const current = sorted[sorted.length - 1]?.weight || 0;
-  const target = weightGoal || 0;
-
-  const weightPercent = useMemo(() => {
-    const totalDiff = start - target;
-    const currentDiff = start - current;
-
-    return totalDiff > 0
-      ? Math.min(Math.round((currentDiff / totalDiff) * 100), 100)
-      : 0;
-  }, [start, current, target]);
-
-  /* ================= AI ================= */
-  const habitImpact = useMemo(() => {
-    if (sorted.length < 3) return "";
-
-    try {
-      return analyzeWeightWithHabits({
-        weightLogs: sorted,
-        habits
-      });
-    } catch {
-      return "";
-    }
-  }, [sorted, habits]);
-
-  const aiInsight = useMemo(() => {
-    if (completionRate > 70 && weightPercent > 50)
-      return "🔥 Excellent consistency & progress!";
-    if (completionRate < 30)
-      return "⚠️ Improve habit consistency.";
-    if (weightPercent < 30)
-      return "📈 Focus more on health habits.";
-    return "💪 Keep pushing forward!";
-  }, [completionRate, weightPercent]);
-
-  /* ================= ADD HABIT ================= */
+  /* ================= ADD ================= */
   const [name, setName] = useState("");
 
   const addHabit = () => {
@@ -128,7 +75,7 @@ export default function Habits({
     setName("");
   };
 
-  /* ================= TOGGLE ================= */
+  /* ================= ACTIONS ================= */
   const toggleHabit = (id) => {
     setItems(prev =>
       prev.map(h => {
@@ -140,14 +87,40 @@ export default function Habits({
             ...h.completed,
             [todayKey]: { done: true }
           },
-          xp: h.xp + 10
+          xp: h.xp + 10,
+          streak: (h.streak || 0) + 1
         };
       })
     );
   };
 
-  /* ================= ADD WEIGHT ================= */
+  const deleteHabit = (id) => {
+    setItems(prev => prev.filter(h => h.id !== id));
+  };
+
+  const editHabit = (id, newName) => {
+    setItems(prev =>
+      prev.map(h =>
+        h.id === id ? { ...h, name: newName } : h
+      )
+    );
+  };
+
+  /* ================= WEIGHT ================= */
   const [weightInput, setWeightInput] = useState("");
+
+  const [goal, setGoal] = useState(() => {
+    const saved = localStorage.getItem("weightGoal");
+    return saved ? JSON.parse(saved) : {
+      start: "",
+      target: "",
+      duration: ""
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem("weightGoal", JSON.stringify(goal));
+  }, [goal]);
 
   const handleAddWeight = () => {
     const num = Number(weightInput);
@@ -157,10 +130,31 @@ export default function Habits({
     setWeightInput("");
   };
 
+  const sorted = [...weightLogs].sort(
+    (a, b) => new Date(a.date) - new Date(b.date)
+  );
+
   const chartData = sorted.map(w => ({
     date: new Date(w.date).toLocaleDateString(),
     weight: w.weight
   }));
+
+  const weightPercent = (() => {
+    const start = Number(goal.start);
+    const target = Number(goal.target);
+    const current = sorted.at(-1)?.weight || start;
+
+    const total = start - target;
+    const progress = start - current;
+
+    return total > 0 ? Math.min(Math.round((progress / total) * 100), 100) : 0;
+  })();
+
+  /* ================= AI ================= */
+  const insight = analyzeWeightWithHabits({
+    weightLogs: sorted,
+    habits
+  });
 
   /* ================= UI ================= */
   return (
@@ -168,72 +162,128 @@ export default function Habits({
 
       <h1 style={styles.title}>🔥 Health & Habits</h1>
 
-      {/* SUMMARY */}
-      <div style={styles.summary}>
-        <div>Habits: {completionRate}%</div>
-        <div>Weight: {weightPercent}%</div>
-        <div>XP: {totalXP}</div>
+      {/* VIEW SWITCH */}
+      <div style={styles.tabs}>
+        {["day", "week", "month"].map(v => (
+          <button
+            key={v}
+            style={{
+              ...styles.tab,
+              ...(view === v && styles.activeTab)
+            }}
+            onClick={() => setView(v)}
+          >
+            {v.toUpperCase()}
+          </button>
+        ))}
       </div>
 
-      {/* AI */}
-      <div style={styles.ai}>{aiInsight}</div>
+      {/* SUMMARY */}
+      <div style={styles.summary}>
+        <div>XP: {totalXP}</div>
+        <div>Completed: {completed.length}</div>
+      </div>
 
-      {/* HABITS */}
-      <div style={styles.card}>
-        <h3>Habits</h3>
-
+      {/* ADD */}
+      <div style={styles.addRow}>
         <input
           style={styles.input}
-          placeholder="Add habit"
           value={name}
+          placeholder="New habit..."
           onChange={(e) => setName(e.target.value)}
         />
-
         <button style={styles.button} onClick={addHabit}>Add</button>
+      </div>
 
-        {habits.map(h => (
-          <div key={h.id} style={styles.item}>
+      {/* PENDING */}
+      <div style={styles.card}>
+        <h3>🕒 Pending</h3>
+
+        {pending.map(h => (
+          <motion.div key={h.id} style={styles.habitCard}>
+            <div>
+              <strong>{h.name}</strong>
+              <p style={styles.meta}>🔥 {h.streak} streak</p>
+            </div>
+
+            <div style={styles.actions}>
+              <button onClick={() => toggleHabit(h.id)}>✅</button>
+              <button onClick={() => {
+                const n = prompt("Edit habit", h.name);
+                if (n) editHabit(h.id, n);
+              }}>✏️</button>
+              <button onClick={() => deleteHabit(h.id)}>🗑</button>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* COMPLETED */}
+      <div style={styles.card}>
+        <h3>✅ Completed</h3>
+
+        {completed.map(h => (
+          <div key={h.id} style={{ ...styles.habitCard, opacity: 0.6 }}>
             {h.name}
-            <button style={styles.button} onClick={() => toggleHabit(h.id)}>
-              Done
-            </button>
           </div>
         ))}
       </div>
 
       {/* WEIGHT */}
       <div style={styles.card}>
-        <h3>Weight Tracker</h3>
+        <h3>⚖️ Weight Goal</h3>
 
-        <input
-          style={styles.input}
-          type="number"
-          value={weightInput}
-          onChange={(e) => setWeightInput(e.target.value)}
-        />
-
-        <button style={styles.button} onClick={handleAddWeight}>Add</button>
+        <div style={styles.goalGrid}>
+          <input
+            placeholder="Start"
+            value={goal.start}
+            onChange={(e) =>
+              setGoal({ ...goal, start: e.target.value })
+            }
+          />
+          <input
+            placeholder="Target"
+            value={goal.target}
+            onChange={(e) =>
+              setGoal({ ...goal, target: e.target.value })
+            }
+          />
+          <input
+            placeholder="Months"
+            value={goal.duration}
+            onChange={(e) =>
+              setGoal({ ...goal, duration: e.target.value })
+            }
+          />
+        </div>
 
         <p>Progress: {weightPercent}%</p>
+
+        <input
+          value={weightInput}
+          onChange={(e) => setWeightInput(e.target.value)}
+          placeholder="Daily weight"
+        />
+        <button onClick={handleAddWeight}>Add</button>
 
         {chartData.length > 0 && (
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={chartData}>
               <CartesianGrid stroke={theme.colors.border} />
-              <XAxis stroke={theme.colors.textMuted} dataKey="date" />
-              <YAxis stroke={theme.colors.textMuted} />
+              <XAxis dataKey="date" />
+              <YAxis />
               <Tooltip />
-              <Line dataKey="weight" stroke={theme.colors.chartSecondary} />
+              <Line dataKey="weight" stroke={theme.colors.primary} />
             </LineChart>
           </ResponsiveContainer>
         )}
       </div>
 
-      {/* HABIT IMPACT */}
-      {habitImpact && (
+      {/* AI */}
+      {insight && (
         <div style={styles.card}>
-          <h3>Habit Impact</h3>
-          <p style={{ color: theme.colors.textMuted }}>{habitImpact}</p>
+          <h3>🧠 Insight</h3>
+          <p>{insight}</p>
         </div>
       )}
 
@@ -247,32 +297,39 @@ const styles = {
 
   title: { color: theme.colors.primary },
 
-  summary: {
-    display: "flex",
-    gap: 20,
-    marginBottom: 20,
-    color: theme.colors.text
-  },
+  tabs: { display: "flex", gap: 10, marginBottom: 10 },
+
+  tab: { padding: 6, cursor: "pointer" },
+  activeTab: { background: theme.colors.primary, color: "#000" },
+
+  summary: { display: "flex", gap: 20 },
+
+  addRow: { display: "flex", gap: 10, marginBottom: 10 },
 
   card: {
     ...theme.components.card,
     marginBottom: 20
   },
 
-  item: {
+  habitCard: {
     display: "flex",
     justifyContent: "space-between",
-    marginTop: 10
+    padding: 10,
+    marginTop: 8,
+    border: `1px solid ${theme.colors.border}`,
+    borderRadius: 10
   },
 
-  ai: {
-    background: theme.colors.surface,
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 20
+  actions: { display: "flex", gap: 8 },
+
+  meta: { fontSize: 12, color: theme.colors.textMuted },
+
+  goalGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
+    gap: 10
   },
 
   input: theme.components.input,
-
   button: theme.components.button.primary
 };
