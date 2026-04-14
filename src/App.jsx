@@ -25,12 +25,7 @@ import { NotificationProvider } from "./context/NotificationContext";
 import ReminderSystem from "./system/ReminderSystem";
 import HabitReminderSystem from "./system/HabitReminderSystem";
 
-/* ================= SAFE NOTIFICATION FIX ================= */
-if (typeof window !== "undefined" && !("Notification" in window)) {
-  window.Notification = function () {};
-}
-
-/* ================= SAFE ARRAY HELPER ================= */
+/* ================= SAFE ================= */
 const safeArray = (v) => (Array.isArray(v) ? v : []);
 
 export default function App() {
@@ -90,7 +85,7 @@ export default function App() {
   const isLocalUpdate = useRef(false);
   const initialLoad = useRef(true);
 
-  /* ================= LOAD DATA ================= */
+  /* ================= LOAD ================= */
   useEffect(() => {
     if (!firebaseUser) return;
 
@@ -113,42 +108,52 @@ export default function App() {
     fetchData();
   }, [firebaseUser]);
 
-  /* ================= REALTIME SYNC ================= */
+  /* ================= 🔥 FIXED REALTIME SYNC ================= */
   useEffect(() => {
     if (!firebaseUser) return;
 
     const unsub = subscribeToData((data) => {
       if (isLocalUpdate.current) return;
 
-      setItems(safeArray(data.items));
-      setTasks(safeArray(data.tasks));
-      setWeightLogs(safeArray(data.weightLogs));
+      // 🔥 CRITICAL FIX: DO NOT blindly overwrite
+      setItems(prev => {
+        if (!data.items) return prev;
+
+        // prevent unnecessary overwrite
+        if (JSON.stringify(prev) === JSON.stringify(data.items)) {
+          return prev;
+        }
+
+        console.log("☁️ Applying cloud update");
+        return data.items;
+      });
+
+      setTasks(prev => data.tasks || prev);
+      setWeightLogs(prev => data.weightLogs || prev);
       setWeightGoal(data.weightGoal || null);
-      setLogs(data.logs || {});
-      setGoal(data.goal || {});
-      setFinanceData(safeArray(data.financeData));
-      setChatHistory(safeArray(data.chatHistory));
+      setLogs(prev => data.logs || prev);
+      setGoal(prev => data.goal || prev);
+      setFinanceData(prev => data.financeData || prev);
+      setChatHistory(prev => data.chatHistory || prev);
     });
 
     return () => unsub && unsub();
   }, [firebaseUser]);
 
-  /* ================= SAFE SETTERS ================= */
+  /* ================= SAFE SET ================= */
   const safeSetItems = (updater) => {
     isLocalUpdate.current = true;
 
-    setItems(prev => {
-      const updated =
-        typeof updater === "function" ? updater(prev) : updater;
-      return updated;
-    });
+    setItems(prev =>
+      typeof updater === "function" ? updater(prev) : updater
+    );
 
     setTimeout(() => {
       isLocalUpdate.current = false;
-    }, 300);
+    }, 500);
   };
 
-  /* ================= SAVE DATA ================= */
+  /* ================= SAVE ================= */
   useEffect(() => {
     if (!firebaseUser || initialLoad.current) return;
 
@@ -175,7 +180,12 @@ export default function App() {
     firebaseUser
   ]);
 
-  /* ================= LOADING ================= */
+  /* ================= DEBUG ================= */
+  useEffect(() => {
+    console.log("🟢 ITEMS STATE:", items);
+  }, [items]);
+
+  /* ================= UI ================= */
   if (loadingAuth) {
     return <div style={{ padding: 20 }}>Loading App...</div>;
   }

@@ -145,27 +145,35 @@ export const subscribeToData = (callback) => {
     docRef,
     (snapshot) => {
       if (!snapshot.exists()) {
-        callback(getLocalBackup());
         return;
       }
 
       const remote = safeData(snapshot.data());
       const local = getLocalBackup();
 
-      /* 🔥 CRITICAL FIX */
-      if (remote.updatedAt < local.updatedAt) {
-        console.log("⏩ Ignoring stale remote data");
-        callback(local);
+      // 🔥 DO NOT overwrite local blindly
+      // ONLY update if remote is newer AND actually different
+
+      if (!remote.updatedAt) {
+        console.log("⛔ Ignoring invalid remote");
         return;
       }
 
+      if (remote.updatedAt <= local.updatedAt) {
+        console.log("⏩ Ignoring stale remote");
+        return;
+      }
+
+      console.log("✅ Applying remote update");
+
+      // update local backup
       localStorage.setItem(LOCAL_KEY, JSON.stringify(remote));
 
+      // 🔥 IMPORTANT: send only delta-safe data
       callback(remote);
     },
     (error) => {
       console.error("🔥 Realtime error:", error);
-      callback(getLocalBackup());
     }
   );
 };
