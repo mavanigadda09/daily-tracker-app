@@ -1,113 +1,66 @@
 import { db, auth } from "./firebase";
-import {
-  doc,
-  setDoc,
-  getDoc,
-  onSnapshot
-} from "firebase/firestore";
+import { doc, setDoc, getDoc, onSnapshot } from "firebase/firestore";
 
 /* ================= CONFIG ================= */
-const LOCAL_KEY = "tracker_backup_v2";
-const QUEUE_KEY = "tracker_queue_v2";
+const LOCAL_KEY = "tracker_backup_v3";
 
-let isProcessing = false;
-let saveTimeout = null;
+/* ================= SAFE ================= */
+const safeData = (data = {}) => ({
+  items: data.items || [],
+  logs: data.logs || {},
+  weightLogs: data.weightLogs || [],
+  weightGoal: data.weightGoal || null,
+  tasks: data.tasks || [],
+  goal: data.goal || {},
+  financeData: data.financeData || [],
+  chatHistory: data.chatHistory || [],
+  updatedAt: data.updatedAt || 0
+});
 
-/* ================= UPDATE ================= */
-export const updateData = (partial) => {
-  const current = getLocalBackup();
-
-  const updated = {
-    ...current,
-    ...partial,
-    updatedAt: Date.now() // 🔥 CRITICAL
-  };
-
-  queueSave(updated);
+/* ================= LOCAL ================= */
+const getLocalBackup = () => {
+  try {
+    const raw = localStorage.getItem(LOCAL_KEY);
+    return raw ? safeData(JSON.parse(raw)) : safeData();
+  } catch {
+    return safeData();
+  }
 };
 
-/* ================= SAVE ================= */
-export const queueSave = (data) => {
+const setLocalBackup = (data) => {
+  localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
+};
+
+/* ================= SAVE (🔥 SIMPLE + FIXED) ================= */
+export const queueSave = async (data) => {
   try {
-    const withTimestamp = {
-      ...data,
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const payload = {
+      ...safeData(data),
       updatedAt: Date.now()
     };
 
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(withTimestamp));
+    // ✅ update local immediately
+    setLocalBackup(payload);
 
-    if (saveTimeout) clearTimeout(saveTimeout);
+    // ✅ save instantly to Firestore (NO DELAY)
+    const docRef = doc(db, "users", user.uid);
+    await setDoc(docRef, payload, { merge: false });
 
-    saveTimeout = setTimeout(() => {
-      const queue = getQueue();
-
-      if (queue.length > 20) queue.shift();
-
-      queue.push(withTimestamp);
-
-      localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-
-      processQueue();
-    }, 400);
+    console.log("✅ Cloud saved");
 
   } catch (err) {
-    console.error("🔥 Queue save error:", err);
+    console.error("🔥 Save error:", err);
   }
-};
-
-/* ================= PROCESS QUEUE ================= */
-const processQueue = async () => {
-  if (isProcessing) return;
-
-  const user = auth.currentUser;
-  if (!user) return;
-
-  let queue = getQueue();
-  if (!queue.length) return;
-
-  isProcessing = true;
-
-  const docRef = doc(db, "users", user.uid);
-
-  while (queue.length > 0) {
-    const item = queue[0];
-
-    try {
-      const remoteSnap = await getDoc(docRef);
-
-      const remoteData = remoteSnap.exists()
-        ? safeData(remoteSnap.data())
-        : safeData();
-
-      /* 🔥 CRITICAL FIX */
-      if (
-        remoteData.updatedAt &&
-        remoteData.updatedAt > item.updatedAt
-      ) {
-        console.log("⏩ Skipping older local update");
-        queue.shift();
-        continue;
-      }
-
-      await setDoc(docRef, item, { merge: false });
-
-      queue.shift();
-      localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-
-    } catch (err) {
-      console.error("🔥 Sync failed:", err);
-      break;
-    }
-  }
-
-  isProcessing = false;
 };
 
 /* ================= LOAD ================= */
 export const loadData = async () => {
   try {
     const user = auth.currentUser;
-    if (!user) return null;
+    if (!user) return getLocalBackup();
 
     const docRef = doc(db, "users", user.uid);
     const snap = await getDoc(docRef);
@@ -117,12 +70,11 @@ export const loadData = async () => {
     if (snap.exists()) {
       const remote = safeData(snap.data());
 
-      /* 🔥 PICK NEWEST */
+      // ✅ choose latest
       const final =
         remote.updatedAt > local.updatedAt ? remote : local;
 
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(final));
-
+      setLocalBackup(final);
       return final;
     }
 
@@ -144,32 +96,20 @@ export const subscribeToData = (callback) => {
   return onSnapshot(
     docRef,
     (snapshot) => {
-      if (!snapshot.exists()) {
-        return;
-      }
+      if (!snapshot.exists()) return;
 
       const remote = safeData(snapshot.data());
       const local = getLocalBackup();
 
-      // 🔥 DO NOT overwrite local blindly
-      // ONLY update if remote is newer AND actually different
-
-      if (!remote.updatedAt) {
-        console.log("⛔ Ignoring invalid remote");
-        return;
-      }
-
+      // ✅ ignore stale data
       if (remote.updatedAt <= local.updatedAt) {
-        console.log("⏩ Ignoring stale remote");
+        console.log("⏩ Ignoring stale cloud");
         return;
       }
 
-      console.log("✅ Applying remote update");
+      console.log("☁️ Applying cloud update");
 
-      // update local backup
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(remote));
-
-      // 🔥 IMPORTANT: send only delta-safe data
+      setLocalBackup(remote);
       callback(remote);
     },
     (error) => {
@@ -178,41 +118,12 @@ export const subscribeToData = (callback) => {
   );
 };
 
-/* ================= ONLINE ================= */
-window.addEventListener("online", () => {
-  console.log("🌐 Back online → syncing...");
-  processQueue();
-});
+/* ================= FINANCE HELPERS (FIX BUILD ERROR) ================= */
 
-/* ================= SAFE ================= */
-const safeData = (data = {}) => ({
-  items: data.items || [],
-  logs: data.logs || {},
-  weightLogs: data.weightLogs || [],
-  weightGoal: data.weightGoal || null,
-  tasks: data.tasks || [],
-  goal: data.goal || {},
-  financeData: data.financeData || [],
-  chatHistory: data.chatHistory || [],
-  updatedAt: data.updatedAt || 0
-});
-
-/* ================= LOCAL ================= */
-const getLocalBackup = () => {
-  try {
-    const local = localStorage.getItem(LOCAL_KEY);
-    return local ? safeData(JSON.parse(local)) : safeData();
-  } catch {
-    return safeData();
-  }
+export const addFinance = (item, setFinanceData) => {
+  setFinanceData(prev => [...prev, item]);
 };
 
-/* ================= QUEUE ================= */
-const getQueue = () => {
-  try {
-    const q = localStorage.getItem(QUEUE_KEY);
-    return q ? JSON.parse(q) : [];
-  } catch {
-    return [];
-  }
+export const deleteFinance = (id, setFinanceData) => {
+  setFinanceData(prev => prev.filter(f => f.id !== id));
 };
