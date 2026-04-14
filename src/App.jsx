@@ -5,11 +5,10 @@ import Dashboard from "./Dashboard";
 import Analytics from "./Analytics";
 import Tasks from "./Tasks";
 import Habits from "./Habits";
-// ❌ Insights REMOVED
+// ❌ Weight REMOVED
 import Goals from "./Goals";
 import Activities from "./Activities";
 import Profile from "./Profile";
-import Weight from "./Weight";
 import Chat from "./Chat";
 import Finance from "./Finance";
 
@@ -28,7 +27,6 @@ import ReminderSystem from "./system/ReminderSystem";
 import HabitReminderSystem from "./system/HabitReminderSystem";
 
 /* ================= GLOBAL FIX ================= */
-// 🛡️ Prevent iOS Notification crash
 if (typeof window !== "undefined" && !("Notification" in window)) {
   window.Notification = function () {};
 }
@@ -88,7 +86,6 @@ export default function App() {
   const [chatHistory, setChatHistory] = useState([]);
 
   const [initialLoad, setInitialLoad] = useState(true);
-
   const isLocalUpdate = useRef(false);
 
   /* ===== LOAD DATA ===== */
@@ -117,7 +114,6 @@ export default function App() {
     if (!firebaseUser) return;
 
     const unsub = subscribeToData((data) => {
-
       if (isLocalUpdate.current) return;
 
       setItems(data.items || []);
@@ -191,11 +187,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
 
-          <Route
-            path="/login"
-            element={<Login onLogin={handleLoginUser} />}
-          />
-
+          <Route path="/login" element={<Login onLogin={handleLoginUser} />} />
           <Route path="/onboarding" element={<Onboarding />} />
 
           <Route
@@ -212,7 +204,7 @@ export default function App() {
             }
           >
 
-            {/* ✅ MAIN DASHBOARD (INSIGHTS MERGED) */}
+            {/* DASHBOARD */}
             <Route index element={
               <Dashboard
                 logs={logs}
@@ -221,6 +213,35 @@ export default function App() {
                 user={user}
                 weightLogs={weightLogs}
               />
+            }/>
+
+            {/* HABITS + WEIGHT (MERGED) */}
+            <Route path="habits" element={
+              <Habits
+                items={items}
+                setItems={safeSetItems}
+                weightLogs={weightLogs}
+                addWeight={(w) => {
+                  setWeightLogs(prev => [
+                    ...prev,
+                    { weight: w, date: new Date().toISOString() }
+                  ]);
+                }}
+                weightGoal={weightGoal}
+                setWeightGoal={setWeightGoal}
+              />
+            }/>
+
+            <Route path="tasks" element={
+              <Tasks tasks={tasks} setTasks={setTasks} />
+            }/>
+
+            <Route path="activities" element={
+              <Activities items={items} setItems={safeSetItems} />
+            }/>
+
+            <Route path="analytics" element={
+              <Analytics logs={logs} tasks={tasks} user={user} />
             }/>
 
             <Route path="finance" element={
@@ -239,28 +260,6 @@ export default function App() {
                 weightLogs={weightLogs}
               />
             }/>
-
-            <Route path="weight" element={
-              <Weight weightLogs={weightLogs} />
-            }/>
-
-            <Route path="habits" element={
-              <Habits items={items} setItems={safeSetItems} />
-            }/>
-
-            <Route path="tasks" element={
-              <Tasks tasks={tasks} setTasks={setTasks} />
-            }/>
-
-            <Route path="activities" element={
-              <Activities items={items} setItems={safeSetItems} />
-            }/>
-
-            <Route path="analytics" element={
-              <Analytics logs={logs} tasks={tasks} user={user} />
-            }/>
-
-            {/* ❌ INSIGHTS ROUTE REMOVED */}
 
             <Route path="goals" element={<Goals />} />
             <Route path="profile" element={<Profile user={user} />} />
