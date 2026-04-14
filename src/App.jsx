@@ -83,6 +83,7 @@ export default function App() {
   const [chatHistory, setChatHistory] = useState([]);
 
   const isLocalUpdate = useRef(false);
+  const localVersion = useRef(0); // 🔥 VERSION CONTROL
   const initialLoad = useRef(true);
 
   /* ================= LOAD ================= */
@@ -102,39 +103,53 @@ export default function App() {
       setFinanceData(safeArray(data.financeData));
       setChatHistory(safeArray(data.chatHistory));
 
+      localVersion.current = data.updatedAt || Date.now();
       initialLoad.current = false;
     };
 
     fetchData();
   }, [firebaseUser]);
 
-  /* ================= 🔥 FIXED REALTIME SYNC ================= */
+  /* ================= 🔥 FINAL FIXED REALTIME SYNC ================= */
   useEffect(() => {
     if (!firebaseUser) return;
 
     const unsub = subscribeToData((data) => {
-      if (isLocalUpdate.current) return;
+      if (!data) return;
 
-      // 🔥 CRITICAL FIX: DO NOT blindly overwrite
+      // 🔥 BLOCK during local update
+      if (isLocalUpdate.current) {
+        console.log("⛔ Skipping cloud (local update)");
+        return;
+      }
+
+      // 🔥 BLOCK stale data
+      if (data.updatedAt && data.updatedAt < localVersion.current) {
+        console.log("⏩ Ignoring stale cloud data");
+        return;
+      }
+
+      console.log("☁️ Applying cloud update");
+
+      localVersion.current = data.updatedAt || Date.now();
+
       setItems(prev => {
         if (!data.items) return prev;
 
-        // prevent unnecessary overwrite
         if (JSON.stringify(prev) === JSON.stringify(data.items)) {
           return prev;
         }
 
-        console.log("☁️ Applying cloud update");
         return data.items;
       });
 
-      setTasks(prev => data.tasks || prev);
-      setWeightLogs(prev => data.weightLogs || prev);
+      setTasks(data.tasks || []);
+      setWeightLogs(data.weightLogs || []);
       setWeightGoal(data.weightGoal || null);
-      setLogs(prev => data.logs || prev);
-      setGoal(prev => data.goal || prev);
-      setFinanceData(prev => data.financeData || prev);
-      setChatHistory(prev => data.chatHistory || prev);
+      setLogs(data.logs || {});
+      setGoal(data.goal || {});
+      setFinanceData(data.financeData || []);
+      setChatHistory(data.chatHistory || []);
     });
 
     return () => unsub && unsub();
@@ -144,13 +159,17 @@ export default function App() {
   const safeSetItems = (updater) => {
     isLocalUpdate.current = true;
 
-    setItems(prev =>
-      typeof updater === "function" ? updater(prev) : updater
-    );
+    setItems(prev => {
+      const updated =
+        typeof updater === "function" ? updater(prev) : updater;
+
+      localVersion.current = Date.now(); // 🔥 update version
+      return updated;
+    });
 
     setTimeout(() => {
       isLocalUpdate.current = false;
-    }, 500);
+    }, 1000); // longer lock
   };
 
   /* ================= SAVE ================= */
@@ -165,7 +184,8 @@ export default function App() {
       logs,
       goal,
       financeData,
-      chatHistory
+      chatHistory,
+      updatedAt: Date.now() // 🔥 CRITICAL
     });
 
   }, [
