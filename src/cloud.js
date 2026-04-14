@@ -6,48 +6,56 @@ import {
   onSnapshot
 } from "firebase/firestore";
 
-const LOCAL_KEY = "tracker_backup";
-const QUEUE_KEY = "tracker_queue";
+/* ================= CONFIG ================= */
+const LOCAL_KEY = "tracker_backup_v2";
+const QUEUE_KEY = "tracker_queue_v2";
 
 let isProcessing = false;
 let saveTimeout = null;
 
-// ================= UPDATE =================
+/* ================= UPDATE ================= */
 export const updateData = (partial) => {
   const current = getLocalBackup();
-  const updated = mergeData(current, partial);
+
+  const updated = {
+    ...current,
+    ...partial,
+    updatedAt: Date.now() // 🔥 CRITICAL
+  };
+
   queueSave(updated);
 };
 
-// ================= SAVE (DEBOUNCED) =================
+/* ================= SAVE ================= */
 export const queueSave = (data) => {
   try {
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
+    const withTimestamp = {
+      ...data,
+      updatedAt: Date.now()
+    };
+
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(withTimestamp));
 
     if (saveTimeout) clearTimeout(saveTimeout);
 
     saveTimeout = setTimeout(() => {
       const queue = getQueue();
 
-      // ✅ LIMIT QUEUE SIZE
       if (queue.length > 20) queue.shift();
 
-      queue.push({
-        data,
-        timestamp: Date.now()
-      });
+      queue.push(withTimestamp);
 
       localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 
       processQueue();
-    }, 500);
+    }, 400);
 
   } catch (err) {
     console.error("🔥 Queue save error:", err);
   }
 };
 
-// ================= PROCESS QUEUE =================
+/* ================= PROCESS QUEUE ================= */
 const processQueue = async () => {
   if (isProcessing) return;
 
@@ -71,9 +79,17 @@ const processQueue = async () => {
         ? safeData(remoteSnap.data())
         : safeData();
 
-      const merged = mergeData(remoteData, item.data);
+      /* 🔥 CRITICAL FIX */
+      if (
+        remoteData.updatedAt &&
+        remoteData.updatedAt > item.updatedAt
+      ) {
+        console.log("⏩ Skipping older local update");
+        queue.shift();
+        continue;
+      }
 
-      await setDoc(docRef, merged, { merge: true });
+      await setDoc(docRef, item, { merge: false });
 
       queue.shift();
       localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
@@ -87,7 +103,7 @@ const processQueue = async () => {
   isProcessing = false;
 };
 
-// ================= LOAD =================
+/* ================= LOAD ================= */
 export const loadData = async () => {
   try {
     const user = auth.currentUser;
@@ -96,13 +112,21 @@ export const loadData = async () => {
     const docRef = doc(db, "users", user.uid);
     const snap = await getDoc(docRef);
 
+    const local = getLocalBackup();
+
     if (snap.exists()) {
-      const data = snap.data();
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
-      return safeData(data);
+      const remote = safeData(snap.data());
+
+      /* 🔥 PICK NEWEST */
+      const final =
+        remote.updatedAt > local.updatedAt ? remote : local;
+
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(final));
+
+      return final;
     }
 
-    return getLocalBackup();
+    return local;
 
   } catch (err) {
     console.error("🔥 Load error:", err);
@@ -110,7 +134,7 @@ export const loadData = async () => {
   }
 };
 
-// ================= REALTIME =================
+/* ================= REALTIME ================= */
 export const subscribeToData = (callback) => {
   const user = auth.currentUser;
   if (!user) return;
@@ -128,11 +152,16 @@ export const subscribeToData = (callback) => {
       const remote = safeData(snapshot.data());
       const local = getLocalBackup();
 
-      const merged = mergeData(remote, local);
+      /* 🔥 CRITICAL FIX */
+      if (remote.updatedAt < local.updatedAt) {
+        console.log("⏩ Ignoring stale remote data");
+        callback(local);
+        return;
+      }
 
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(merged));
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(remote));
 
-      callback(merged);
+      callback(remote);
     },
     (error) => {
       console.error("🔥 Realtime error:", error);
@@ -141,13 +170,13 @@ export const subscribeToData = (callback) => {
   );
 };
 
-// ================= ONLINE SYNC =================
+/* ================= ONLINE ================= */
 window.addEventListener("online", () => {
   console.log("🌐 Back online → syncing...");
   processQueue();
 });
 
-// ================= SAFE DATA =================
+/* ================= SAFE ================= */
 const safeData = (data = {}) => ({
   items: data.items || [],
   logs: data.logs || {},
@@ -156,34 +185,11 @@ const safeData = (data = {}) => ({
   tasks: data.tasks || [],
   goal: data.goal || {},
   financeData: data.financeData || [],
-  chatHistory: data.chatHistory || []
+  chatHistory: data.chatHistory || [],
+  updatedAt: data.updatedAt || 0
 });
 
-// ================= MERGE =================
-const mergeData = (remote, local) => ({
-  items: mergeArray(remote.items, local.items),
-  logs: { ...remote.logs, ...local.logs },
-  weightLogs: mergeArray(remote.weightLogs, local.weightLogs),
-  weightGoal: local.weightGoal ?? remote.weightGoal,
-  tasks: mergeArray(remote.tasks, local.tasks),
-  goal: local.goal || remote.goal,
-  financeData: mergeArray(remote.financeData, local.financeData),
-  chatHistory: mergeArray(remote.chatHistory, local.chatHistory)
-});
-
-// ================= ARRAY MERGE =================
-const mergeArray = (a = [], b = []) => {
-  const map = new Map();
-
-  [...a, ...b].forEach((item) => {
-    if (!item?.id) return;
-    map.set(item.id, item);
-  });
-
-  return Array.from(map.values());
-};
-
-// ================= LOCAL =================
+/* ================= LOCAL ================= */
 const getLocalBackup = () => {
   try {
     const local = localStorage.getItem(LOCAL_KEY);
@@ -193,7 +199,7 @@ const getLocalBackup = () => {
   }
 };
 
-// ================= QUEUE =================
+/* ================= QUEUE ================= */
 const getQueue = () => {
   try {
     const q = localStorage.getItem(QUEUE_KEY);
@@ -201,40 +207,4 @@ const getQueue = () => {
   } catch {
     return [];
   }
-};
-
-// ================= FINANCE =================
-export const addFinance = (entry) => {
-  try {
-    const amount = Number(entry.amount);
-    if (!amount || amount <= 0) return false;
-
-    const newEntry = {
-      id: crypto.randomUUID(),
-      type: entry.type,
-      amount,
-      category: entry.category || "Other",
-      note: entry.note || "",
-      date: Date.now()
-    };
-
-    const current = getLocalBackup();
-
-    updateData({
-      financeData: [...current.financeData, newEntry]
-    });
-
-    return true;
-
-  } catch {
-    return false;
-  }
-};
-
-export const deleteFinance = (id) => {
-  const current = getLocalBackup();
-
-  updateData({
-    financeData: current.financeData.filter(f => f.id !== id)
-  });
 };
