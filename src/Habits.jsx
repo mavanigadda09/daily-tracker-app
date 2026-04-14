@@ -13,7 +13,7 @@ import {
 import { theme } from "./theme";
 import { analyzeWeightWithHabits } from "./ai/ai";
 
-/* ===== DATE ===== */
+/* ===== SAFE DATE ===== */
 const getKey = (d) =>
   `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
@@ -23,6 +23,9 @@ export default function Habits({
   weightLogs = [],
   addWeight
 }) {
+  /* ================= SAFE DATA ================= */
+  const safeItems = Array.isArray(items) ? items : [];
+  const safeWeightLogs = Array.isArray(weightLogs) ? weightLogs : [];
 
   const todayKey = getKey(new Date());
 
@@ -31,23 +34,28 @@ export default function Habits({
 
   useEffect(() => {
     if (!hydrated.current) {
-      const saved = localStorage.getItem("habits");
-      if (saved && items.length === 0) {
-        setItems(JSON.parse(saved));
-      }
+      try {
+        const saved = JSON.parse(localStorage.getItem("habits") || "[]");
+        if (saved.length && safeItems.length === 0) {
+          setItems(saved);
+        }
+      } catch {}
       hydrated.current = true;
     }
-  }, [items]);
+  }, [safeItems, setItems]);
 
   useEffect(() => {
-    localStorage.setItem("habits", JSON.stringify(items));
-  }, [items]);
+    localStorage.setItem("habits", JSON.stringify(safeItems));
+  }, [safeItems]);
 
   /* ================= VIEW ================= */
-  const [view, setView] = useState("day"); // day/week/month
+  const [view, setView] = useState("day");
 
   /* ================= HABITS ================= */
-  const habits = items.filter(i => i.type === "habit");
+  const habits = useMemo(
+    () => safeItems.filter(i => i.type === "habit"),
+    [safeItems]
+  );
 
   const completed = habits.filter(h => h.completed?.[todayKey]?.done);
   const pending = habits.filter(h => !h.completed?.[todayKey]?.done);
@@ -64,7 +72,7 @@ export default function Habits({
       ...prev,
       {
         id: crypto.randomUUID(),
-        name,
+        name: name.trim(),
         type: "habit",
         completed: {},
         xp: 0,
@@ -87,7 +95,7 @@ export default function Habits({
             ...h.completed,
             [todayKey]: { done: true }
           },
-          xp: h.xp + 10,
+          xp: (h.xp || 0) + 10,
           streak: (h.streak || 0) + 1
         };
       })
@@ -101,7 +109,7 @@ export default function Habits({
   const editHabit = (id, newName) => {
     setItems(prev =>
       prev.map(h =>
-        h.id === id ? { ...h, name: newName } : h
+        h.id === id ? { ...h, name: newName.trim() } : h
       )
     );
   };
@@ -110,12 +118,15 @@ export default function Habits({
   const [weightInput, setWeightInput] = useState("");
 
   const [goal, setGoal] = useState(() => {
-    const saved = localStorage.getItem("weightGoal");
-    return saved ? JSON.parse(saved) : {
-      start: "",
-      target: "",
-      duration: ""
-    };
+    try {
+      return JSON.parse(localStorage.getItem("weightGoal")) || {
+        start: "",
+        target: "",
+        duration: ""
+      };
+    } catch {
+      return { start: "", target: "", duration: "" };
+    }
   });
 
   useEffect(() => {
@@ -130,9 +141,12 @@ export default function Habits({
     setWeightInput("");
   };
 
-  const sorted = [...weightLogs].sort(
+  const sorted = [...safeWeightLogs].sort(
     (a, b) => new Date(a.date) - new Date(b.date)
   );
+
+  const currentWeight =
+    sorted.length > 0 ? sorted[sorted.length - 1].weight : 0;
 
   const chartData = sorted.map(w => ({
     date: new Date(w.date).toLocaleDateString(),
@@ -142,19 +156,28 @@ export default function Habits({
   const weightPercent = (() => {
     const start = Number(goal.start);
     const target = Number(goal.target);
-    const current = sorted.at(-1)?.weight || start;
+
+    if (!start || !target) return 0;
 
     const total = start - target;
-    const progress = start - current;
+    const progress = start - currentWeight;
 
-    return total > 0 ? Math.min(Math.round((progress / total) * 100), 100) : 0;
+    return total > 0
+      ? Math.min(Math.round((progress / total) * 100), 100)
+      : 0;
   })();
 
   /* ================= AI ================= */
-  const insight = analyzeWeightWithHabits({
-    weightLogs: sorted,
-    habits
-  });
+  let insight = "";
+
+  try {
+    insight = analyzeWeightWithHabits({
+      weightLogs: sorted,
+      habits
+    });
+  } catch (e) {
+    console.error("AI Error:", e);
+  }
 
   /* ================= UI ================= */
   return (
@@ -181,7 +204,7 @@ export default function Habits({
       {/* SUMMARY */}
       <div style={styles.summary}>
         <div>XP: {totalXP}</div>
-        <div>Completed: {completed.length}</div>
+        <div>Done: {completed.length}</div>
       </div>
 
       {/* ADD */}
@@ -192,7 +215,9 @@ export default function Habits({
           placeholder="New habit..."
           onChange={(e) => setName(e.target.value)}
         />
-        <button style={styles.button} onClick={addHabit}>Add</button>
+        <button style={styles.button} onClick={addHabit}>
+          Add
+        </button>
       </div>
 
       {/* PENDING */}
@@ -203,7 +228,7 @@ export default function Habits({
           <motion.div key={h.id} style={styles.habitCard}>
             <div>
               <strong>{h.name}</strong>
-              <p style={styles.meta}>🔥 {h.streak} streak</p>
+              <p style={styles.meta}>🔥 {h.streak || 0}</p>
             </div>
 
             <div style={styles.actions}>
@@ -234,26 +259,14 @@ export default function Habits({
         <h3>⚖️ Weight Goal</h3>
 
         <div style={styles.goalGrid}>
-          <input
-            placeholder="Start"
-            value={goal.start}
-            onChange={(e) =>
-              setGoal({ ...goal, start: e.target.value })
-            }
+          <input placeholder="Start" value={goal.start}
+            onChange={(e) => setGoal({ ...goal, start: e.target.value })}
           />
-          <input
-            placeholder="Target"
-            value={goal.target}
-            onChange={(e) =>
-              setGoal({ ...goal, target: e.target.value })
-            }
+          <input placeholder="Target" value={goal.target}
+            onChange={(e) => setGoal({ ...goal, target: e.target.value })}
           />
-          <input
-            placeholder="Months"
-            value={goal.duration}
-            onChange={(e) =>
-              setGoal({ ...goal, duration: e.target.value })
-            }
+          <input placeholder="Months" value={goal.duration}
+            onChange={(e) => setGoal({ ...goal, duration: e.target.value })}
           />
         </div>
 
