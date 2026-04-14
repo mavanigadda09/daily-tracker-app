@@ -40,7 +40,7 @@ export default function Dashboard({
     }
   }, [user?.name]);
 
-  /* ================= CORE DATA ================= */
+  /* ================= CORE ================= */
   const daily = getDailyData(logs, tasks);
   const heatmap = getHeatmapData(daily);
 
@@ -59,6 +59,7 @@ export default function Dashboard({
 
   /* ================= HABITS ================= */
   const habits = items.filter(i => i.type === "habit");
+  const activities = items.filter(i => i.type === "activity");
 
   const todayKey = new Date().toDateString();
 
@@ -66,7 +67,7 @@ export default function Dashboard({
     h => h.completed?.[todayKey]?.done
   ).length;
 
-  /* ================= PRODUCTIVITY SCORE ================= */
+  /* ================= PRODUCTIVITY ================= */
   const productivity = Math.min(
     100,
     Math.round(
@@ -76,13 +77,83 @@ export default function Dashboard({
     )
   );
 
+  /* ================= INSIGHTS LOGIC ================= */
+
+  // Habit total %
+  const totalStats = useMemo(() => {
+    let total = 0;
+    let completed = 0;
+
+    habits.forEach(h => {
+      Object.values(h.completed || {}).forEach(v => {
+        total++;
+        if (v?.done) completed++;
+      });
+    });
+
+    const percent = total
+      ? Math.round((completed / total) * 100)
+      : 0;
+
+    return { total, completed, percent };
+  }, [habits]);
+
+  // Activity %
+  const activityStats = useMemo(() => {
+    let totalValue = 0;
+    let totalTarget = 0;
+
+    activities.forEach(a => {
+      totalValue += a.value || 0;
+      totalTarget += a.target || 0;
+    });
+
+    const percent = totalTarget
+      ? Math.min(Math.round((totalValue / totalTarget) * 100), 100)
+      : 0;
+
+    return { totalValue, totalTarget, percent };
+  }, [activities]);
+
+  // Dates for streak
+  const dates = useMemo(() => {
+    let arr = [];
+
+    habits.forEach(h => {
+      Object.entries(h.completed || {}).forEach(([d, v]) => {
+        if (v?.done) arr.push(new Date(d));
+      });
+    });
+
+    return arr.sort((a, b) => a - b);
+  }, [habits]);
+
+  const { bestStreak, currentStreak } = useMemo(() => {
+    if (!dates.length) return { bestStreak: 0, currentStreak: 0 };
+
+    let best = 1, current = 1;
+
+    for (let i = 1; i < dates.length; i++) {
+      const diff = (dates[i] - dates[i - 1]) / (1000 * 60 * 60 * 24);
+
+      if (diff === 1) {
+        current++;
+        best = Math.max(best, current);
+      } else {
+        current = 1;
+      }
+    }
+
+    return { bestStreak: best, currentStreak: current };
+  }, [dates]);
+
   /* ================= AI MESSAGE ================= */
   let message = "Keep going 💪";
 
   if (productivity < 20) message = "Start small today 🚀";
-  else if (productivity < 50) message = "Building momentum 👍";
-  else if (productivity < 80) message = "Great progress 🔥";
-  else message = "You're unstoppable 🚀";
+  else if (currentStreak >= 5) message = "🔥 Strong streak!";
+  else if (activityStats.percent < 50) message = "Increase activity 📈";
+  else message = "You're doing great 🚀";
 
   /* ================= CHART ================= */
   const chartData = Object.keys(daily).slice(-7).map(date => ({
@@ -109,7 +180,7 @@ export default function Dashboard({
           </h1>
 
           <div style={styles.badges}>
-            <span style={styles.badge}>🔥 {streak} days</span>
+            <span style={styles.badge}>🔥 {streak}</span>
             <span style={styles.badge}>⚡ {consistency}%</span>
             <span style={styles.badge}>📊 {productivity}%</span>
           </div>
@@ -120,7 +191,7 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* 🔥 ACTIVE TASK */}
+      {/* ACTIVE TASK */}
       {activeTask && (
         <div style={styles.active}>
           🎯 Working on: {activeTask.name}
@@ -134,7 +205,28 @@ export default function Dashboard({
         <Stat label="Focus Time" value={formatTime(totalTime)} />
       </div>
 
-      {/* MINI CHART */}
+      {/* INSIGHTS GRID */}
+      <div style={styles.grid}>
+
+        <Card title="Habits">
+          <Circle value={totalStats.percent} color="#6366f1" />
+        </Card>
+
+        <Card title="🔥 Best Streak">
+          <Big value={bestStreak} color="#22c55e" />
+        </Card>
+
+        <Card title="⚡ Current Streak">
+          <Big value={currentStreak} color="#6366f1" />
+        </Card>
+
+        <Card title="📊 Activities">
+          <Circle value={activityStats.percent} color="#22c55e" />
+        </Card>
+
+      </div>
+
+      {/* CHART */}
       <div style={styles.card}>
         <h3 style={styles.cardTitle}>📈 Last 7 Days</h3>
 
@@ -148,116 +240,68 @@ export default function Dashboard({
         </ResponsiveContainer>
       </div>
 
-      {/* GRID */}
-      <div style={styles.grid}>
-
-        {/* WEIGHT */}
-        {weightData.length > 0 && (
-          <div style={styles.card}>
-            <h3 style={styles.cardTitle}>🏋️ Weight</h3>
-
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={weightData}>
-                <XAxis dataKey="date" stroke="#aaa" />
-                <YAxis stroke="#aaa" />
-                <Tooltip />
-                <Line dataKey="weight" stroke="#22c55e" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {/* AI */}
+      {/* WEIGHT */}
+      {weightData.length > 0 && (
         <div style={styles.card}>
-          <h3 style={styles.cardTitle}>🤖 AI Coach</h3>
-          <p>{message}</p>
-
-          <button
-            style={styles.primaryBtn}
-            onClick={() => navigate("/chat")}
-          >
-            Open Chat
-          </button>
+          <h3 style={styles.cardTitle}>🏋️ Weight</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={weightData}>
+              <XAxis dataKey="date" stroke="#aaa" />
+              <YAxis stroke="#aaa" />
+              <Tooltip />
+              <Line dataKey="weight" stroke="#22c55e" />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
+      )}
+
+      {/* AI */}
+      <div style={styles.card}>
+        <h3 style={styles.cardTitle}>🤖 AI Coach</h3>
+        <p>{message}</p>
       </div>
 
     </motion.div>
   );
 }
 
-/* ===== COMPONENT ===== */
-function Stat({ label, value }) {
-  return (
-    <div style={styles.statCard}>
-      <h3>{value}</h3>
-      <p>{label}</p>
-    </div>
-  );
-}
+/* ===== COMPONENTS ===== */
+const Stat = ({ label, value }) => (
+  <div style={styles.statCard}>
+    <h3>{value}</h3>
+    <p>{label}</p>
+  </div>
+);
+
+const Card = ({ title, children }) => (
+  <div style={styles.card}>
+    <h3 style={styles.cardTitle}>{title}</h3>
+    {children}
+  </div>
+);
+
+const Circle = ({ value, color }) => (
+  <div style={{ ...styles.circle, border: `8px solid ${color}` }}>
+    {value}%
+  </div>
+);
+
+const Big = ({ value, color }) => (
+  <div style={{ fontSize: 40, color }}>{value}</div>
+);
 
 /* ===== STYLES ===== */
 const styles = {
   container:{padding:24,color:"#fff"},
-
-  title:{color:"#facc15"},
-
-  header:{
-    display:"flex",
-    justifyContent:"space-between"
-  },
-
+  header:{display:"flex",justifyContent:"space-between"},
   profile:{cursor:"pointer"},
-
-  badges:{display:"flex",gap:10,marginTop:8},
-
-  badge:{
-    background:"rgba(250,204,21,0.15)",
-    padding:"6px 12px",
-    borderRadius:20,
-    fontSize:12
-  },
-
-  active:{
-    marginTop:15,
-    padding:12,
-    background:"#022c22",
-    borderRadius:10
-  },
-
-  stats:{
-    display:"flex",
-    gap:16,
-    marginTop:20
-  },
-
-  statCard:{
-    flex:1,
-    padding:16,
-    background:"#020617",
-    borderRadius:12,
-    textAlign:"center"
-  },
-
-  grid:{
-    marginTop:20,
-    display:"grid",
-    gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",
-    gap:20
-  },
-
-  card:{
-    padding:20,
-    background:"#020617",
-    borderRadius:16
-  },
-
+  badges:{display:"flex",gap:10},
+  badge:{background:"#111",padding:"6px 10px",borderRadius:10},
+  active:{marginTop:15,padding:12,background:"#022c22",borderRadius:10},
+  stats:{display:"flex",gap:16,marginTop:20},
+  statCard:{flex:1,padding:16,background:"#020617",borderRadius:12,textAlign:"center"},
+  grid:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:20,marginTop:20},
+  card:{padding:20,background:"#020617",borderRadius:16},
   cardTitle:{color:"#facc15"},
-
-  primaryBtn:{
-    marginTop:10,
-    padding:"10px 16px",
-    background:"linear-gradient(135deg,#facc15,#f97316)",
-    border:"none",
-    borderRadius:10
-  }
+  circle:{width:100,height:100,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",margin:"auto"},
 };

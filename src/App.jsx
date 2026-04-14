@@ -5,7 +5,7 @@ import Dashboard from "./Dashboard";
 import Analytics from "./Analytics";
 import Tasks from "./Tasks";
 import Habits from "./Habits";
-import Insights from "./Insights";
+// ❌ Insights REMOVED
 import Goals from "./Goals";
 import Activities from "./Activities";
 import Profile from "./Profile";
@@ -27,9 +27,15 @@ import { NotificationProvider } from "./context/NotificationContext";
 import ReminderSystem from "./system/ReminderSystem";
 import HabitReminderSystem from "./system/HabitReminderSystem";
 
+/* ================= GLOBAL FIX ================= */
+// 🛡️ Prevent iOS Notification crash
+if (typeof window !== "undefined" && !("Notification" in window)) {
+  window.Notification = function () {};
+}
+
 export default function App() {
 
-  // ===== THEME =====
+  /* ===== THEME ===== */
   const [theme, setTheme] = useState(
     () => localStorage.getItem("theme") || "dark"
   );
@@ -39,7 +45,7 @@ export default function App() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  // ===== AUTH =====
+  /* ===== AUTH ===== */
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
@@ -57,7 +63,7 @@ export default function App() {
     window.location.href = "/login";
   };
 
-  // ===== USER =====
+  /* ===== USER ===== */
   const [user, setUser] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("user")) || null;
@@ -71,7 +77,7 @@ export default function App() {
     setUser(userData);
   };
 
-  // ===== DATA =====
+  /* ===== DATA ===== */
   const [items, setItems] = useState([]);
   const [goal, setGoal] = useState({});
   const [weightLogs, setWeightLogs] = useState([]);
@@ -83,10 +89,9 @@ export default function App() {
 
   const [initialLoad, setInitialLoad] = useState(true);
 
-  // 🔥 CRITICAL FIX FLAG
   const isLocalUpdate = useRef(false);
 
-  // ===== LOAD DATA =====
+  /* ===== LOAD DATA ===== */
   useEffect(() => {
     if (!firebaseUser) return;
 
@@ -107,13 +112,12 @@ export default function App() {
     fetchData();
   }, [firebaseUser]);
 
-  // ===== REALTIME SYNC (FIXED) =====
+  /* ===== REALTIME SYNC ===== */
   useEffect(() => {
     if (!firebaseUser) return;
 
     const unsub = subscribeToData((data) => {
 
-      // ❌ prevent overwrite after local changes
       if (isLocalUpdate.current) return;
 
       setItems(data.items || []);
@@ -131,25 +135,22 @@ export default function App() {
     return () => unsub && unsub();
   }, [firebaseUser]);
 
-  // ===== SAFE SETTERS =====
+  /* ===== SAFE SETTERS ===== */
   const safeSetItems = (updater) => {
     isLocalUpdate.current = true;
 
     setItems(prev => {
-      const updated = typeof updater === "function"
-        ? updater(prev)
-        : updater;
-
+      const updated =
+        typeof updater === "function" ? updater(prev) : updater;
       return updated;
     });
 
-    // reset flag after short delay
     setTimeout(() => {
       isLocalUpdate.current = false;
     }, 300);
   };
 
-  // ===== SAVE DATA =====
+  /* ===== SAVE DATA ===== */
   useEffect(() => {
     if (!firebaseUser || initialLoad) return;
 
@@ -211,6 +212,7 @@ export default function App() {
             }
           >
 
+            {/* ✅ MAIN DASHBOARD (INSIGHTS MERGED) */}
             <Route index element={
               <Dashboard
                 logs={logs}
@@ -238,14 +240,12 @@ export default function App() {
               />
             }/>
 
-            <Route path="weight" element={<Weight weightLogs={weightLogs} />} />
+            <Route path="weight" element={
+              <Weight weightLogs={weightLogs} />
+            }/>
 
-            {/* 🔥 FIXED PASS */}
             <Route path="habits" element={
-              <Habits
-                items={items}
-                setItems={safeSetItems} // ✅ IMPORTANT
-              />
+              <Habits items={items} setItems={safeSetItems} />
             }/>
 
             <Route path="tasks" element={
@@ -256,8 +256,12 @@ export default function App() {
               <Activities items={items} setItems={safeSetItems} />
             }/>
 
-            <Route path="analytics" element={<Analytics logs={logs} />} />
-            <Route path="insights" element={<Insights items={items} />} />
+            <Route path="analytics" element={
+              <Analytics logs={logs} tasks={tasks} user={user} />
+            }/>
+
+            {/* ❌ INSIGHTS ROUTE REMOVED */}
+
             <Route path="goals" element={<Goals />} />
             <Route path="profile" element={<Profile user={user} />} />
 
