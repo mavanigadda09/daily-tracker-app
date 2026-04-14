@@ -31,6 +31,7 @@ export default function Dashboard({
   items = [],
   tasks = []
 }) {
+
   const navigate = useNavigate();
   const { showNotification } = useNotification();
 
@@ -77,9 +78,8 @@ export default function Dashboard({
     )
   );
 
-  /* ================= INSIGHTS LOGIC ================= */
+  /* ================= INSIGHTS ================= */
 
-  // Habit total %
   const totalStats = useMemo(() => {
     let total = 0;
     let completed = 0;
@@ -91,14 +91,11 @@ export default function Dashboard({
       });
     });
 
-    const percent = total
-      ? Math.round((completed / total) * 100)
-      : 0;
-
-    return { total, completed, percent };
+    return {
+      percent: total ? Math.round((completed / total) * 100) : 0
+    };
   }, [habits]);
 
-  // Activity %
   const activityStats = useMemo(() => {
     let totalValue = 0;
     let totalTarget = 0;
@@ -108,50 +105,18 @@ export default function Dashboard({
       totalTarget += a.target || 0;
     });
 
-    const percent = totalTarget
-      ? Math.min(Math.round((totalValue / totalTarget) * 100), 100)
-      : 0;
-
-    return { totalValue, totalTarget, percent };
+    return {
+      percent: totalTarget
+        ? Math.min(Math.round((totalValue / totalTarget) * 100), 100)
+        : 0
+    };
   }, [activities]);
-
-  // Dates for streak
-  const dates = useMemo(() => {
-    let arr = [];
-
-    habits.forEach(h => {
-      Object.entries(h.completed || {}).forEach(([d, v]) => {
-        if (v?.done) arr.push(new Date(d));
-      });
-    });
-
-    return arr.sort((a, b) => a - b);
-  }, [habits]);
-
-  const { bestStreak, currentStreak } = useMemo(() => {
-    if (!dates.length) return { bestStreak: 0, currentStreak: 0 };
-
-    let best = 1, current = 1;
-
-    for (let i = 1; i < dates.length; i++) {
-      const diff = (dates[i] - dates[i - 1]) / (1000 * 60 * 60 * 24);
-
-      if (diff === 1) {
-        current++;
-        best = Math.max(best, current);
-      } else {
-        current = 1;
-      }
-    }
-
-    return { bestStreak: best, currentStreak: current };
-  }, [dates]);
 
   /* ================= AI MESSAGE ================= */
   let message = "Keep going 💪";
 
   if (productivity < 20) message = "Start small today 🚀";
-  else if (currentStreak >= 5) message = "🔥 Strong streak!";
+  else if (streak >= 5) message = "🔥 Strong streak!";
   else if (activityStats.percent < 50) message = "Increase activity 📈";
   else message = "You're doing great 🚀";
 
@@ -191,10 +156,10 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* ACTIVE TASK */}
+      {/* 🎯 ACTIVE TASK */}
       {activeTask && (
         <div style={styles.active}>
-          🎯 Working on: {activeTask.name}
+          🎯 Focus Mode: {activeTask.name}
         </div>
       )}
 
@@ -205,22 +170,28 @@ export default function Dashboard({
         <Stat label="Focus Time" value={formatTime(totalTime)} />
       </div>
 
-      {/* INSIGHTS GRID */}
+      {/* 🔥 QUICK PANELS */}
       <div style={styles.grid}>
 
-        <Card title="Habits">
+        <Card title="📋 Tasks">
+          {tasks.slice(0, 3).map(t => (
+            <p key={t.id}>{t.name}</p>
+          ))}
+          <button onClick={() => navigate("/tasks")}>Open →</button>
+        </Card>
+
+        <Card title="🔥 Habits">
+          {habits.slice(0, 3).map(h => (
+            <p key={h.id}>{h.name}</p>
+          ))}
+          <button onClick={() => navigate("/habits")}>Open →</button>
+        </Card>
+
+        <Card title="📊 Habits">
           <Circle value={totalStats.percent} color="#6366f1" />
         </Card>
 
-        <Card title="🔥 Best Streak">
-          <Big value={bestStreak} color="#22c55e" />
-        </Card>
-
-        <Card title="⚡ Current Streak">
-          <Big value={currentStreak} color="#6366f1" />
-        </Card>
-
-        <Card title="📊 Activities">
+        <Card title="📈 Activities">
           <Circle value={activityStats.percent} color="#22c55e" />
         </Card>
 
@@ -229,7 +200,6 @@ export default function Dashboard({
       {/* CHART */}
       <div style={styles.card}>
         <h3 style={styles.cardTitle}>📈 Last 7 Days</h3>
-
         <ResponsiveContainer width="100%" height={180}>
           <LineChart data={chartData}>
             <XAxis dataKey="date" stroke="#aaa" />
@@ -284,10 +254,6 @@ const Circle = ({ value, color }) => (
   <div style={{ ...styles.circle, border: `8px solid ${color}` }}>
     {value}%
   </div>
-);
-
-const Big = ({ value, color }) => (
-  <div style={{ fontSize: 40, color }}>{value}</div>
 );
 
 /* ===== STYLES ===== */
