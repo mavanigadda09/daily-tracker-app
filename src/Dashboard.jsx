@@ -1,17 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo } from "react";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid
+  LineChart, Line, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid
 } from "recharts";
 import { useNotification } from "./context/NotificationContext.jsx";
 import { motion } from "framer-motion";
-
 import { theme } from "./theme";
 
 import {
@@ -21,11 +15,16 @@ import {
   getStreak
 } from "./ai/utils.js";
 
-/* ===== UTIL ===== */
+/* ===== SAFE ===== */
+const safeArray = (v) => (Array.isArray(v) ? v : []);
+
 const formatTime = (sec = 0) => {
   const m = Math.floor(sec / 60);
   return m ? `${m}m` : `${sec}s`;
 };
+
+const getKey = (d) =>
+  `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
 export default function Dashboard({
   logs = {},
@@ -38,6 +37,11 @@ export default function Dashboard({
   const navigate = useNavigate();
   const { showNotification } = useNotification();
 
+  /* ================= SAFE DATA ================= */
+  const safeTasks = safeArray(tasks);
+  const safeItems = safeArray(items);
+  const safeWeight = safeArray(weightLogs);
+
   useEffect(() => {
     if (user?.name) {
       showNotification(`Welcome back, ${user.name} 🚀`, "success");
@@ -45,27 +49,27 @@ export default function Dashboard({
   }, [user?.name]);
 
   /* ================= CORE ================= */
-  const daily = getDailyData(logs, tasks);
+  const daily = getDailyData(logs, safeTasks);
   const heatmap = getHeatmapData(daily);
 
   const streak = getStreak(heatmap);
   const consistency = getConsistencyScore(heatmap);
 
   /* ================= TASKS ================= */
-  const activeTask = tasks.find(t => t.status === "running");
+  const activeTask = safeTasks.find(t => t.status === "running");
 
-  const totalTime = tasks.reduce(
+  const totalTime = safeTasks.reduce(
     (sum, t) => sum + (t.totalDuration || 0),
     0
   );
 
-  const completedTasks = tasks.filter(t => t.completed).length;
+  const completedTasks = safeTasks.filter(t => t.completed).length;
 
   /* ================= HABITS ================= */
-  const habits = items.filter(i => i.type === "habit");
-  const activities = items.filter(i => i.type === "activity");
+  const habits = safeItems.filter(i => i.type === "habit");
+  const activities = safeItems.filter(i => i.type === "activity");
 
-  const todayKey = new Date().toDateString();
+  const todayKey = getKey(new Date());
 
   const completedHabits = habits.filter(
     h => h.completed?.[todayKey]?.done
@@ -75,52 +79,48 @@ export default function Dashboard({
   const productivity = Math.min(
     100,
     Math.round(
-      (completedTasks / (tasks.length || 1)) * 40 +
+      (completedTasks / (safeTasks.length || 1)) * 40 +
       (completedHabits / (habits.length || 1)) * 40 +
       consistency * 20
     )
   );
 
   /* ================= INSIGHTS ================= */
-  const totalStats = useMemo(() => {
+  const habitsPercent = useMemo(() => {
     let total = 0;
-    let completed = 0;
+    let done = 0;
 
     habits.forEach(h => {
       Object.values(h.completed || {}).forEach(v => {
         total++;
-        if (v?.done) completed++;
+        if (v?.done) done++;
       });
     });
 
-    return {
-      percent: total ? Math.round((completed / total) * 100) : 0
-    };
+    return total ? Math.round((done / total) * 100) : 0;
   }, [habits]);
 
-  const activityStats = useMemo(() => {
-    let totalValue = 0;
-    let totalTarget = 0;
+  const activityPercent = useMemo(() => {
+    let val = 0;
+    let target = 0;
 
     activities.forEach(a => {
-      totalValue += a.value || 0;
-      totalTarget += a.target || 0;
+      val += a.value || 0;
+      target += a.target || 0;
     });
 
-    return {
-      percent: totalTarget
-        ? Math.min(Math.round((totalValue / totalTarget) * 100), 100)
-        : 0
-    };
+    return target
+      ? Math.min(Math.round((val / target) * 100), 100)
+      : 0;
   }, [activities]);
 
   /* ================= AI ================= */
   let message = "Keep going 💪";
 
   if (productivity < 20) message = "Start small today 🚀";
-  else if (streak >= 5) message = "🔥 Strong streak!";
-  else if (activityStats.percent < 50) message = "Increase activity 📈";
-  else message = "You're doing great 🚀";
+  else if (streak >= 7) message = "🔥 You're on fire!";
+  else if (activityPercent < 50) message = "Increase activity 📈";
+  else message = "Great consistency 🚀";
 
   /* ================= CHART ================= */
   const chartData = Object.keys(daily).slice(-7).map(date => ({
@@ -128,14 +128,12 @@ export default function Dashboard({
     value: daily[date]
   }));
 
-  const weightData = useMemo(() => {
-    if (!Array.isArray(weightLogs)) return [];
-    return weightLogs.map(w => ({
-      date: new Date(w.date).toLocaleDateString(),
-      weight: Number(w.weight || 0)
-    }));
-  }, [weightLogs]);
+  const weightData = safeWeight.map(w => ({
+    date: new Date(w.date).toLocaleDateString(),
+    weight: Number(w.weight || 0)
+  }));
 
+  /* ================= UI ================= */
   return (
     <motion.div style={styles.container}>
 
@@ -147,9 +145,9 @@ export default function Dashboard({
           </h1>
 
           <div style={styles.badges}>
-            <span style={styles.badge}>🔥 {streak}</span>
-            <span style={styles.badge}>⚡ {consistency}%</span>
-            <span style={styles.badge}>📊 {productivity}%</span>
+            <Badge label="🔥" value={streak} />
+            <Badge label="⚡" value={`${consistency}%`} />
+            <Badge label="📊" value={`${productivity}%`} />
           </div>
         </div>
 
@@ -160,9 +158,9 @@ export default function Dashboard({
 
       {/* ACTIVE TASK */}
       {activeTask && (
-        <div style={styles.active}>
-          🎯 Focus Mode: {activeTask.name}
-        </div>
+        <motion.div style={styles.active} initial={{ scale: 0.95 }} animate={{ scale: 1 }}>
+          🎯 Focus: <strong>{activeTask.name}</strong>
+        </motion.div>
       )}
 
       {/* STATS */}
@@ -176,7 +174,7 @@ export default function Dashboard({
       <div style={styles.grid}>
 
         <Card title="📋 Tasks">
-          {tasks.slice(0, 3).map(t => (
+          {safeTasks.slice(0, 3).map(t => (
             <p key={t.id}>{t.name}</p>
           ))}
           <button style={styles.button} onClick={() => navigate("/tasks")}>
@@ -193,51 +191,48 @@ export default function Dashboard({
           </button>
         </Card>
 
-        <Card title="📊 Habits">
-          <Circle value={totalStats.percent} />
+        <Card title="📊 Habit Score">
+          <Circle value={habitsPercent} />
         </Card>
 
-        <Card title="📈 Activities">
-          <Circle value={activityStats.percent} />
+        <Card title="📈 Activity Score">
+          <Circle value={activityPercent} />
         </Card>
 
       </div>
 
       {/* CHART */}
-      <div style={styles.card}>
-        <h3 style={styles.cardTitle}>📈 Last 7 Days</h3>
+      <Card title="📈 Last 7 Days">
         <ResponsiveContainer width="100%" height={180}>
           <LineChart data={chartData}>
             <XAxis stroke={theme.colors.textMuted} dataKey="date" />
             <YAxis stroke={theme.colors.textMuted} />
             <CartesianGrid stroke={theme.colors.border} />
             <Tooltip />
-            <Line dataKey="value" stroke={theme.colors.chartPrimary} />
+            <Line dataKey="value" stroke={theme.colors.primary} />
           </LineChart>
         </ResponsiveContainer>
-      </div>
+      </Card>
 
       {/* WEIGHT */}
       {weightData.length > 0 && (
-        <div style={styles.card}>
-          <h3 style={styles.cardTitle}>🏋️ Weight</h3>
+        <Card title="🏋️ Weight Progress">
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={weightData}>
               <XAxis stroke={theme.colors.textMuted} dataKey="date" />
               <YAxis stroke={theme.colors.textMuted} />
               <CartesianGrid stroke={theme.colors.border} />
               <Tooltip />
-              <Line dataKey="weight" stroke={theme.colors.chartSecondary} />
+              <Line dataKey="weight" stroke={theme.colors.primary} />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+        </Card>
       )}
 
       {/* AI */}
-      <div style={styles.card}>
-        <h3 style={styles.cardTitle}>🤖 AI Coach</h3>
+      <Card title="🤖 AI Coach">
         <p style={{ color: theme.colors.textMuted }}>{message}</p>
-      </div>
+      </Card>
 
     </motion.div>
   );
@@ -246,9 +241,15 @@ export default function Dashboard({
 /* ===== COMPONENTS ===== */
 const Stat = ({ label, value }) => (
   <div style={styles.statCard}>
-    <h3>{value}</h3>
+    <h2>{value}</h2>
     <p style={{ color: theme.colors.textMuted }}>{label}</p>
   </div>
+);
+
+const Badge = ({ label, value }) => (
+  <span style={styles.badge}>
+    {label} {value}
+  </span>
 );
 
 const Card = ({ title, children }) => (
@@ -274,7 +275,7 @@ const styles = {
 
   profile: { cursor: "pointer" },
 
-  badges: { display: "flex", gap: 10 },
+  badges: { display: "flex", gap: 10, marginTop: 8 },
 
   badge: {
     background: theme.colors.surface,
@@ -285,9 +286,9 @@ const styles = {
 
   active: {
     marginTop: 15,
-    padding: 12,
-    background: theme.colors.surface,
-    borderRadius: 10
+    padding: 14,
+    borderRadius: 12,
+    background: "linear-gradient(135deg,#22c55e33,#0f172a)"
   },
 
   stats: { display: "flex", gap: 16, marginTop: 20 },
@@ -311,12 +312,11 @@ const styles = {
     padding: 20,
     background: theme.colors.surface,
     borderRadius: 16,
-    border: `1px solid ${theme.colors.border}`
+    border: `1px solid ${theme.colors.border}`,
+    marginTop: 20
   },
 
-  cardTitle: {
-    color: theme.colors.primary
-  },
+  cardTitle: { color: theme.colors.primary },
 
   circle: {
     width: 100,

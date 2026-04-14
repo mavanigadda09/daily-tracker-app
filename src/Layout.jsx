@@ -14,6 +14,8 @@ import {
   Wallet
 } from "lucide-react";
 
+import { theme as themeVars } from "./theme";
+
 export default function Layout({ user, onLogout, theme, setTheme }) {
 
   const location = useLocation();
@@ -36,25 +38,13 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
   };
 
   return (
-    <div
-      style={{
-        ...styles.container,
-        background:
-          theme === "dark"
-            ? "radial-gradient(circle at top, #0f172a, #020617)"
-            : "#f8fafc",
-        color: theme === "dark" ? "#fff" : "#000"
-      }}
-    >
+    <div style={styles.container}>
 
       {/* SIDEBAR */}
       <motion.aside
         animate={{ width: collapsed ? 70 : 240 }}
         transition={{ duration: 0.25 }}
-        style={{
-          ...styles.sidebar,
-          background: theme === "dark" ? "#020617" : "#ffffff"
-        }}
+        style={styles.sidebar}
       >
 
         {/* TOP */}
@@ -71,34 +61,31 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
                     e.target.style.display = "none";
                   }}
                 />
-                <h2 style={{
-                  ...styles.logoText,
-                  color: theme === "dark" ? "#facc15" : "#f59e0b"
-                }}>
-                  Tracker
-                </h2>
+                <h2 style={styles.logoText}>Tracker</h2>
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={styles.iconGroup}>
 
               {/* THEME */}
-              <button
+              <motion.button
+                whileTap={{ scale: 0.9 }}
                 style={styles.iconBtn}
                 onClick={() =>
                   setTheme(prev => prev === "dark" ? "light" : "dark")
                 }
               >
                 {theme === "dark" ? "🌞" : "🌙"}
-              </button>
+              </motion.button>
 
               {/* MENU */}
-              <button
+              <motion.button
+                whileTap={{ scale: 0.9 }}
                 style={styles.iconBtn}
                 onClick={() => setCollapsed(prev => !prev)}
               >
                 <Menu size={18} />
-              </button>
+              </motion.button>
 
             </div>
           </div>
@@ -115,7 +102,6 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
                   to={item.path}
                   style={{
                     ...styles.link,
-                    color: theme === "dark" ? "#94a3b8" : "#334155",
                     ...(active ? styles.active : {})
                   }}
                 >
@@ -132,16 +118,10 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
         <div style={styles.bottom}>
 
           {!collapsed && (
-            <div style={{
-              ...styles.userBox,
-              background: theme === "dark" ? "#0f172a" : "#f1f5f9"
-            }}>
+            <div style={styles.userBox}>
               <div style={styles.avatar}>👤</div>
               <div>
-                <p style={{
-                  ...styles.userName,
-                  color: theme === "dark" ? "#fff" : "#000"
-                }}>
+                <p style={styles.userName}>
                   {user?.name || "User"}
                 </p>
                 <p style={styles.userSub}>Active</p>
@@ -158,21 +138,26 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
       </motion.aside>
 
       {/* MAIN */}
-      <main style={styles.main}>
+      <motion.main
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        style={styles.main}
+      >
         <Outlet />
-      </main>
+      </motion.main>
 
     </div>
   );
 }
-
 
 /* ================= STYLES ================= */
 
 const styles = {
   container: {
     display: "flex",
-    minHeight: "100vh"
+    minHeight: "100vh",
+    background: "var(--bg)",
+    color: "var(--text)"
   },
 
   sidebar: {
@@ -180,7 +165,8 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
-    borderRight: "1px solid rgba(250,204,21,0.15)"
+    borderRight: "1px solid var(--border)",
+    background: "var(--sidebar)"
   },
 
   topRow: {
@@ -198,19 +184,24 @@ const styles = {
 
   logoImg: {
     width: 36,
-    height: 36,
-    objectFit: "contain"
+    height: 36
   },
 
   logoText: {
     margin: 0,
-    fontWeight: 600
+    fontWeight: 600,
+    color: "var(--accent)"
+  },
+
+  iconGroup: {
+    display: "flex",
+    gap: 8
   },
 
   iconBtn: {
-    background: "#0f172a",
-    border: "none",
-    color: "#fff",
+    background: "var(--card)",
+    border: "1px solid var(--border)",
+    color: "var(--text)",
     cursor: "pointer",
     padding: 6,
     borderRadius: 8
@@ -229,12 +220,14 @@ const styles = {
     gap: 12,
     padding: "10px 14px",
     borderRadius: 10,
-    textDecoration: "none"
+    textDecoration: "none",
+    color: "var(--text-muted)",
+    transition: "0.2s"
   },
 
   active: {
-    background: "rgba(250,204,21,0.15)",
-    color: "#facc15"
+    background: "var(--card-hover)",
+    color: "var(--accent)"
   },
 
   activeBar: {
@@ -244,7 +237,7 @@ const styles = {
     bottom: 8,
     width: 4,
     borderRadius: 4,
-    background: "#facc15"
+    background: "var(--accent)"
   },
 
   bottom: {
@@ -258,14 +251,15 @@ const styles = {
     alignItems: "center",
     gap: 10,
     padding: 10,
-    borderRadius: 12
+    borderRadius: 12,
+    background: "var(--card)"
   },
 
   avatar: {
     width: 36,
     height: 36,
     borderRadius: "50%",
-    background: "#facc15",
+    background: "var(--accent)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center"
@@ -279,14 +273,14 @@ const styles = {
   userSub: {
     margin: 0,
     fontSize: 12,
-    color: "#94a3b8"
+    color: "var(--text-muted)"
   },
 
   logout: {
     padding: 10,
     borderRadius: 10,
     border: "none",
-    background: "#ef4444",
+    background: "var(--danger)",
     color: "#fff",
     cursor: "pointer"
   },
@@ -294,7 +288,7 @@ const styles = {
   main: {
     flex: 1,
     padding: 24,
-    background: "inherit",
-    color: "inherit"
+    background: "var(--bg)",
+    color: "var(--text)"
   }
 };

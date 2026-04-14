@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import OpenAI from "openai";
+import fs from "fs";
 
 dotenv.config();
 
@@ -9,53 +10,146 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+/* ================= OPENAI ================= */
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// 🧠 IN-MEMORY STORE (replace with DB later)
-const userMemory = {};
+/* ================= MEMORY STORAGE ================= */
+const MEMORY_FILE = "./memory.json";
 
+const loadMemory = () => {
+  try {
+    return JSON.parse(fs.readFileSync(MEMORY_FILE, "utf-8"));
+  } catch {
+    return {};
+  }
+};
+
+const saveMemory = (data) => {
+  fs.writeFileSync(MEMORY_FILE, JSON.stringify(data, null, 2));
+};
+
+let userMemory = loadMemory();
+
+/* ================= SAFE JSON PARSER ================= */
+const safeParse = (text) => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    try {
+      // Attempt to extract JSON
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) return JSON.parse(match[0]);
+    } catch {}
+    return {
+      type: "message",
+      message: text || "AI response error"
+    };
+  }
+};
+
+/* ================= DEEP MERGE ================= */
+const deepMerge = (target, source) => {
+  const output = { ...target };
+
+  for (const key in source) {
+    if (
+      typeof source[key] === "object" &&
+      source[key] !== null &&
+      !Array.isArray(source[key])
+    ) {
+      output[key] = deepMerge(target[key] || {}, source[key]);
+    } else {
+      output[key] = source[key];
+    }
+  }
+
+  return output;
+};
+
+/* ================= RETRY ================= */
+const callOpenAI = async (messages, retries = 2) => {
+  try {
+    return await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages
+    });
+  } catch (err) {
+    if (retries > 0) {
+      console.log("Retrying OpenAI...");
+      return callOpenAI(messages, retries - 1);
+    }
+    throw err;
+  }
+};
+
+/* ================= RATE LIMIT (BASIC) ================= */
+const requests = {};
+
+const isRateLimited = (userId) => {
+  const now = Date.now();
+
+  if (!requests[userId]) {
+    requests[userId] = [];
+  }
+
+  requests[userId] = requests[userId].filter(
+    (t) => now - t < 60000
+  );
+
+  if (requests[userId].length > 20) return true;
+
+  requests[userId].push(now);
+  return false;
+};
+
+/* ================= ROUTE ================= */
 app.post("/ai", async (req, res) => {
   try {
     const { message, context, userId = "default" } = req.body;
 
-    // 🧠 LOAD MEMORY
+    if (!message) {
+      return res.status(400).json({
+        type: "message",
+        message: "Message required"
+      });
+    }
+
+    if (isRateLimited(userId)) {
+      return res.status(429).json({
+        type: "message",
+        message: "Too many requests"
+      });
+    }
+
+    /* ================= LOAD MEMORY ================= */
     const memory = userMemory[userId] || {
       history: [],
       preferences: {},
       patterns: {}
     };
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `
+    /* ================= AI CALL ================= */
+    const completion = await callOpenAI([
+      {
+        role: "system",
+        content: `
 You are an AI productivity + fitness coach.
 
-IMPORTANT:
-- Always return ONLY valid JSON
-- No extra text outside JSON
+RULES:
+- ONLY return valid JSON
+- No extra text
 
-Supported actions:
-- add_habit
-- add_task
-- complete_habit
-- generate_schedule
-- analyze
-
-You MUST:
-- Learn user behavior
-- Use memory for personalization
+Actions:
+add_habit, add_task, complete_habit, generate_schedule, analyze
 
 Format:
 {
   "type": "action" | "message",
-  "action": "add_task",
+  "action": "",
   "data": {},
-  "message": "text",
+  "message": "",
   "memory_update": {
     "preferences": {},
     "patterns": {}
@@ -68,36 +162,23 @@ ${JSON.stringify(memory)}
 User Data:
 ${JSON.stringify(context)}
 `
-        },
-        {
-          role: "user",
-          content: message
-        }
-      ]
-    });
+      },
+      {
+        role: "user",
+        content: message
+      }
+    ]);
 
     const raw = completion.choices[0].message.content;
 
-    let parsed;
+    const parsed = safeParse(raw);
 
-    try {
-      parsed = JSON.parse(raw);
-    } catch (e) {
-      parsed = {
-        type: "message",
-        message: raw || "AI response failed"
-      };
-    }
-
-    // 🧠 UPDATE MEMORY
+    /* ================= MEMORY UPDATE ================= */
     if (parsed.memory_update) {
-      userMemory[userId] = {
-        ...memory,
-        ...parsed.memory_update
-      };
+      userMemory[userId] = deepMerge(memory, parsed.memory_update);
     }
 
-    // 🧠 SAVE HISTORY (last 20 messages)
+    /* ================= SAVE HISTORY ================= */
     userMemory[userId] = {
       ...userMemory[userId],
       history: [
@@ -105,6 +186,8 @@ ${JSON.stringify(context)}
         { message, timestamp: Date.now() }
       ].slice(-20)
     };
+
+    saveMemory(userMemory);
 
     res.json(parsed);
 
@@ -118,6 +201,7 @@ ${JSON.stringify(context)}
   }
 });
 
+/* ================= START ================= */
 app.listen(5000, () => {
   console.log("🚀 AI Server running on http://localhost:5000");
 });

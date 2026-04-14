@@ -5,20 +5,27 @@ import "./index.css";
 import App from "./App.jsx";
 import ErrorBoundary from "./ErrorBoundary";
 
-// ✅ GLOBAL PROVIDERS
-import { NotificationProvider } from "./context/NotificationContext";
+/* ================= ROOT ================= */
+const rootElement = document.getElementById("root");
 
-const root = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("Root element not found");
+}
 
-createRoot(root).render(
+/* ================= THEME INIT ================= */
+// Apply theme BEFORE React loads (prevents flicker)
+try {
+  const savedTheme = localStorage.getItem("theme") || "dark";
+  document.body.setAttribute("data-theme", savedTheme);
+} catch (e) {
+  console.warn("Theme load failed");
+}
+
+/* ================= RENDER ================= */
+createRoot(rootElement).render(
   <StrictMode>
     <ErrorBoundary>
-
-      {/* 🌍 GLOBAL CONTEXT */}
-      <NotificationProvider>
-        <App />
-      </NotificationProvider>
-
+      <App />
     </ErrorBoundary>
   </StrictMode>
 );

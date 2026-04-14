@@ -25,31 +25,27 @@ import { NotificationProvider } from "./context/NotificationContext";
 import ReminderSystem from "./system/ReminderSystem";
 import HabitReminderSystem from "./system/HabitReminderSystem";
 
-/* ================= GLOBAL FIX ================= */
+/* ================= SAFE NOTIFICATION FIX ================= */
 if (typeof window !== "undefined" && !("Notification" in window)) {
   window.Notification = function () {};
 }
 
+/* ================= SAFE ARRAY HELPER ================= */
+const safeArray = (v) => (Array.isArray(v) ? v : []);
+
 export default function App() {
 
-  /* ===== THEME ===== */
+  /* ================= THEME ================= */
   const [theme, setTheme] = useState(
     () => localStorage.getItem("theme") || "dark"
   );
 
-  // ✅ APPLY THEME GLOBALLY (FIXED)
   useEffect(() => {
     document.body.setAttribute("data-theme", theme);
-    document.body.style.background =
-      theme === "dark" ? "#020617" : "#f8fafc";
-
-    document.body.style.color =
-      theme === "dark" ? "#ffffff" : "#000000";
-
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  /* ===== AUTH ===== */
+  /* ================= AUTH ================= */
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
@@ -67,7 +63,7 @@ export default function App() {
     window.location.href = "/login";
   };
 
-  /* ===== USER ===== */
+  /* ================= USER ================= */
   const [user, setUser] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("user")) || null;
@@ -81,20 +77,20 @@ export default function App() {
     setUser(userData);
   };
 
-  /* ===== DATA ===== */
+  /* ================= DATA ================= */
   const [items, setItems] = useState([]);
-  const [goal, setGoal] = useState({});
+  const [tasks, setTasks] = useState([]);
   const [weightLogs, setWeightLogs] = useState([]);
   const [weightGoal, setWeightGoal] = useState(null);
   const [logs, setLogs] = useState({});
-  const [tasks, setTasks] = useState([]);
+  const [goal, setGoal] = useState({});
   const [financeData, setFinanceData] = useState([]);
   const [chatHistory, setChatHistory] = useState([]);
 
-  const [initialLoad, setInitialLoad] = useState(true);
   const isLocalUpdate = useRef(false);
+  const initialLoad = useRef(true);
 
-  /* ===== LOAD DATA ===== */
+  /* ================= LOAD DATA ================= */
   useEffect(() => {
     if (!firebaseUser) return;
 
@@ -102,42 +98,42 @@ export default function App() {
       const data = await loadData();
       if (!data) return;
 
-      setItems(data.items || []);
-      setLogs(data.logs || {});
-      setWeightLogs(data.weightLogs || []);
+      setItems(safeArray(data.items));
+      setTasks(safeArray(data.tasks));
+      setWeightLogs(safeArray(data.weightLogs));
       setWeightGoal(data.weightGoal || null);
-      setTasks(data.tasks || []);
+      setLogs(data.logs || {});
       setGoal(data.goal || {});
-      setFinanceData(data.financeData || []);
-      setChatHistory(data.chatHistory || []);
+      setFinanceData(safeArray(data.financeData));
+      setChatHistory(safeArray(data.chatHistory));
+
+      initialLoad.current = false;
     };
 
     fetchData();
   }, [firebaseUser]);
 
-  /* ===== REALTIME SYNC ===== */
+  /* ================= REALTIME SYNC ================= */
   useEffect(() => {
     if (!firebaseUser) return;
 
     const unsub = subscribeToData((data) => {
       if (isLocalUpdate.current) return;
 
-      setItems(data.items || []);
-      setLogs(data.logs || {});
-      setWeightLogs(data.weightLogs || []);
+      setItems(safeArray(data.items));
+      setTasks(safeArray(data.tasks));
+      setWeightLogs(safeArray(data.weightLogs));
       setWeightGoal(data.weightGoal || null);
-      setTasks(data.tasks || []);
+      setLogs(data.logs || {});
       setGoal(data.goal || {});
-      setFinanceData(data.financeData || []);
-      setChatHistory(data.chatHistory || []);
-
-      setInitialLoad(false);
+      setFinanceData(safeArray(data.financeData));
+      setChatHistory(safeArray(data.chatHistory));
     });
 
     return () => unsub && unsub();
   }, [firebaseUser]);
 
-  /* ===== SAFE SETTERS ===== */
+  /* ================= SAFE SETTERS ================= */
   const safeSetItems = (updater) => {
     isLocalUpdate.current = true;
 
@@ -152,16 +148,16 @@ export default function App() {
     }, 300);
   };
 
-  /* ===== SAVE DATA ===== */
+  /* ================= SAVE DATA ================= */
   useEffect(() => {
-    if (!firebaseUser || initialLoad) return;
+    if (!firebaseUser || initialLoad.current) return;
 
     queueSave({
       items,
-      logs,
+      tasks,
       weightLogs,
       weightGoal,
-      tasks,
+      logs,
       goal,
       financeData,
       chatHistory
@@ -169,17 +165,17 @@ export default function App() {
 
   }, [
     items,
-    logs,
+    tasks,
     weightLogs,
     weightGoal,
-    tasks,
+    logs,
     goal,
     financeData,
     chatHistory,
-    firebaseUser,
-    initialLoad
+    firebaseUser
   ]);
 
+  /* ================= LOADING ================= */
   if (loadingAuth) {
     return <div style={{ padding: 20 }}>Loading App...</div>;
   }
@@ -210,7 +206,6 @@ export default function App() {
             }
           >
 
-            {/* DASHBOARD */}
             <Route index element={
               <Dashboard
                 logs={logs}
@@ -221,7 +216,6 @@ export default function App() {
               />
             }/>
 
-            {/* HABITS + WEIGHT */}
             <Route path="habits" element={
               <Habits
                 items={items}
@@ -233,8 +227,6 @@ export default function App() {
                     { weight: w, date: new Date().toISOString() }
                   ]);
                 }}
-                weightGoal={weightGoal}
-                setWeightGoal={setWeightGoal}
               />
             }/>
 

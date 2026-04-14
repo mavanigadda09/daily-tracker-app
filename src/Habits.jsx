@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
@@ -10,18 +10,9 @@ import { theme } from "./theme";
 const getKey = (d) =>
   `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
-const isSameWeek = (date) => {
-  const now = new Date();
-  const d = new Date(date);
-  const diff = now - d;
-  return diff <= 7 * 24 * 60 * 60 * 1000;
-};
-
-const isSameMonth = (date) => {
-  const now = new Date();
-  const d = new Date(date);
-  return now.getMonth() === d.getMonth() &&
-         now.getFullYear() === d.getFullYear();
+const parseDate = (key) => {
+  const [y, m, d] = key.split("-");
+  return new Date(y, m - 1, d);
 };
 
 export default function Habits({
@@ -32,36 +23,55 @@ export default function Habits({
 }) {
 
   const todayKey = getKey(new Date());
+  const hydrated = useRef(false);
 
-  /* ================= STORAGE (FIXED) ================= */
+  /* ✅ FIXED STORAGE (NO OVERWRITE BUG) */
+  useEffect(() => {
+    if (!hydrated.current) {
+      try {
+        const saved = JSON.parse(localStorage.getItem("habits") || "[]");
+        if (Array.isArray(saved) && items.length === 0) {
+          setItems(saved);
+        }
+      } catch {}
+      hydrated.current = true;
+    }
+  }, [items, setItems]);
+
   useEffect(() => {
     localStorage.setItem("habits", JSON.stringify(items));
   }, [items]);
-
-  useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("habits") || "[]");
-    if (saved.length) setItems(saved);
-  }, []);
 
   /* ================= VIEW ================= */
   const [view, setView] = useState("day");
 
   /* ================= HABITS ================= */
-  const habits = items.filter(i => i.type === "habit");
+  const habits = useMemo(
+    () => items.filter(i => i.type === "habit"),
+    [items]
+  );
 
   const isCompleted = (h) => {
-    const entries = Object.entries(h.completed || {});
+    const entries = Object.keys(h.completed || {});
 
     if (view === "day") {
       return h.completed?.[todayKey]?.done;
     }
 
     if (view === "week") {
-      return entries.some(([k]) => isSameWeek(k));
+      return entries.some(k => {
+        const d = parseDate(k);
+        return (new Date() - d) <= 7 * 86400000;
+      });
     }
 
     if (view === "month") {
-      return entries.some(([k]) => isSameMonth(k));
+      return entries.some(k => {
+        const d = parseDate(k);
+        const now = new Date();
+        return d.getMonth() === now.getMonth() &&
+               d.getFullYear() === now.getFullYear();
+      });
     }
   };
 
@@ -123,11 +133,19 @@ export default function Habits({
   };
 
   /* ================= WEIGHT ================= */
-  const [goal, setGoal] = useState({
-    start: "",
-    target: "",
-    duration: ""
+  const [goal, setGoal] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("weightGoal")) || {
+        start: "", target: "", duration: ""
+      };
+    } catch {
+      return { start: "", target: "", duration: "" };
+    }
   });
+
+  useEffect(() => {
+    localStorage.setItem("weightGoal", JSON.stringify(goal));
+  }, [goal]);
 
   const [weightInput, setWeightInput] = useState("");
 
@@ -142,14 +160,12 @@ export default function Habits({
     (a, b) => new Date(a.date) - new Date(b.date)
   );
 
-  const current = sorted.length
-    ? sorted[sorted.length - 1].weight
-    : 0;
+  const current =
+    sorted.length ? sorted[sorted.length - 1].weight : 0;
 
   const weightPercent = (() => {
     const start = Number(goal.start);
     const target = Number(goal.target);
-
     if (!start || !target) return 0;
 
     return Math.min(
@@ -169,7 +185,7 @@ export default function Habits({
 
       <h1 style={styles.title}>🔥 Health & Habits</h1>
 
-      {/* VIEW SWITCH */}
+      {/* VIEW */}
       <div style={styles.tabs}>
         {["day", "week", "month"].map(v => (
           <button
@@ -204,10 +220,14 @@ export default function Habits({
         </button>
       </div>
 
-      {/* HABIT GRID */}
+      {/* PENDING */}
       <div style={styles.grid}>
         {pending.map(h => (
-          <motion.div key={h.id} style={styles.cardBig}>
+          <motion.div
+            key={h.id}
+            whileHover={{ scale: 1.03 }}
+            style={styles.cardBig}
+          >
             <h3>{h.name}</h3>
             <p>🔥 {h.streak || 0}</p>
 
@@ -236,9 +256,12 @@ export default function Habits({
         <h3>⚖️ Weight Goal</h3>
 
         <div style={styles.goalGrid}>
-          <input placeholder="Start" onChange={(e)=>setGoal({...goal,start:e.target.value})}/>
-          <input placeholder="Target" onChange={(e)=>setGoal({...goal,target:e.target.value})}/>
-          <input placeholder="Months" onChange={(e)=>setGoal({...goal,duration:e.target.value})}/>
+          <input placeholder="Start" value={goal.start}
+            onChange={(e)=>setGoal({...goal,start:e.target.value})}/>
+          <input placeholder="Target" value={goal.target}
+            onChange={(e)=>setGoal({...goal,target:e.target.value})}/>
+          <input placeholder="Months" value={goal.duration}
+            onChange={(e)=>setGoal({...goal,duration:e.target.value})}/>
         </div>
 
         <p>Progress: {weightPercent}%</p>
@@ -290,9 +313,9 @@ const styles = {
 
   cardBig: {
     padding: 16,
-    borderRadius: 14,
-    background: "#1e293b",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
+    borderRadius: 16,
+    background: "linear-gradient(135deg,#1e293b,#0f172a)",
+    boxShadow: "0 15px 40px rgba(0,0,0,0.4)"
   },
 
   card: {
