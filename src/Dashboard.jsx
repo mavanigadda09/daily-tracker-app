@@ -6,10 +6,13 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
+  CartesianGrid
 } from "recharts";
 import { useNotification } from "./context/NotificationContext.jsx";
 import { motion } from "framer-motion";
+
+import { theme } from "./theme";
 
 import {
   getConsistencyScore,
@@ -79,7 +82,6 @@ export default function Dashboard({
   );
 
   /* ================= INSIGHTS ================= */
-
   const totalStats = useMemo(() => {
     let total = 0;
     let completed = 0;
@@ -112,7 +114,7 @@ export default function Dashboard({
     };
   }, [activities]);
 
-  /* ================= AI MESSAGE ================= */
+  /* ================= AI ================= */
   let message = "Keep going 💪";
 
   if (productivity < 20) message = "Start small today 🚀";
@@ -156,7 +158,7 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* 🎯 ACTIVE TASK */}
+      {/* ACTIVE TASK */}
       {activeTask && (
         <div style={styles.active}>
           🎯 Focus Mode: {activeTask.name}
@@ -170,29 +172,33 @@ export default function Dashboard({
         <Stat label="Focus Time" value={formatTime(totalTime)} />
       </div>
 
-      {/* 🔥 QUICK PANELS */}
+      {/* GRID */}
       <div style={styles.grid}>
 
         <Card title="📋 Tasks">
           {tasks.slice(0, 3).map(t => (
             <p key={t.id}>{t.name}</p>
           ))}
-          <button onClick={() => navigate("/tasks")}>Open →</button>
+          <button style={styles.button} onClick={() => navigate("/tasks")}>
+            Open →
+          </button>
         </Card>
 
         <Card title="🔥 Habits">
           {habits.slice(0, 3).map(h => (
             <p key={h.id}>{h.name}</p>
           ))}
-          <button onClick={() => navigate("/habits")}>Open →</button>
+          <button style={styles.button} onClick={() => navigate("/habits")}>
+            Open →
+          </button>
         </Card>
 
         <Card title="📊 Habits">
-          <Circle value={totalStats.percent} color="#6366f1" />
+          <Circle value={totalStats.percent} />
         </Card>
 
         <Card title="📈 Activities">
-          <Circle value={activityStats.percent} color="#22c55e" />
+          <Circle value={activityStats.percent} />
         </Card>
 
       </div>
@@ -202,10 +208,11 @@ export default function Dashboard({
         <h3 style={styles.cardTitle}>📈 Last 7 Days</h3>
         <ResponsiveContainer width="100%" height={180}>
           <LineChart data={chartData}>
-            <XAxis dataKey="date" stroke="#aaa" />
-            <YAxis stroke="#aaa" />
+            <XAxis stroke={theme.colors.textMuted} dataKey="date" />
+            <YAxis stroke={theme.colors.textMuted} />
+            <CartesianGrid stroke={theme.colors.border} />
             <Tooltip />
-            <Line dataKey="value" stroke="#facc15" />
+            <Line dataKey="value" stroke={theme.colors.chartPrimary} />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -216,10 +223,11 @@ export default function Dashboard({
           <h3 style={styles.cardTitle}>🏋️ Weight</h3>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={weightData}>
-              <XAxis dataKey="date" stroke="#aaa" />
-              <YAxis stroke="#aaa" />
+              <XAxis stroke={theme.colors.textMuted} dataKey="date" />
+              <YAxis stroke={theme.colors.textMuted} />
+              <CartesianGrid stroke={theme.colors.border} />
               <Tooltip />
-              <Line dataKey="weight" stroke="#22c55e" />
+              <Line dataKey="weight" stroke={theme.colors.chartSecondary} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -228,7 +236,7 @@ export default function Dashboard({
       {/* AI */}
       <div style={styles.card}>
         <h3 style={styles.cardTitle}>🤖 AI Coach</h3>
-        <p>{message}</p>
+        <p style={{ color: theme.colors.textMuted }}>{message}</p>
       </div>
 
     </motion.div>
@@ -239,7 +247,7 @@ export default function Dashboard({
 const Stat = ({ label, value }) => (
   <div style={styles.statCard}>
     <h3>{value}</h3>
-    <p>{label}</p>
+    <p style={{ color: theme.colors.textMuted }}>{label}</p>
   </div>
 );
 
@@ -250,24 +258,79 @@ const Card = ({ title, children }) => (
   </div>
 );
 
-const Circle = ({ value, color }) => (
-  <div style={{ ...styles.circle, border: `8px solid ${color}` }}>
+const Circle = ({ value }) => (
+  <div style={styles.circle}>
     {value}%
   </div>
 );
 
 /* ===== STYLES ===== */
 const styles = {
-  container:{padding:24,color:"#fff"},
-  header:{display:"flex",justifyContent:"space-between"},
-  profile:{cursor:"pointer"},
-  badges:{display:"flex",gap:10},
-  badge:{background:"#111",padding:"6px 10px",borderRadius:10},
-  active:{marginTop:15,padding:12,background:"#022c22",borderRadius:10},
-  stats:{display:"flex",gap:16,marginTop:20},
-  statCard:{flex:1,padding:16,background:"#020617",borderRadius:12,textAlign:"center"},
-  grid:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:20,marginTop:20},
-  card:{padding:20,background:"#020617",borderRadius:16},
-  cardTitle:{color:"#facc15"},
-  circle:{width:100,height:100,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",margin:"auto"},
+  container: { padding: 24 },
+
+  header: { display: "flex", justifyContent: "space-between" },
+
+  title: { color: theme.colors.text },
+
+  profile: { cursor: "pointer" },
+
+  badges: { display: "flex", gap: 10 },
+
+  badge: {
+    background: theme.colors.surface,
+    padding: "6px 10px",
+    borderRadius: 10,
+    border: `1px solid ${theme.colors.border}`
+  },
+
+  active: {
+    marginTop: 15,
+    padding: 12,
+    background: theme.colors.surface,
+    borderRadius: 10
+  },
+
+  stats: { display: "flex", gap: 16, marginTop: 20 },
+
+  statCard: {
+    flex: 1,
+    padding: 16,
+    background: theme.colors.surface,
+    borderRadius: 12,
+    border: `1px solid ${theme.colors.border}`
+  },
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+    gap: 20,
+    marginTop: 20
+  },
+
+  card: {
+    padding: 20,
+    background: theme.colors.surface,
+    borderRadius: 16,
+    border: `1px solid ${theme.colors.border}`
+  },
+
+  cardTitle: {
+    color: theme.colors.primary
+  },
+
+  circle: {
+    width: 100,
+    height: 100,
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: "auto",
+    border: `8px solid ${theme.colors.primary}`
+  },
+
+  button: {
+    ...theme.components.button.primary,
+    marginTop: 10
+  }
 };

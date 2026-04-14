@@ -10,10 +10,9 @@ import {
   CartesianGrid
 } from "recharts";
 
+import { theme } from "./theme";
+
 import {
-  detectPlateau,
-  predictWeight,
-  getWeightAdvice,
   analyzeWeightWithHabits
 } from "./ai/ai";
 
@@ -26,9 +25,7 @@ export default function Habits({
   setItems,
   weightLogs = [],
   addWeight,
-  deleteWeight,
-  weightGoal,
-  setWeightGoal
+  weightGoal
 }) {
 
   const hydrated = useRef(false);
@@ -186,17 +183,20 @@ export default function Habits({
         <h3>Habits</h3>
 
         <input
+          style={styles.input}
           placeholder="Add habit"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
 
-        <button onClick={addHabit}>Add</button>
+        <button style={styles.button} onClick={addHabit}>Add</button>
 
         {habits.map(h => (
           <div key={h.id} style={styles.item}>
             {h.name}
-            <button onClick={() => toggleHabit(h.id)}>Done</button>
+            <button style={styles.button} onClick={() => toggleHabit(h.id)}>
+              Done
+            </button>
           </div>
         ))}
       </div>
@@ -206,23 +206,24 @@ export default function Habits({
         <h3>Weight Tracker</h3>
 
         <input
+          style={styles.input}
           type="number"
           value={weightInput}
           onChange={(e) => setWeightInput(e.target.value)}
         />
 
-        <button onClick={handleAddWeight}>Add</button>
+        <button style={styles.button} onClick={handleAddWeight}>Add</button>
 
         <p>Progress: {weightPercent}%</p>
 
         {chartData.length > 0 && (
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={chartData}>
-              <CartesianGrid stroke="#222" />
-              <XAxis dataKey="date" />
-              <YAxis />
+              <CartesianGrid stroke={theme.colors.border} />
+              <XAxis stroke={theme.colors.textMuted} dataKey="date" />
+              <YAxis stroke={theme.colors.textMuted} />
               <Tooltip />
-              <Line dataKey="weight" stroke="#22c55e" />
+              <Line dataKey="weight" stroke={theme.colors.chartSecondary} />
             </LineChart>
           </ResponsiveContainer>
         )}
@@ -232,7 +233,7 @@ export default function Habits({
       {habitImpact && (
         <div style={styles.card}>
           <h3>Habit Impact</h3>
-          <p>{habitImpact}</p>
+          <p style={{ color: theme.colors.textMuted }}>{habitImpact}</p>
         </div>
       )}
 
@@ -242,24 +243,36 @@ export default function Habits({
 
 /* ===== STYLES ===== */
 const styles = {
-  container: { padding: 20, color: "#fff" },
-  title: { color: "#facc15" },
-  summary: { display: "flex", gap: 20, marginBottom: 20 },
+  container: { padding: 20 },
+
+  title: { color: theme.colors.primary },
+
+  summary: {
+    display: "flex",
+    gap: 20,
+    marginBottom: 20,
+    color: theme.colors.text
+  },
+
   card: {
-    background: "#020617",
-    padding: 16,
-    borderRadius: 12,
+    ...theme.components.card,
     marginBottom: 20
   },
+
   item: {
     display: "flex",
     justifyContent: "space-between",
     marginTop: 10
   },
+
   ai: {
-    background: "#022c22",
+    background: theme.colors.surface,
     padding: 12,
     borderRadius: 10,
     marginBottom: 20
-  }
+  },
+
+  input: theme.components.input,
+
+  button: theme.components.button.primary
 };

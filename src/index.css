@@ -12,17 +12,22 @@
   --accent: #22c55e;
   --border: rgba(255, 255, 255, 0.1);
 
-  /* ✨ NEW SYSTEM */
+  /* ✨ SYSTEM */
   --radius: 12px;
   --radius-sm: 8px;
 
   --shadow: 0 8px 30px rgba(0,0,0,0.3);
+  --shadow-hover: 0 12px 40px rgba(0,0,0,0.5);
 
-  --transition: 0.2s ease;
+  --transition: 0.25s ease;
 
   --font-sm: 13px;
   --font-md: 15px;
   --font-lg: 20px;
+
+  --success: #22c55e;
+  --danger: #ef4444;
+  --warning: #f59e0b;
 }
 
 /* ================= LIGHT MODE ================= */
@@ -40,6 +45,7 @@ body[data-theme="light"] {
   --border: #e2e8f0;
 
   --shadow: 0 6px 20px rgba(0,0,0,0.08);
+  --shadow-hover: 0 10px 30px rgba(0,0,0,0.12);
 }
 
 /* ================= RESET ================= */
@@ -65,9 +71,11 @@ body {
   background: var(--border);
   border-radius: 10px;
 }
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
 
-/* ================= UTILITIES ================= */
-
+/* ================= CARD ================= */
 .card {
   background: var(--card);
   border-radius: var(--radius);
@@ -78,8 +86,11 @@ body {
 
 .card:hover {
   background: var(--card-hover);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
 }
 
+/* ================= BUTTON ================= */
 .btn {
   background: var(--accent);
   color: #fff;
@@ -88,24 +99,45 @@ body {
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: var(--transition);
+  font-weight: 500;
 }
 
 .btn:hover {
   opacity: 0.9;
+  transform: scale(1.02);
 }
 
+.btn:active {
+  transform: scale(0.96);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ================= INPUT ================= */
 .input {
   background: var(--card);
   border: 1px solid var(--border);
   padding: 10px;
   border-radius: var(--radius-sm);
   color: var(--text);
+  outline: none;
+  transition: var(--transition);
 }
 
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(34,197,94,0.2);
+}
+
+/* ================= TEXT ================= */
 .text-muted {
   color: var(--text-muted);
 }
 
+/* ================= UTIL ================= */
 .flex {
   display: flex;
 }
@@ -118,4 +150,48 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* ================= BADGE ================= */
+.badge {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: var(--font-sm);
+  background: var(--card-hover);
+}
+
+/* ================= PROGRESS ================= */
+.progress {
+  height: 8px;
+  background: var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--transition);
+}
+
+/* ================= ANIMATIONS ================= */
+.fade-in {
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ================= GLASS EFFECT (OPTIONAL) ================= */
+.glass {
+  backdrop-filter: blur(10px);
+  background: rgba(255,255,255,0.05);
 }

@@ -5,7 +5,6 @@ import Dashboard from "./Dashboard";
 import Analytics from "./Analytics";
 import Tasks from "./Tasks";
 import Habits from "./Habits";
-// ❌ Weight REMOVED
 import Goals from "./Goals";
 import Activities from "./Activities";
 import Profile from "./Profile";
@@ -38,8 +37,15 @@ export default function App() {
     () => localStorage.getItem("theme") || "dark"
   );
 
+  // ✅ APPLY THEME GLOBALLY (FIXED)
   useEffect(() => {
     document.body.setAttribute("data-theme", theme);
+    document.body.style.background =
+      theme === "dark" ? "#020617" : "#f8fafc";
+
+    document.body.style.color =
+      theme === "dark" ? "#ffffff" : "#000000";
+
     localStorage.setItem("theme", theme);
   }, [theme]);
 
@@ -215,7 +221,7 @@ export default function App() {
               />
             }/>
 
-            {/* HABITS + WEIGHT (MERGED) */}
+            {/* HABITS + WEIGHT */}
             <Route path="habits" element={
               <Habits
                 items={items}

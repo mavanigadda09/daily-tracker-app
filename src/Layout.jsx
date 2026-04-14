@@ -8,7 +8,6 @@ import {
   ListTodo,
   Activity,
   BarChart3,
-  Lightbulb,
   User,
   Menu,
   MessageCircle,
@@ -20,10 +19,9 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
-  // ✅ UPDATED NAV (Weight removed, Health merged)
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
-    { path: "/habits", label: "Health", icon: CheckSquare }, // 🔥 renamed
+    { path: "/habits", label: "Health", icon: CheckSquare },
     { path: "/tasks", label: "Tasks", icon: ListTodo },
     { path: "/activities", label: "Activities", icon: Activity },
     { path: "/finance", label: "Finance", icon: Wallet },
@@ -37,30 +35,48 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
     return location.pathname.startsWith(path);
   };
 
-  const s = styles;
-
   return (
-    <div style={s.container}>
+    <div
+      style={{
+        ...styles.container,
+        background:
+          theme === "dark"
+            ? "radial-gradient(circle at top, #0f172a, #020617)"
+            : "#f8fafc",
+        color: theme === "dark" ? "#fff" : "#000"
+      }}
+    >
 
       {/* SIDEBAR */}
       <motion.aside
         animate={{ width: collapsed ? 70 : 240 }}
         transition={{ duration: 0.25 }}
-        style={s.sidebar}
+        style={{
+          ...styles.sidebar,
+          background: theme === "dark" ? "#020617" : "#ffffff"
+        }}
       >
 
         {/* TOP */}
         <div>
-          <div style={s.topRow}>
+          <div style={styles.topRow}>
 
             {!collapsed && (
-              <div style={s.logoWrapper}>
+              <div style={styles.logoWrapper}>
                 <img
                   src="/phoenix.png"
-                  alt="phoenix"
-                  style={s.logoImg}
+                  alt="logo"
+                  style={styles.logoImg}
+                  onError={(e) => {
+                    e.target.style.display = "none";
+                  }}
                 />
-                <h2 style={s.logoText}>Tracker</h2>
+                <h2 style={{
+                  ...styles.logoText,
+                  color: theme === "dark" ? "#facc15" : "#f59e0b"
+                }}>
+                  Tracker
+                </h2>
               </div>
             )}
 
@@ -68,7 +84,7 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
 
               {/* THEME */}
               <button
-                style={s.iconBtn}
+                style={styles.iconBtn}
                 onClick={() =>
                   setTheme(prev => prev === "dark" ? "light" : "dark")
                 }
@@ -78,7 +94,7 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
 
               {/* MENU */}
               <button
-                style={s.iconBtn}
+                style={styles.iconBtn}
                 onClick={() => setCollapsed(prev => !prev)}
               >
                 <Menu size={18} />
@@ -88,7 +104,7 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
           </div>
 
           {/* NAV */}
-          <nav style={s.nav}>
+          <nav style={styles.nav}>
             {navItems.map(item => {
               const Icon = item.icon;
               const active = isActive(item.path);
@@ -97,18 +113,15 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
                 <Link
                   key={item.path}
                   to={item.path}
-                  title={collapsed ? item.label : ""}
                   style={{
-                    ...s.link,
-                    ...(active ? s.active : {})
+                    ...styles.link,
+                    color: theme === "dark" ? "#94a3b8" : "#334155",
+                    ...(active ? styles.active : {})
                   }}
                 >
-
-                  {active && <div style={s.activeBar} />}
-
+                  {active && <div style={styles.activeBar} />}
                   <Icon size={18} />
                   {!collapsed && <span>{item.label}</span>}
-
                 </Link>
               );
             })}
@@ -116,21 +129,27 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
         </div>
 
         {/* BOTTOM */}
-        <div style={s.bottom}>
+        <div style={styles.bottom}>
 
           {!collapsed && (
-            <div style={s.userBox}>
-              <div style={s.avatar}>👤</div>
+            <div style={{
+              ...styles.userBox,
+              background: theme === "dark" ? "#0f172a" : "#f1f5f9"
+            }}>
+              <div style={styles.avatar}>👤</div>
               <div>
-                <p style={s.userName}>
+                <p style={{
+                  ...styles.userName,
+                  color: theme === "dark" ? "#fff" : "#000"
+                }}>
                   {user?.name || "User"}
                 </p>
-                <p style={s.userSub}>Active</p>
+                <p style={styles.userSub}>Active</p>
               </div>
             </div>
           )}
 
-          <button style={s.logout} onClick={onLogout}>
+          <button style={styles.logout} onClick={onLogout}>
             {collapsed ? "⏻" : "Logout"}
           </button>
 
@@ -139,7 +158,7 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
       </motion.aside>
 
       {/* MAIN */}
-      <main style={s.main}>
+      <main style={styles.main}>
         <Outlet />
       </main>
 
@@ -148,17 +167,15 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
 }
 
 
-// ================= STYLES =================
+/* ================= STYLES ================= */
 
-const styles = Object.freeze({
+const styles = {
   container: {
     display: "flex",
-    minHeight: "100vh",
-    background: "radial-gradient(circle at top, #0f172a, #020617)"
+    minHeight: "100vh"
   },
 
   sidebar: {
-    background: "#020617",
     padding: 16,
     display: "flex",
     flexDirection: "column",
@@ -182,15 +199,12 @@ const styles = Object.freeze({
   logoImg: {
     width: 36,
     height: 36,
-    objectFit: "contain",
-    filter: "drop-shadow(0 0 10px #facc15)"
+    objectFit: "contain"
   },
 
   logoText: {
     margin: 0,
-    fontWeight: 600,
-    color: "#facc15",
-    textShadow: "0 0 10px #facc15"
+    fontWeight: 600
   },
 
   iconBtn: {
@@ -215,15 +229,12 @@ const styles = Object.freeze({
     gap: 12,
     padding: "10px 14px",
     borderRadius: 10,
-    textDecoration: "none",
-    color: "#94a3b8",
-    transition: "0.2s"
+    textDecoration: "none"
   },
 
   active: {
     background: "rgba(250,204,21,0.15)",
-    color: "#facc15",
-    boxShadow: "0 0 10px rgba(250,204,21,0.4)"
+    color: "#facc15"
   },
 
   activeBar: {
@@ -247,7 +258,6 @@ const styles = Object.freeze({
     alignItems: "center",
     gap: 10,
     padding: 10,
-    background: "#0f172a",
     borderRadius: 12
   },
 
@@ -263,8 +273,7 @@ const styles = Object.freeze({
 
   userName: {
     margin: 0,
-    fontSize: 14,
-    color: "#fff"
+    fontSize: 14
   },
 
   userSub: {
@@ -284,6 +293,8 @@ const styles = Object.freeze({
 
   main: {
     flex: 1,
-    padding: 24
+    padding: 24,
+    background: "inherit",
+    color: "inherit"
   }
-});
+};

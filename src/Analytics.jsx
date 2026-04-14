@@ -11,6 +11,7 @@ import {
 } from "recharts";
 
 import { motion } from "framer-motion";
+import { theme } from "./theme";
 
 import {
   parseSmartGoal,
@@ -33,12 +34,10 @@ const formatTime = (sec = 0) => {
 
 export default function Analytics({ logs = {}, tasks = [], user }) {
 
-  /* ================= SAFE GUARD ================= */
   if ((!logs || typeof logs !== "object") && !tasks.length) {
     return <p style={styles.empty}>No data available</p>;
   }
 
-  /* ================= DATA ================= */
   const daily = getDailyData(logs, tasks);
 
   const chartData = Object.keys(daily).map(date => ({
@@ -52,7 +51,6 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
   const values = chartData.map(d => d.value);
 
-  /* ================= METRICS ================= */
   const total = values.reduce((a, b) => a + b, 0);
   const avg = Math.round(total / values.length);
 
@@ -74,19 +72,16 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
     Math.round(avg * 0.4 + consistency * 60 + (trend > 0 ? 5 : 0))
   );
 
-  /* ================= TASK TIME ================= */
   const totalTime = tasks.reduce(
     (sum, t) => sum + (t.totalDuration || 0),
     0
   );
 
-  /* ================= AI ================= */
   const insight = getAIInsight({
     goalPercent: score,
     trend
   });
 
-  /* ================= GOAL ================= */
   const goalData = parseSmartGoal(user?.goal);
 
   const todayKey = new Date().toDateString();
@@ -96,26 +91,27 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
     ? calculatePercent(todayValue, goalData.target)
     : 0;
 
-  /* ================= EXTRA ================= */
   const last7Days = getWeeklyData(daily);
   const last30Days = getHeatmapData(daily);
   const streak = getStreak(last30Days);
   const taskData = getTaskBreakdown(tasks);
 
   const getColor = (v) =>
-    v === 0 ? "#1f2937"
-    : v < 30 ? "#4ade80"
-    : v < 60 ? "#22c55e"
-    : "#16a34a";
+    v === 0
+      ? theme.colors.border
+      : v < 30
+      ? "#4ade80"
+      : v < 60
+      ? "#22c55e"
+      : "#16a34a";
 
-  /* ================= UI ================= */
   return (
     <motion.div style={styles.container}>
 
       <h1 style={styles.title}>📊 Analytics</h1>
       <p style={styles.subtitle}>Your productivity dashboard</p>
 
-      {/* 🤖 AI */}
+      {/* AI */}
       <div style={styles.aiCard}>{insight}</div>
 
       {/* KPI */}
@@ -127,7 +123,7 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
         <Kpi title="Time Spent" value={formatTime(totalTime)} />
       </div>
 
-      {/* 🎯 GOAL */}
+      {/* GOAL */}
       {goalData && (
         <div style={styles.card}>
           <h3>🎯 Goal Progress</h3>
@@ -147,39 +143,35 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
         </div>
       )}
 
-      {/* 📈 DAILY */}
+      {/* DAILY */}
       <div style={styles.card}>
         <h3>📈 Daily Trend</h3>
         <ResponsiveContainer width="100%" height={250}>
           <LineChart data={chartData}>
-            <CartesianGrid stroke="#222" />
-            <XAxis dataKey="date" stroke="#aaa" />
-            <YAxis stroke="#aaa" />
+            <CartesianGrid stroke={theme.colors.border} />
+            <XAxis stroke={theme.colors.textMuted} dataKey="date" />
+            <YAxis stroke={theme.colors.textMuted} />
             <Tooltip />
-            <Line
-              dataKey="value"
-              stroke="#facc15"
-              strokeWidth={3}
-            />
+            <Line dataKey="value" stroke={theme.colors.chartPrimary} strokeWidth={3} />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      {/* 📅 WEEKLY */}
+      {/* WEEKLY */}
       <div style={styles.card}>
         <h3>📅 Weekly Overview</h3>
         <ResponsiveContainer width="100%" height={250}>
           <BarChart data={last7Days}>
-            <CartesianGrid stroke="#222" />
-            <XAxis dataKey="date" stroke="#aaa" />
-            <YAxis stroke="#aaa" />
+            <CartesianGrid stroke={theme.colors.border} />
+            <XAxis stroke={theme.colors.textMuted} dataKey="date" />
+            <YAxis stroke={theme.colors.textMuted} />
             <Tooltip />
-            <Bar dataKey="value" fill="#22c55e" radius={[6,6,0,0]} />
+            <Bar dataKey="value" fill={theme.colors.chartSecondary} radius={[6,6,0,0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* 🏆 TASKS */}
+      {/* TASKS */}
       <div style={styles.card}>
         <h3>🏆 Top Tasks</h3>
         {taskData.length === 0 ? (
@@ -187,17 +179,17 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
         ) : (
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={taskData}>
-              <CartesianGrid stroke="#222" />
-              <XAxis dataKey="name" stroke="#aaa" />
-              <YAxis stroke="#aaa" />
+              <CartesianGrid stroke={theme.colors.border} />
+              <XAxis stroke={theme.colors.textMuted} dataKey="name" />
+              <YAxis stroke={theme.colors.textMuted} />
               <Tooltip />
-              <Bar dataKey="value" fill="#8b5cf6" radius={[6,6,0,0]} />
+              <Bar dataKey="value" fill={theme.colors.primary} radius={[6,6,0,0]} />
             </BarChart>
           </ResponsiveContainer>
         )}
       </div>
 
-      {/* 🟩 HEATMAP */}
+      {/* HEATMAP */}
       <div style={styles.card}>
         <h3>🟩 Consistency Heatmap</h3>
         <div style={styles.heatmap}>
@@ -214,7 +206,7 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
         </div>
       </div>
 
-      {/* 🔥 STREAK */}
+      {/* STREAK */}
       <div style={styles.card}>
         <h3>🔥 {streak} Day Streak</h3>
       </div>
@@ -223,27 +215,27 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
   );
 }
 
-/* ================= COMPONENT ================= */
+/* ===== COMPONENT ===== */
 function Kpi({ title, value, highlight }) {
   return (
     <div style={{
       ...styles.kpiCard,
       ...(highlight && styles.highlight)
     }}>
-      <p>{title}</p>
+      <p style={{ color: theme.colors.textMuted }}>{title}</p>
       <h2>{value}</h2>
     </div>
   );
 }
 
-/* ================= STYLES ================= */
+/* ===== STYLES ===== */
 const styles = {
   container: { display:"flex",flexDirection:"column",gap:24 },
 
-  title:{ fontSize:28 },
-  subtitle:{ color:"#94a3b8" },
+  title:{ fontSize:28, color: theme.colors.text },
+  subtitle:{ color: theme.colors.textMuted },
 
-  sub:{ color:"#94a3b8", fontSize:13 },
+  sub:{ color: theme.colors.textMuted, fontSize:13 },
 
   aiCard:{
     background:"linear-gradient(135deg,#6366f1,#8b5cf6)",
@@ -259,28 +251,24 @@ const styles = {
   },
 
   kpiCard:{
-    background:"#0f172a",
-    padding:16,
-    borderRadius:16
+    ...theme.components.card
   },
 
-  highlight:{ background:"#facc15",color:"#000" },
+  highlight:{ background: theme.colors.primary, color:"#000" },
 
   card:{
-    background:"#0f172a",
-    padding:20,
-    borderRadius:16
+    ...theme.components.card
   },
 
   progressBg:{
     height:10,
-    background:"#222",
+    background: theme.colors.border,
     borderRadius:10
   },
 
   progressFill:{
     height:10,
-    background:"#22c55e",
+    background: theme.colors.success,
     borderRadius:10
   },
 
@@ -297,6 +285,6 @@ const styles = {
 
   empty:{
     padding:30,
-    color:"#94a3b8"
+    color: theme.colors.textMuted
   }
 };

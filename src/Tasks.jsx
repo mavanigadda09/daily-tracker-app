@@ -6,8 +6,11 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
+  CartesianGrid
 } from "recharts";
+
+import { theme } from "./theme";
 
 /* ===== UTIL ===== */
 const formatDuration = (sec = 0) => {
@@ -22,7 +25,7 @@ const todayKey = () => new Date().toDateString();
 export default function Tasks({ tasks = [], setTasks }) {
   const [name, setName] = useState("");
 
-  /* ================= ADD (FIXED) ================= */
+  /* ================= ADD ================= */
   const addTask = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -54,7 +57,6 @@ export default function Tasks({ tasks = [], setTasks }) {
   const startTask = (id) => {
     setTasks(prev =>
       prev.map(t => {
-        // stop other running tasks
         if (t.status === "running" && t.id !== id) {
           const duration = (Date.now() - t.currentStart) / 1000;
 
@@ -104,7 +106,6 @@ export default function Tasks({ tasks = [], setTasks }) {
     );
   };
 
-  /* ================= COMPLETE ================= */
   const completeTask = (id) => {
     setTasks(prev =>
       prev.map(t =>
@@ -124,7 +125,6 @@ export default function Tasks({ tasks = [], setTasks }) {
     setTasks(prev => prev.filter(t => t.id !== id));
   };
 
-  /* ================= ACTIVE ================= */
   const activeTask = tasks.find(t => t.status === "running");
 
   /* ================= SUMMARY ================= */
@@ -133,7 +133,6 @@ export default function Tasks({ tasks = [], setTasks }) {
       const todaySessions = t.sessions.filter(
         s => new Date(s.start).toDateString() === todayKey()
       );
-
       return sum + todaySessions.reduce((acc, s) => acc + s.duration, 0);
     }, 0);
   }, [tasks]);
@@ -149,7 +148,6 @@ export default function Tasks({ tasks = [], setTasks }) {
       ? 0
       : Math.round((completedToday / tasks.length) * 100);
 
-  /* ================= SORT ================= */
   const sortedTasks = useMemo(() => {
     return [...tasks].sort((a, b) => {
       if (a.status === "running") return -1;
@@ -187,7 +185,7 @@ export default function Tasks({ tasks = [], setTasks }) {
           placeholder="Enter task..."
           onKeyDown={(e) => e.key === "Enter" && addTask()}
         />
-        <button onClick={addTask} disabled={!name.trim()}>
+        <button style={styles.button} onClick={addTask}>
           Add
         </button>
       </div>
@@ -197,10 +195,6 @@ export default function Tasks({ tasks = [], setTasks }) {
 
       {/* TASKS */}
       <div style={styles.grid}>
-        {sortedTasks.length === 0 && (
-          <p style={{ opacity: 0.6 }}>No tasks yet 🚀</p>
-        )}
-
         {sortedTasks.map(t => (
           <TaskCard
             key={t.id}
@@ -227,7 +221,6 @@ function TaskCard({ task, startTask, stopTask, deleteTask, completeTask }) {
   }, [task.status]);
 
   let duration = task.totalDuration;
-
   if (task.status === "running") {
     duration += (now - task.currentStart) / 1000;
   }
@@ -238,26 +231,25 @@ function TaskCard({ task, startTask, stopTask, deleteTask, completeTask }) {
         ...styles.card,
         border:
           task.status === "running"
-            ? "2px solid #22c55e"
-            : "1px solid #1e293b"
+            ? `2px solid ${theme.colors.success}`
+            : `1px solid ${theme.colors.border}`
       }}
     >
       <h3>{task.name}</h3>
-
-      <p style={{ opacity: 0.7 }}>{task.status}</p>
+      <p style={{ color: theme.colors.textMuted }}>{task.status}</p>
       <p>⏳ {formatDuration(duration)}</p>
 
       {task.status !== "running" ? (
-        <button onClick={() => startTask(task.id)}>▶</button>
+        <button style={styles.button} onClick={() => startTask(task.id)}>▶</button>
       ) : (
-        <button onClick={() => stopTask(task.id)}>⏹</button>
+        <button style={styles.button} onClick={() => stopTask(task.id)}>⏹</button>
       )}
 
       {!task.completed && (
-        <button onClick={() => completeTask(task.id)}>✔</button>
+        <button style={styles.button} onClick={() => completeTask(task.id)}>✔</button>
       )}
 
-      <button onClick={() => deleteTask(task.id)}>🗑</button>
+      <button style={styles.danger} onClick={() => deleteTask(task.id)}>🗑</button>
     </motion.div>
   );
 }
@@ -278,13 +270,9 @@ function Pomodoro({ activeTask }) {
   return (
     <div style={styles.card}>
       <h3>🍅 Pomodoro</h3>
-      <h1>
-        {Math.floor(sec / 60)}:{(sec % 60).toString().padStart(2, "0")}
-      </h1>
-
+      <h1>{Math.floor(sec / 60)}:{(sec % 60).toString().padStart(2, "0")}</h1>
       {activeTask && <p>🎯 {activeTask.name}</p>}
-
-      <button onClick={() => setRun(!run)}>
+      <button style={styles.button} onClick={() => setRun(!run)}>
         {run ? "Pause" : "Start"}
       </button>
     </div>
@@ -293,7 +281,7 @@ function Pomodoro({ activeTask }) {
 
 /* ===== 📊 ===== */
 function WeeklyAnalytics({ tasks }) {
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
   const data = useMemo(() => {
     const map = {};
@@ -318,10 +306,11 @@ function WeeklyAnalytics({ tasks }) {
 
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={data}>
-          <XAxis dataKey="date" />
-          <YAxis />
+          <XAxis stroke={theme.colors.textMuted} dataKey="date" />
+          <YAxis stroke={theme.colors.textMuted} />
+          <CartesianGrid stroke={theme.colors.border} />
           <Tooltip />
-          <Line dataKey="time" stroke="#facc15" />
+          <Line dataKey="time" stroke={theme.colors.chartPrimary} />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -330,18 +319,36 @@ function WeeklyAnalytics({ tasks }) {
 
 /* ===== STYLES ===== */
 const styles = {
-  container: { padding: 20, color: "#fff" },
-  title: { color: "#facc15" },
-  summary: { display: "flex", gap: 20, marginBottom: 10 },
+  container: { padding: 20 },
+
+  title: { color: theme.colors.primary },
+
+  summary: {
+    display: "flex",
+    gap: 20,
+    marginBottom: 10,
+    color: theme.colors.text
+  },
+
   active: {
     padding: 10,
-    background: "#022c22",
-    marginBottom: 10,
+    background: theme.colors.surface,
     borderRadius: 8
   },
 
   addBox: { display: "flex", gap: 10, marginBottom: 20 },
-  input: { flex: 1, padding: 10 },
+
+  input: {
+    ...theme.components.input,
+    flex: 1
+  },
+
+  button: theme.components.button.primary,
+
+  danger: {
+    ...theme.components.button.primary,
+    background: theme.colors.danger
+  },
 
   grid: {
     display: "grid",
@@ -350,8 +357,6 @@ const styles = {
   },
 
   card: {
-    padding: 16,
-    background: "#020617",
-    borderRadius: 12
+    ...theme.components.card
   }
 };
