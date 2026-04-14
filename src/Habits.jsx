@@ -1,21 +1,28 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid
+  LineChart, Line, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid
 } from "recharts";
-
 import { theme } from "./theme";
-import { analyzeWeightWithHabits } from "./ai/ai";
 
-/* ===== SAFE DATE ===== */
+/* ===== DATE UTILS ===== */
 const getKey = (d) =>
   `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+
+const isSameWeek = (date) => {
+  const now = new Date();
+  const d = new Date(date);
+  const diff = now - d;
+  return diff <= 7 * 24 * 60 * 60 * 1000;
+};
+
+const isSameMonth = (date) => {
+  const now = new Date();
+  const d = new Date(date);
+  return now.getMonth() === d.getMonth() &&
+         now.getFullYear() === d.getFullYear();
+};
 
 export default function Habits({
   items = [],
@@ -23,42 +30,43 @@ export default function Habits({
   weightLogs = [],
   addWeight
 }) {
-  /* ================= SAFE DATA ================= */
-  const safeItems = Array.isArray(items) ? items : [];
-  const safeWeightLogs = Array.isArray(weightLogs) ? weightLogs : [];
 
   const todayKey = getKey(new Date());
 
-  /* ================= STORAGE ================= */
-  const hydrated = useRef(false);
+  /* ================= STORAGE (FIXED) ================= */
+  useEffect(() => {
+    localStorage.setItem("habits", JSON.stringify(items));
+  }, [items]);
 
   useEffect(() => {
-    if (!hydrated.current) {
-      try {
-        const saved = JSON.parse(localStorage.getItem("habits") || "[]");
-        if (saved.length && safeItems.length === 0) {
-          setItems(saved);
-        }
-      } catch {}
-      hydrated.current = true;
-    }
-  }, [safeItems, setItems]);
-
-  useEffect(() => {
-    localStorage.setItem("habits", JSON.stringify(safeItems));
-  }, [safeItems]);
+    const saved = JSON.parse(localStorage.getItem("habits") || "[]");
+    if (saved.length) setItems(saved);
+  }, []);
 
   /* ================= VIEW ================= */
   const [view, setView] = useState("day");
 
   /* ================= HABITS ================= */
-  const habits = useMemo(
-    () => safeItems.filter(i => i.type === "habit"),
-    [safeItems]
-  );
+  const habits = items.filter(i => i.type === "habit");
 
-  const completed = habits.filter(h => h.completed?.[todayKey]?.done);
-  const pending = habits.filter(h => !h.completed?.[todayKey]?.done);
+  const isCompleted = (h) => {
+    const entries = Object.entries(h.completed || {});
+
+    if (view === "day") {
+      return h.completed?.[todayKey]?.done;
+    }
+
+    if (view === "week") {
+      return entries.some(([k]) => isSameWeek(k));
+    }
+
+    if (view === "month") {
+      return entries.some(([k]) => isSameMonth(k));
+    }
+  };
+
+  const completed = habits.filter(isCompleted);
+  const pending = habits.filter(h => !isCompleted(h));
 
   const totalXP = habits.reduce((s, h) => s + (h.xp || 0), 0);
 
@@ -115,43 +123,28 @@ export default function Habits({
   };
 
   /* ================= WEIGHT ================= */
-  const [weightInput, setWeightInput] = useState("");
-
-  const [goal, setGoal] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("weightGoal")) || {
-        start: "",
-        target: "",
-        duration: ""
-      };
-    } catch {
-      return { start: "", target: "", duration: "" };
-    }
+  const [goal, setGoal] = useState({
+    start: "",
+    target: "",
+    duration: ""
   });
 
-  useEffect(() => {
-    localStorage.setItem("weightGoal", JSON.stringify(goal));
-  }, [goal]);
+  const [weightInput, setWeightInput] = useState("");
 
   const handleAddWeight = () => {
     const num = Number(weightInput);
     if (!num) return;
-
     addWeight(num);
     setWeightInput("");
   };
 
-  const sorted = [...safeWeightLogs].sort(
+  const sorted = [...weightLogs].sort(
     (a, b) => new Date(a.date) - new Date(b.date)
   );
 
-  const currentWeight =
-    sorted.length > 0 ? sorted[sorted.length - 1].weight : 0;
-
-  const chartData = sorted.map(w => ({
-    date: new Date(w.date).toLocaleDateString(),
-    weight: w.weight
-  }));
+  const current = sorted.length
+    ? sorted[sorted.length - 1].weight
+    : 0;
 
   const weightPercent = (() => {
     const start = Number(goal.start);
@@ -159,25 +152,16 @@ export default function Habits({
 
     if (!start || !target) return 0;
 
-    const total = start - target;
-    const progress = start - currentWeight;
-
-    return total > 0
-      ? Math.min(Math.round((progress / total) * 100), 100)
-      : 0;
+    return Math.min(
+      Math.round(((start - current) / (start - target)) * 100),
+      100
+    );
   })();
 
-  /* ================= AI ================= */
-  let insight = "";
-
-  try {
-    insight = analyzeWeightWithHabits({
-      weightLogs: sorted,
-      habits
-    });
-  } catch (e) {
-    console.error("AI Error:", e);
-  }
+  const chartData = sorted.map(w => ({
+    date: new Date(w.date).toLocaleDateString(),
+    weight: w.weight
+  }));
 
   /* ================= UI ================= */
   return (
@@ -220,21 +204,17 @@ export default function Habits({
         </button>
       </div>
 
-      {/* PENDING */}
-      <div style={styles.card}>
-        <h3>🕒 Pending</h3>
-
+      {/* HABIT GRID */}
+      <div style={styles.grid}>
         {pending.map(h => (
-          <motion.div key={h.id} style={styles.habitCard}>
-            <div>
-              <strong>{h.name}</strong>
-              <p style={styles.meta}>🔥 {h.streak || 0}</p>
-            </div>
+          <motion.div key={h.id} style={styles.cardBig}>
+            <h3>{h.name}</h3>
+            <p>🔥 {h.streak || 0}</p>
 
             <div style={styles.actions}>
               <button onClick={() => toggleHabit(h.id)}>✅</button>
               <button onClick={() => {
-                const n = prompt("Edit habit", h.name);
+                const n = prompt("Edit", h.name);
                 if (n) editHabit(h.id, n);
               }}>✏️</button>
               <button onClick={() => deleteHabit(h.id)}>🗑</button>
@@ -246,11 +226,8 @@ export default function Habits({
       {/* COMPLETED */}
       <div style={styles.card}>
         <h3>✅ Completed</h3>
-
         {completed.map(h => (
-          <div key={h.id} style={{ ...styles.habitCard, opacity: 0.6 }}>
-            {h.name}
-          </div>
+          <div key={h.id}>{h.name}</div>
         ))}
       </div>
 
@@ -259,15 +236,9 @@ export default function Habits({
         <h3>⚖️ Weight Goal</h3>
 
         <div style={styles.goalGrid}>
-          <input placeholder="Start" value={goal.start}
-            onChange={(e) => setGoal({ ...goal, start: e.target.value })}
-          />
-          <input placeholder="Target" value={goal.target}
-            onChange={(e) => setGoal({ ...goal, target: e.target.value })}
-          />
-          <input placeholder="Months" value={goal.duration}
-            onChange={(e) => setGoal({ ...goal, duration: e.target.value })}
-          />
+          <input placeholder="Start" onChange={(e)=>setGoal({...goal,start:e.target.value})}/>
+          <input placeholder="Target" onChange={(e)=>setGoal({...goal,target:e.target.value})}/>
+          <input placeholder="Months" onChange={(e)=>setGoal({...goal,duration:e.target.value})}/>
         </div>
 
         <p>Progress: {weightPercent}%</p>
@@ -292,14 +263,6 @@ export default function Habits({
         )}
       </div>
 
-      {/* AI */}
-      {insight && (
-        <div style={styles.card}>
-          <h3>🧠 Insight</h3>
-          <p>{insight}</p>
-        </div>
-      )}
-
     </div>
   );
 }
@@ -313,29 +276,31 @@ const styles = {
   tabs: { display: "flex", gap: 10, marginBottom: 10 },
 
   tab: { padding: 6, cursor: "pointer" },
-  activeTab: { background: theme.colors.primary, color: "#000" },
+  activeTab: { background: "#22c55e", color: "#000" },
 
   summary: { display: "flex", gap: 20 },
 
   addRow: { display: "flex", gap: 10, marginBottom: 10 },
 
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+    gap: 16
+  },
+
+  cardBig: {
+    padding: 16,
+    borderRadius: 14,
+    background: "#1e293b",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
+  },
+
   card: {
     ...theme.components.card,
-    marginBottom: 20
+    marginTop: 20
   },
 
-  habitCard: {
-    display: "flex",
-    justifyContent: "space-between",
-    padding: 10,
-    marginTop: 8,
-    border: `1px solid ${theme.colors.border}`,
-    borderRadius: 10
-  },
-
-  actions: { display: "flex", gap: 8 },
-
-  meta: { fontSize: 12, color: theme.colors.textMuted },
+  actions: { display: "flex", gap: 8, marginTop: 10 },
 
   goalGrid: {
     display: "grid",
