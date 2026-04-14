@@ -16,13 +16,45 @@ export const NotificationProvider = ({ children }) => {
   const timeouts = useRef(new Map());
   const audioRef = useRef(null);
 
+  // ✅ SAFE SYSTEM NOTIFICATION (iPhone compatible)
+  const safeNotify = (message) => {
+    try {
+      if (typeof window === "undefined") return;
+
+      if ("Notification" in window) {
+        if (Notification.permission === "granted") {
+          new Notification(message);
+        } else if (Notification.permission !== "denied") {
+          Notification.requestPermission().then((permission) => {
+            if (permission === "granted") {
+              new Notification(message);
+            } else {
+              fallback(message);
+            }
+          });
+        } else {
+          fallback(message);
+        }
+      } else {
+        fallback(message);
+      }
+    } catch {
+      fallback(message);
+    }
+  };
+
+  const fallback = (msg) => {
+    // iPhone fallback
+    alert(msg);
+  };
+
   const showNotification = (message, type = "info") => {
     const id = crypto.randomUUID();
 
     const newNotif = { id, message, type };
     setNotifications((prev) => [...prev, newNotif]);
 
-    // 🔊 SOUND (reuse audio)
+    // 🔊 SOUND (safe)
     try {
       if (!audioRef.current) {
         audioRef.current = new Audio(
@@ -34,10 +66,15 @@ export const NotificationProvider = ({ children }) => {
       audioRef.current.play();
     } catch {}
 
-    // 📳 VIBRATION
-    if (navigator.vibrate) {
-      navigator.vibrate([100, 50, 100]);
-    }
+    // 📳 VIBRATION (safe)
+    try {
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate([100, 50, 100]);
+      }
+    } catch {}
+
+    // 🔔 SYSTEM NOTIFICATION (NEW)
+    safeNotify(message);
 
     // ⏳ AUTO REMOVE
     const timeout = setTimeout(() => {

@@ -24,17 +24,25 @@ import {
 
 import { getAIInsight } from "./ai/ai";
 
+/* ===== FORMAT TIME ===== */
+const formatTime = (sec = 0) => {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return m ? `${m}m ${s}s` : `${s}s`;
+};
+
 export default function Analytics({ logs = {}, tasks = [], user }) {
 
+  /* ================= SAFE GUARD ================= */
   if ((!logs || typeof logs !== "object") && !tasks.length) {
     return <p style={styles.empty}>No data available</p>;
   }
 
-  // ================= DATA =================
+  /* ================= DATA ================= */
   const daily = getDailyData(logs, tasks);
 
   const chartData = Object.keys(daily).map(date => ({
-    date,
+    date: new Date(date).toLocaleDateString(),
     value: daily[date]
   }));
 
@@ -44,7 +52,7 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
   const values = chartData.map(d => d.value);
 
-  // ================= METRICS =================
+  /* ================= METRICS ================= */
   const total = values.reduce((a, b) => a + b, 0);
   const avg = Math.round(total / values.length);
 
@@ -63,16 +71,22 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
   const score = Math.min(
     100,
-    Math.round(avg * 0.5 + consistency * 50 + (trend > 0 ? 10 : 0))
+    Math.round(avg * 0.4 + consistency * 60 + (trend > 0 ? 5 : 0))
   );
 
-  // ================= 🤖 AI COACH =================
+  /* ================= TASK TIME ================= */
+  const totalTime = tasks.reduce(
+    (sum, t) => sum + (t.totalDuration || 0),
+    0
+  );
+
+  /* ================= AI ================= */
   const insight = getAIInsight({
     goalPercent: score,
     trend
   });
 
-  // ================= GOAL =================
+  /* ================= GOAL ================= */
   const goalData = parseSmartGoal(user?.goal);
 
   const todayKey = new Date().toDateString();
@@ -82,7 +96,7 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
     ? calculatePercent(todayValue, goalData.target)
     : 0;
 
-  // ================= REUSABLE =================
+  /* ================= EXTRA ================= */
   const last7Days = getWeeklyData(daily);
   const last30Days = getHeatmapData(daily);
   const streak = getStreak(last30Days);
@@ -94,16 +108,15 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
     : v < 60 ? "#22c55e"
     : "#16a34a";
 
+  /* ================= UI ================= */
   return (
-    <motion.div style={styles.container} className="fade-in">
+    <motion.div style={styles.container}>
 
-      <h1 style={styles.title}>Analytics</h1>
-      <p style={styles.subtitle}>Your performance insights</p>
+      <h1 style={styles.title}>📊 Analytics</h1>
+      <p style={styles.subtitle}>Your productivity dashboard</p>
 
-      {/* 🤖 AI COACH */}
-      <div style={styles.aiCard}>
-        {insight}
-      </div>
+      {/* 🤖 AI */}
+      <div style={styles.aiCard}>{insight}</div>
 
       {/* KPI */}
       <div style={styles.kpiGrid}>
@@ -111,6 +124,7 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
         <Kpi title="Average" value={avg} />
         <Kpi title="Best Day" value={best.date} />
         <Kpi title="Score" value={score} highlight />
+        <Kpi title="Time Spent" value={formatTime(totalTime)} />
       </div>
 
       {/* 🎯 GOAL */}
@@ -135,16 +149,16 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
       {/* 📈 DAILY */}
       <div style={styles.card}>
-        <h3>Daily Trend</h3>
+        <h3>📈 Daily Trend</h3>
         <ResponsiveContainer width="100%" height={250}>
           <LineChart data={chartData}>
-            <CartesianGrid stroke="var(--border)" />
-            <XAxis dataKey="date" stroke="var(--text-muted)" />
-            <YAxis stroke="var(--text-muted)" />
+            <CartesianGrid stroke="#222" />
+            <XAxis dataKey="date" stroke="#aaa" />
+            <YAxis stroke="#aaa" />
             <Tooltip />
             <Line
               dataKey="value"
-              stroke="var(--accent)"
+              stroke="#facc15"
               strokeWidth={3}
             />
           </LineChart>
@@ -153,39 +167,31 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
       {/* 📅 WEEKLY */}
       <div style={styles.card}>
-        <h3>Weekly Overview</h3>
+        <h3>📅 Weekly Overview</h3>
         <ResponsiveContainer width="100%" height={250}>
           <BarChart data={last7Days}>
-            <CartesianGrid stroke="var(--border)" />
-            <XAxis dataKey="date" stroke="var(--text-muted)" />
-            <YAxis stroke="var(--text-muted)" />
+            <CartesianGrid stroke="#222" />
+            <XAxis dataKey="date" stroke="#aaa" />
+            <YAxis stroke="#aaa" />
             <Tooltip />
-            <Bar
-              dataKey="value"
-              fill="var(--accent)"
-              radius={[6, 6, 0, 0]}
-            />
+            <Bar dataKey="value" fill="#22c55e" radius={[6,6,0,0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
       {/* 🏆 TASKS */}
       <div style={styles.card}>
-        <h3>Top Tasks</h3>
+        <h3>🏆 Top Tasks</h3>
         {taskData.length === 0 ? (
           <p style={styles.sub}>No task data yet</p>
         ) : (
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={taskData}>
-              <CartesianGrid stroke="var(--border)" />
-              <XAxis dataKey="name" stroke="var(--text-muted)" />
-              <YAxis stroke="var(--text-muted)" />
+              <CartesianGrid stroke="#222" />
+              <XAxis dataKey="name" stroke="#aaa" />
+              <YAxis stroke="#aaa" />
               <Tooltip />
-              <Bar
-                dataKey="value"
-                fill="#8b5cf6"
-                radius={[6, 6, 0, 0]}
-              />
+              <Bar dataKey="value" fill="#8b5cf6" radius={[6,6,0,0]} />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -193,7 +199,7 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
       {/* 🟩 HEATMAP */}
       <div style={styles.card}>
-        <h3>Consistency</h3>
+        <h3>🟩 Consistency Heatmap</h3>
         <div style={styles.heatmap}>
           {last30Days.map((d, i) => (
             <div
@@ -210,104 +216,87 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
       {/* 🔥 STREAK */}
       <div style={styles.card}>
-        <h3>{streak} day streak 🔥</h3>
+        <h3>🔥 {streak} Day Streak</h3>
       </div>
 
     </motion.div>
   );
 }
 
-// ================= COMPONENTS =================
+/* ================= COMPONENT ================= */
 function Kpi({ title, value, highlight }) {
   return (
-    <div
-      style={{
-        ...styles.kpiCard,
-        ...(highlight && styles.highlight)
-      }}
-    >
+    <div style={{
+      ...styles.kpiCard,
+      ...(highlight && styles.highlight)
+    }}>
       <p>{title}</p>
       <h2>{value}</h2>
     </div>
   );
 }
 
-// ================= STYLES =================
+/* ================= STYLES ================= */
 const styles = {
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 24
+  container: { display:"flex",flexDirection:"column",gap:24 },
+
+  title:{ fontSize:28 },
+  subtitle:{ color:"#94a3b8" },
+
+  sub:{ color:"#94a3b8", fontSize:13 },
+
+  aiCard:{
+    background:"linear-gradient(135deg,#6366f1,#8b5cf6)",
+    padding:16,
+    borderRadius:12,
+    color:"#fff"
   },
 
-  title: { fontSize: 28 },
-
-  subtitle: { color: "var(--text-muted)" },
-
-  sub: {
-    color: "var(--text-muted)",
-    fontSize: 13
+  kpiGrid:{
+    display:"grid",
+    gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",
+    gap:16
   },
 
-  aiCard: {
-    background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
-    padding: 16,
-    borderRadius: 12,
-    color: "#fff",
-    fontWeight: 500
+  kpiCard:{
+    background:"#0f172a",
+    padding:16,
+    borderRadius:16
   },
 
-  kpiGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))",
-    gap: 16
+  highlight:{ background:"#facc15",color:"#000" },
+
+  card:{
+    background:"#0f172a",
+    padding:20,
+    borderRadius:16
   },
 
-  kpiCard: {
-    background: "var(--card)",
-    padding: 16,
-    borderRadius: 16,
-    border: "1px solid var(--border)"
+  progressBg:{
+    height:10,
+    background:"#222",
+    borderRadius:10
   },
 
-  highlight: {
-    background: "var(--accent)",
-    color: "#fff"
+  progressFill:{
+    height:10,
+    background:"#22c55e",
+    borderRadius:10
   },
 
-  card: {
-    background: "var(--card)",
-    backdropFilter: "blur(12px)",
-    padding: 20,
-    borderRadius: 16,
-    border: "1px solid var(--border)"
+  heatmap:{
+    display:"grid",
+    gridTemplateColumns:"repeat(10,1fr)",
+    gap:6
   },
 
-  progressBg: {
-    height: 10,
-    background: "var(--border)",
-    borderRadius: 10
+  cell:{
+    aspectRatio:1,
+    borderRadius:4
   },
 
-  progressFill: {
-    height: 10,
-    background: "var(--accent)",
-    borderRadius: 10
-  },
-
-  heatmap: {
-    display: "grid",
-    gridTemplateColumns: "repeat(10,1fr)",
-    gap: 6
-  },
-
-  cell: {
-    aspectRatio: 1,
-    borderRadius: 4
-  },
-
-  empty: {
-    padding: 30,
-    color: "var(--text-muted)"
+  empty:{
+    padding:30,
+    color:"#94a3b8"
   }
 };

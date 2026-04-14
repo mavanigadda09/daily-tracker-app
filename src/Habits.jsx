@@ -1,14 +1,16 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 
-// ===== DATE UTILS =====
+/* ===== DATE UTILS ===== */
 const getKey = (d) =>
   `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
-export default function Habits({ items = [], setItems }) {
+const todayKey = () => getKey(new Date());
 
+export default function Habits({ items = [], setItems }) {
   const hydrated = useRef(false);
 
+  /* ================= LOCAL STORAGE ================= */
   useEffect(() => {
     if (!hydrated.current) {
       const saved = localStorage.getItem("habits");
@@ -28,6 +30,7 @@ export default function Habits({ items = [], setItems }) {
     [items]
   );
 
+  /* ================= STATE ================= */
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
 
@@ -40,10 +43,11 @@ export default function Habits({ items = [], setItems }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const activeKey = getKey(selectedDate);
+
   const dayNames = ["S","M","T","W","T","F","S"];
 
-  // ===== DATE =====
-  const getDates = () => {
+  /* ================= DATES ================= */
+  const dates = useMemo(() => {
     const today = new Date();
 
     if (view === "today") return [today];
@@ -63,11 +67,9 @@ export default function Habits({ items = [], setItems }) {
     return Array.from({ length: days }, (_, i) =>
       new Date(year, month, i + 1)
     );
-  };
+  }, [view]);
 
-  const dates = getDates();
-
-  // ===== SUMMARY =====
+  /* ================= SUMMARY ================= */
   const completedHabits = habits.filter(
     h => h.completed?.[activeKey]?.done
   );
@@ -82,15 +84,12 @@ export default function Habits({ items = [], setItems }) {
 
   const totalXP = habits.reduce((sum, h) => sum + (h.xp || 0), 0);
 
-  // ===== COLORS =====
-  const colors = [
-    "linear-gradient(135deg,#facc15,#f97316)",
-    "linear-gradient(135deg,#f97316,#ef4444)",
-    "linear-gradient(135deg,#facc15,#ef4444)",
-    "linear-gradient(135deg,#fb923c,#facc15)"
-  ];
+  const bestStreak = Math.max(
+    ...habits.map(h => h.bestStreak || 0),
+    0
+  );
 
-  // ===== ADD / EDIT =====
+  /* ================= ADD / EDIT ================= */
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -129,7 +128,7 @@ export default function Habits({ items = [], setItems }) {
     setEditId(null);
   };
 
-  // ===== TOGGLE =====
+  /* ================= TOGGLE ================= */
   const toggleDay = (id) => {
     setItems(prev =>
       prev.map(item => {
@@ -153,7 +152,6 @@ export default function Habits({ items = [], setItems }) {
             ...completed,
             [activeKey]: {
               done: true,
-              value: 1,
               note: ""
             }
           },
@@ -167,20 +165,20 @@ export default function Habits({ items = [], setItems }) {
 
   const addNote = (id, note) => {
     setItems(prev =>
-      prev.map(item => {
-        if (item.id !== id) return item;
-
-        return {
-          ...item,
-          completed: {
-            ...item.completed,
-            [activeKey]: {
-              ...(item.completed?.[activeKey] || {}),
-              note
+      prev.map(item =>
+        item.id === id
+          ? {
+              ...item,
+              completed: {
+                ...item.completed,
+                [activeKey]: {
+                  ...(item.completed?.[activeKey] || {}),
+                  note
+                }
+              }
             }
-          }
-        };
-      })
+          : item
+      )
     );
   };
 
@@ -208,9 +206,9 @@ export default function Habits({ items = [], setItems }) {
     setShowForm(true);
   };
 
+  /* ================= UI ================= */
   return (
     <div style={styles.container}>
-
       <h1 style={styles.title}>🔥 Habits</h1>
 
       {/* SUMMARY */}
@@ -218,9 +216,10 @@ export default function Habits({ items = [], setItems }) {
         <div>🔥 {completedHabits.length}/{habits.length}</div>
         <div>⚡ XP: {totalXP}</div>
         <div>📊 {completionRate}%</div>
+        <div>🏆 Best: {bestStreak}</div>
       </div>
 
-      {/* VIEW */}
+      {/* TABS */}
       <div style={styles.tabs}>
         {["today","week","month"].map(v => (
           <button key={v} onClick={()=>setView(v)} style={{
@@ -264,13 +263,13 @@ export default function Habits({ items = [], setItems }) {
       )}
 
       {showForm && (
-        <form onSubmit={handleSubmit} style={styles.horizontalForm}>
-          <input placeholder="Name" value={name} onChange={e=>setName(e.target.value)} />
-          <input placeholder="Tip" value={tip} onChange={e=>setTip(e.target.value)} />
+        <form onSubmit={handleSubmit} style={styles.form}>
+          <input placeholder="Habit Name" value={name} onChange={e=>setName(e.target.value)} />
+          <input placeholder="Tip / Instruction" value={tip} onChange={e=>setTip(e.target.value)} />
           <input type="time" value={time} onChange={e=>setTime(e.target.value)} />
           <input type="number" value={targetDays} onChange={e=>setTargetDays(e.target.value)} />
-          <button type="submit">Add</button>
-          <button type="button" onClick={()=>setShowForm(false)}>Close</button>
+          <button type="submit">Save</button>
+          <button type="button" onClick={()=>setShowForm(false)}>Cancel</button>
         </form>
       )}
 
@@ -285,18 +284,11 @@ export default function Habits({ items = [], setItems }) {
 
           return (
             <motion.div key={h.id} style={{...styles.card, background:colors[i%4]}}>
-              <div style={styles.cardTop}>
-                <h3>{h.name}</h3>
-                <div>
-                  <button onClick={()=>editHabit(h)}>✏️</button>
-                  <button onClick={()=>deleteHabit(h.id)}>🗑</button>
-                </div>
-              </div>
+              <h3>{h.name}</h3>
 
-              {h.tip && <p style={styles.tip}>💡 {h.tip}</p>}
+              {h.tip && <p>💡 {h.tip}</p>}
 
-              <p>🔥 {h.streak}</p>
-              <p>⚡ {h.xp}</p>
+              <p>🔥 {h.streak} | ⚡ {h.xp}</p>
 
               <div style={styles.progressBar}>
                 <div style={{...styles.progressFill,width:`${progress}%`}}/>
@@ -315,14 +307,13 @@ export default function Habits({ items = [], setItems }) {
           const note = h.completed?.[activeKey]?.note || "";
 
           return (
-            <div key={h.id} style={{...styles.card, background:colors[i%4],opacity:0.7}}>
+            <div key={h.id} style={{...styles.card, opacity:0.7}}>
               <h3>{h.name}</h3>
 
               <textarea
                 placeholder="Reflection..."
                 value={note}
                 onChange={(e)=>addNote(h.id,e.target.value)}
-                style={styles.note}
               />
 
               <button onClick={()=>unmarkDay(h.id)}>Undo</button>
@@ -331,29 +322,41 @@ export default function Habits({ items = [], setItems }) {
           );
         })}
       </div>
-
     </div>
   );
 }
 
-// ===== STYLES =====
+/* ===== COLORS ===== */
+const colors = [
+  "linear-gradient(135deg,#facc15,#f97316)",
+  "linear-gradient(135deg,#f97316,#ef4444)",
+  "linear-gradient(135deg,#facc15,#ef4444)",
+  "linear-gradient(135deg,#fb923c,#facc15)"
+];
+
+/* ===== STYLES ===== */
 const styles = {
-  container:{padding:24,maxWidth:1000,margin:"0 auto"},
+  container:{padding:24,maxWidth:1000,margin:"0 auto",color:"#fff"},
   title:{color:"#facc15"},
   summary:{display:"flex",gap:20,marginBottom:20},
+
   tabs:{display:"flex",gap:10,marginBottom:10},
   tab:{padding:8},
-  activeTab:{background:"#facc15"},
+  activeTab:{background:"#facc15",color:"#000"},
+
   dateRow:{display:"flex",gap:8,overflowX:"auto"},
-  monthGrid:{display:"grid",gridTemplateColumns:"repeat(10,1fr)",gap:8},
-  dateCard:{padding:10,cursor:"pointer"},
+  monthGrid:{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:8},
+
+  dateCard:{padding:10,cursor:"pointer",textAlign:"center"},
+
   createCard:{padding:20,background:"#111",marginBottom:20,cursor:"pointer"},
-  horizontalForm:{display:"flex",gap:10,marginBottom:20},
+
+  form:{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap"},
+
   grid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))",gap:16},
-  card:{padding:16,borderRadius:12,color:"#fff"},
-  cardTop:{display:"flex",justifyContent:"space-between"},
-  tip:{fontSize:12},
+
+  card:{padding:16,borderRadius:12},
+
   progressBar:{height:6,background:"#333",margin:"10px 0"},
-  progressFill:{height:6,background:"#facc15"},
-  note:{width:"100%",marginTop:10}
+  progressFill:{height:6,background:"#facc15"}
 };

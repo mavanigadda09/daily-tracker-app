@@ -20,16 +20,15 @@ const todayKey = () => new Date().toDateString();
 
 /* ===== MAIN ===== */
 export default function Tasks({ tasks = [], setTasks }) {
-
   const [name, setName] = useState("");
 
-  /* ================= ADD ================= */
+  /* ================= ADD (FIXED) ================= */
   const addTask = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
 
     const exists = tasks.some(
-      t => t.name.toLowerCase() === trimmed.toLowerCase()
+      t => t.name.trim().toLowerCase() === trimmed.toLowerCase()
     );
     if (exists) return;
 
@@ -43,7 +42,8 @@ export default function Tasks({ tasks = [], setTasks }) {
         sessions: [],
         totalDuration: 0,
         scheduledFor: todayKey(),
-        priority: "medium"
+        priority: "medium",
+        createdAt: Date.now()
       }
     ]);
 
@@ -54,15 +54,8 @@ export default function Tasks({ tasks = [], setTasks }) {
   const startTask = (id) => {
     setTasks(prev =>
       prev.map(t => {
-        if (t.id === id) {
-          return {
-            ...t,
-            status: "running",
-            currentStart: Date.now()
-          };
-        }
-
-        if (t.status === "running") {
+        // stop other running tasks
+        if (t.status === "running" && t.id !== id) {
           const duration = (Date.now() - t.currentStart) / 1000;
 
           return {
@@ -76,6 +69,14 @@ export default function Tasks({ tasks = [], setTasks }) {
           };
         }
 
+        if (t.id === id) {
+          return {
+            ...t,
+            status: "running",
+            currentStart: Date.now()
+          };
+        }
+
         return t;
       })
     );
@@ -85,7 +86,7 @@ export default function Tasks({ tasks = [], setTasks }) {
   const stopTask = (id) => {
     setTasks(prev =>
       prev.map(t => {
-        if (t.id !== id) return t;
+        if (t.id !== id || t.status !== "running") return t;
 
         const duration = (Date.now() - t.currentStart) / 1000;
 
@@ -96,7 +97,8 @@ export default function Tasks({ tasks = [], setTasks }) {
           sessions: [
             ...t.sessions,
             { start: t.currentStart, end: Date.now(), duration }
-          ]
+          ],
+          currentStart: null
         };
       })
     );
@@ -132,10 +134,7 @@ export default function Tasks({ tasks = [], setTasks }) {
         s => new Date(s.start).toDateString() === todayKey()
       );
 
-      return (
-        sum +
-        todaySessions.reduce((acc, s) => acc + s.duration, 0)
-      );
+      return sum + todaySessions.reduce((acc, s) => acc + s.duration, 0);
     }, 0);
   }, [tasks]);
 
@@ -155,13 +154,14 @@ export default function Tasks({ tasks = [], setTasks }) {
     return [...tasks].sort((a, b) => {
       if (a.status === "running") return -1;
       if (b.status === "running") return 1;
-      return 0;
+      if (a.completed) return 1;
+      if (b.completed) return -1;
+      return b.createdAt - a.createdAt;
     });
   }, [tasks]);
 
   return (
     <div style={styles.container}>
-
       <h1 style={styles.title}>📌 Tasks</h1>
 
       {/* SUMMARY */}
@@ -183,10 +183,13 @@ export default function Tasks({ tasks = [], setTasks }) {
         <input
           style={styles.input}
           value={name}
-          onChange={(e)=>setName(e.target.value)}
+          onChange={(e) => setName(e.target.value)}
           placeholder="Enter task..."
+          onKeyDown={(e) => e.key === "Enter" && addTask()}
         />
-        <button onClick={addTask}>Add</button>
+        <button onClick={addTask} disabled={!name.trim()}>
+          Add
+        </button>
       </div>
 
       <Pomodoro activeTask={activeTask} />
@@ -194,6 +197,10 @@ export default function Tasks({ tasks = [], setTasks }) {
 
       {/* TASKS */}
       <div style={styles.grid}>
+        {sortedTasks.length === 0 && (
+          <p style={{ opacity: 0.6 }}>No tasks yet 🚀</p>
+        )}
+
         {sortedTasks.map(t => (
           <TaskCard
             key={t.id}
@@ -205,14 +212,12 @@ export default function Tasks({ tasks = [], setTasks }) {
           />
         ))}
       </div>
-
     </div>
   );
 }
 
 /* ===== TASK CARD ===== */
 function TaskCard({ task, startTask, stopTask, deleteTask, completeTask }) {
-
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -228,22 +233,31 @@ function TaskCard({ task, startTask, stopTask, deleteTask, completeTask }) {
   }
 
   return (
-    <motion.div style={styles.card}>
+    <motion.div
+      style={{
+        ...styles.card,
+        border:
+          task.status === "running"
+            ? "2px solid #22c55e"
+            : "1px solid #1e293b"
+      }}
+    >
       <h3>{task.name}</h3>
-      <p>{task.status}</p>
+
+      <p style={{ opacity: 0.7 }}>{task.status}</p>
       <p>⏳ {formatDuration(duration)}</p>
 
       {task.status !== "running" ? (
-        <button onClick={()=>startTask(task.id)}>▶</button>
+        <button onClick={() => startTask(task.id)}>▶</button>
       ) : (
-        <button onClick={()=>stopTask(task.id)}>⏹</button>
+        <button onClick={() => stopTask(task.id)}>⏹</button>
       )}
 
       {!task.completed && (
-        <button onClick={()=>completeTask(task.id)}>✔</button>
+        <button onClick={() => completeTask(task.id)}>✔</button>
       )}
 
-      <button onClick={()=>deleteTask(task.id)}>🗑</button>
+      <button onClick={() => deleteTask(task.id)}>🗑</button>
     </motion.div>
   );
 }
@@ -264,11 +278,13 @@ function Pomodoro({ activeTask }) {
   return (
     <div style={styles.card}>
       <h3>🍅 Pomodoro</h3>
-      <h1>{Math.floor(sec/60)}:{(sec%60).toString().padStart(2,"0")}</h1>
+      <h1>
+        {Math.floor(sec / 60)}:{(sec % 60).toString().padStart(2, "0")}
+      </h1>
 
       {activeTask && <p>🎯 {activeTask.name}</p>}
 
-      <button onClick={()=>setRun(!run)}>
+      <button onClick={() => setRun(!run)}>
         {run ? "Pause" : "Start"}
       </button>
     </div>
@@ -277,8 +293,7 @@ function Pomodoro({ activeTask }) {
 
 /* ===== 📊 ===== */
 function WeeklyAnalytics({ tasks }) {
-
-  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const data = useMemo(() => {
     const map = {};
@@ -303,10 +318,10 @@ function WeeklyAnalytics({ tasks }) {
 
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={data}>
-          <XAxis dataKey="date"/>
-          <YAxis/>
-          <Tooltip/>
-          <Line dataKey="time" stroke="#facc15"/>
+          <XAxis dataKey="date" />
+          <YAxis />
+          <Tooltip />
+          <Line dataKey="time" stroke="#facc15" />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -315,14 +330,28 @@ function WeeklyAnalytics({ tasks }) {
 
 /* ===== STYLES ===== */
 const styles = {
-  container:{padding:20,color:"#fff"},
-  title:{color:"#facc15"},
-  summary:{display:"flex",gap:20,marginBottom:10},
-  active:{padding:10,background:"#022c22",marginBottom:10,borderRadius:8},
+  container: { padding: 20, color: "#fff" },
+  title: { color: "#facc15" },
+  summary: { display: "flex", gap: 20, marginBottom: 10 },
+  active: {
+    padding: 10,
+    background: "#022c22",
+    marginBottom: 10,
+    borderRadius: 8
+  },
 
-  addBox:{display:"flex",gap:10,marginBottom:20},
-  input:{flex:1,padding:10},
+  addBox: { display: "flex", gap: 10, marginBottom: 20 },
+  input: { flex: 1, padding: 10 },
 
-  grid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))",gap:16},
-  card:{padding:16,background:"#020617",borderRadius:12}
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))",
+    gap: 16
+  },
+
+  card: {
+    padding: 16,
+    background: "#020617",
+    borderRadius: 12
+  }
 };
