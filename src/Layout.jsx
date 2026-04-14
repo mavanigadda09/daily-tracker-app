@@ -11,7 +11,6 @@ import {
   Lightbulb,
   User,
   Menu,
-  Dumbbell,
   MessageCircle,
   Wallet
 } from "lucide-react";
@@ -21,16 +20,15 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
+  // ✅ UPDATED NAV (Weight removed, Health merged)
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
-    { path: "/habits", label: "Habits", icon: CheckSquare },
+    { path: "/habits", label: "Health", icon: CheckSquare }, // 🔥 renamed
     { path: "/tasks", label: "Tasks", icon: ListTodo },
     { path: "/activities", label: "Activities", icon: Activity },
-    { path: "/weight", label: "Weight", icon: Dumbbell },
     { path: "/finance", label: "Finance", icon: Wallet },
     { path: "/chat", label: "AI Chat", icon: MessageCircle },
     { path: "/analytics", label: "Analytics", icon: BarChart3 },
-    { path: "/insights", label: "Insights", icon: Lightbulb },
     { path: "/profile", label: "Profile", icon: User }
   ];
 
@@ -55,7 +53,6 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
         <div>
           <div style={s.topRow}>
 
-            {/* 🔥 LOGO + TITLE */}
             {!collapsed && (
               <div style={s.logoWrapper}>
                 <img
@@ -110,7 +107,6 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
                   {active && <div style={s.activeBar} />}
 
                   <Icon size={18} />
-
                   {!collapsed && <span>{item.label}</span>}
 
                 </Link>
@@ -150,6 +146,7 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
     </div>
   );
 }
+
 
 // ================= STYLES =================
 
