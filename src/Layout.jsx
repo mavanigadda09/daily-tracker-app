@@ -34,14 +34,13 @@ export default function Layout({
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = [
-    { path: "/", label: "Dashboard", icon: LayoutDashboard },
-    { path: "/habits", label: "Health", icon: CheckSquare },
-    { path: "/productivity", label: "Productivity" }
-    { path: "/finance", label: "Finance", icon: Wallet },
-    { path: "/chat", label: "AI Chat", icon: MessageCircle },
-    { path: "/analytics", label: "Analytics", icon: BarChart3 },
-    { path: "/profile", label: "Profile", icon: User }
-  ];
+  { path: "/", label: "Dashboard", icon: LayoutDashboard },
+  { path: "/productivity", label: "Productivity", icon: CheckSquare },
+  { path: "/finance", label: "Finance", icon: Wallet },
+  { path: "/chat", label: "AI Chat", icon: MessageCircle },
+  { path: "/analytics", label: "Analytics", icon: BarChart3 },
+  { path: "/profile", label: "Profile", icon: User }
+];
 
   const isActive = (path) => {
     if (path === "/") return location.pathname === "/";
