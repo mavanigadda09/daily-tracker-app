@@ -15,7 +15,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import Login from "./Login";
 import Onboarding from "./Onboarding";
 
-import { queueSave, subscribeToData, loadData } from "./cloud";
+import { queueSave, loadData } from "./cloud";
 
 import { auth } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -167,7 +167,17 @@ export default function App() {
       chatHistory,
       updatedAt: Date.now()
     });
-  }, [items, tasks, weightLogs, weightGoal, logs, goal, financeData, chatHistory, firebaseUser]);
+  }, [
+    items,
+    tasks,
+    weightLogs,
+    weightGoal,
+    logs,
+    goal,
+    financeData,
+    chatHistory,
+    firebaseUser
+  ]);
 
   if (loadingAuth) return <div style={{ padding: 20 }}>Loading...</div>;
 
@@ -199,17 +209,69 @@ export default function App() {
             }
           >
 
-            <Route index element={<Dashboard logs={logs} tasks={tasks} items={items} user={user} weightLogs={weightLogs} />} />
+            <Route
+              index
+              element={
+                <Dashboard
+                  logs={logs}
+                  tasks={tasks}
+                  items={items}
+                  user={user}
+                  weightLogs={weightLogs}
+                />
+              }
+            />
 
-            <Route path="habits" element={<Habits items={items} setItems={setItems} weightLogs={weightLogs} />} />
+            <Route
+              path="habits"
+              element={
+                <Habits
+                  items={items}
+                  setItems={setItems}
+                  weightLogs={weightLogs}
+                />
+              }
+            />
 
-            <Route path="productivity" element={<Productivity tasks={tasks} setTasks={setTasks} items={items} setItems={setItems} /> } />
+            <Route
+              path="productivity"
+              element={
+                <Productivity
+                  tasks={tasks}
+                  setTasks={setTasks}
+                  items={items}
+                  setItems={setItems}
+                />
+              }
+            />
 
-            <Route path="analytics" element={<Analytics logs={logs} tasks={tasks} user={user} />} />
+            <Route
+              path="analytics"
+              element={<Analytics logs={logs} tasks={tasks} user={user} />}
+            />
 
-            <Route path="finance" element={<Finance financeData={financeData} setFinanceData={setFinanceData} />} />
+            <Route
+              path="finance"
+              element={
+                <Finance
+                  financeData={financeData}
+                  setFinanceData={setFinanceData}
+                />
+              }
+            />
 
-            <Route path="chat" element={<Chat chatHistory={chatHistory} setChatHistory={setChatHistory} items={items} tasks={tasks} weightLogs={weightLogs} />} />
+            <Route
+              path="chat"
+              element={
+                <Chat
+                  chatHistory={chatHistory}
+                  setChatHistory={setChatHistory}
+                  items={items}
+                  tasks={tasks}
+                  weightLogs={weightLogs}
+                />
+              }
+            />
 
             <Route path="goals" element={<Goals />} />
 
