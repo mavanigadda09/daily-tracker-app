@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid
@@ -36,6 +36,60 @@ export default function Dashboard({
 
   const navigate = useNavigate();
   const { showNotification } = useNotification();
+
+  /* ================= HEALTH TRACKING ================= */
+  const [steps, setSteps] = useState(
+    () => Number(localStorage.getItem("steps")) || 0
+  );
+
+  const [heartPoints, setHeartPoints] = useState(
+    () => Number(localStorage.getItem("heartPoints")) || 0
+  );
+
+  const [workouts, setWorkouts] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("workouts")) || [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [workoutInput, setWorkoutInput] = useState("");
+
+  /* ================= SAVE HEALTH ================= */
+  useEffect(() => {
+    localStorage.setItem("steps", steps);
+    localStorage.setItem("heartPoints", heartPoints);
+    localStorage.setItem("workouts", JSON.stringify(workouts));
+  }, [steps, heartPoints, workouts]);
+
+  /* ================= AUTO STEP SIMULATION ================= */
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSteps(prev => prev + Math.floor(Math.random() * 3));
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  /* ================= HEART POINTS ================= */
+  useEffect(() => {
+    const points = Math.floor(steps / 1000) * 10;
+    setHeartPoints(points);
+  }, [steps]);
+
+  const addWorkout = () => {
+    if (!workoutInput.trim()) return;
+
+    const newWorkout = {
+      id: Date.now(),
+      name: workoutInput,
+      date: new Date().toLocaleDateString()
+    };
+
+    setWorkouts(prev => [newWorkout, ...prev]);
+    setWorkoutInput("");
+  };
 
   /* ================= SAFE DATA ================= */
   const safeTasks = safeArray(tasks);
@@ -133,7 +187,6 @@ export default function Dashboard({
     weight: Number(w.weight || 0)
   }));
 
-  /* ================= UI ================= */
   return (
     <motion.div style={styles.container}>
 
@@ -158,7 +211,7 @@ export default function Dashboard({
 
       {/* ACTIVE TASK */}
       {activeTask && (
-        <motion.div style={styles.active} initial={{ scale: 0.95 }} animate={{ scale: 1 }}>
+        <motion.div style={styles.active}>
           🎯 Focus: <strong>{activeTask.name}</strong>
         </motion.div>
       )}
@@ -170,25 +223,49 @@ export default function Dashboard({
         <Stat label="Focus Time" value={formatTime(totalTime)} />
       </div>
 
-      {/* GRID */}
+      {/* 🔥 NEW HEALTH SECTION */}
       <div style={styles.grid}>
-
-        <Card title="📋 Tasks">
-          {safeTasks.slice(0, 3).map(t => (
-            <p key={t.id}>{t.name}</p>
-          ))}
-          <button style={styles.button} onClick={() => navigate("/tasks")}>
-            Open →
+        <Card title="🚶 Steps">
+          <h2>{steps}</h2>
+          <button style={styles.button} onClick={() => setSteps(s => s + 500)}>
+            +500 steps
           </button>
         </Card>
 
-        <Card title="🔥 Habits">
-          {habits.slice(0, 3).map(h => (
-            <p key={h.id}>{h.name}</p>
-          ))}
-          <button style={styles.button} onClick={() => navigate("/habits")}>
-            Open →
+        <Card title="❤️ Heart Points">
+          <Circle value={heartPoints} />
+        </Card>
+
+        <Card title="🏋️ Workouts">
+          <input
+            placeholder="Add workout"
+            value={workoutInput}
+            onChange={(e) => setWorkoutInput(e.target.value)}
+            style={{ width: "100%", padding: 8 }}
+          />
+          <button style={styles.button} onClick={addWorkout}>
+            Add
           </button>
+
+          {workouts.slice(0, 3).map(w => (
+            <p key={w.id}>{w.name}</p>
+          ))}
+        </Card>
+
+        <Card title="🔗 Integrations">
+          <button style={styles.button}>Strava</button>
+          <button style={styles.button}>MyFitnessPal</button>
+        </Card>
+      </div>
+
+      {/* EXISTING GRID */}
+      <div style={styles.grid}>
+        <Card title="📋 Tasks">
+          {safeTasks.slice(0, 3).map(t => <p key={t.id}>{t.name}</p>)}
+        </Card>
+
+        <Card title="🔥 Habits">
+          {habits.slice(0, 3).map(h => <p key={h.id}>{h.name}</p>)}
         </Card>
 
         <Card title="📊 Habit Score">
@@ -198,40 +275,23 @@ export default function Dashboard({
         <Card title="📈 Activity Score">
           <Circle value={activityPercent} />
         </Card>
-
       </div>
 
       {/* CHART */}
       <Card title="📈 Last 7 Days">
         <ResponsiveContainer width="100%" height={180}>
           <LineChart data={chartData}>
-            <XAxis stroke={theme.colors.textMuted} dataKey="date" />
-            <YAxis stroke={theme.colors.textMuted} />
-            <CartesianGrid stroke={theme.colors.border} />
+            <XAxis dataKey="date" />
+            <YAxis />
             <Tooltip />
             <Line dataKey="value" stroke={theme.colors.primary} />
           </LineChart>
         </ResponsiveContainer>
       </Card>
 
-      {/* WEIGHT */}
-      {weightData.length > 0 && (
-        <Card title="🏋️ Weight Progress">
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={weightData}>
-              <XAxis stroke={theme.colors.textMuted} dataKey="date" />
-              <YAxis stroke={theme.colors.textMuted} />
-              <CartesianGrid stroke={theme.colors.border} />
-              <Tooltip />
-              <Line dataKey="weight" stroke={theme.colors.primary} />
-            </LineChart>
-          </ResponsiveContainer>
-        </Card>
-      )}
-
       {/* AI */}
       <Card title="🤖 AI Coach">
-        <p style={{ color: theme.colors.textMuted }}>{message}</p>
+        <p>{message}</p>
       </Card>
 
     </motion.div>
@@ -242,95 +302,32 @@ export default function Dashboard({
 const Stat = ({ label, value }) => (
   <div style={styles.statCard}>
     <h2>{value}</h2>
-    <p style={{ color: theme.colors.textMuted }}>{label}</p>
+    <p>{label}</p>
   </div>
 );
 
 const Badge = ({ label, value }) => (
-  <span style={styles.badge}>
-    {label} {value}
-  </span>
+  <span style={styles.badge}>{label} {value}</span>
 );
 
 const Card = ({ title, children }) => (
   <div style={styles.card}>
-    <h3 style={styles.cardTitle}>{title}</h3>
+    <h3>{title}</h3>
     {children}
   </div>
 );
 
 const Circle = ({ value }) => (
-  <div style={styles.circle}>
-    {value}%
-  </div>
+  <div style={styles.circle}>{value}%</div>
 );
 
 /* ===== STYLES ===== */
 const styles = {
   container: { padding: 24 },
-
   header: { display: "flex", justifyContent: "space-between" },
-
-  title: { color: theme.colors.text },
-
-  profile: { cursor: "pointer" },
-
-  badges: { display: "flex", gap: 10, marginTop: 8 },
-
-  badge: {
-    background: theme.colors.surface,
-    padding: "6px 10px",
-    borderRadius: 10,
-    border: `1px solid ${theme.colors.border}`
-  },
-
-  active: {
-    marginTop: 15,
-    padding: 14,
-    borderRadius: 12,
-    background: "linear-gradient(135deg,#22c55e33,#0f172a)"
-  },
-
   stats: { display: "flex", gap: 16, marginTop: 20 },
-
-  statCard: {
-    flex: 1,
-    padding: 16,
-    background: theme.colors.surface,
-    borderRadius: 12,
-    border: `1px solid ${theme.colors.border}`
-  },
-
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-    gap: 20,
-    marginTop: 20
-  },
-
-  card: {
-    padding: 20,
-    background: theme.colors.surface,
-    borderRadius: 16,
-    border: `1px solid ${theme.colors.border}`,
-    marginTop: 20
-  },
-
-  cardTitle: { color: theme.colors.primary },
-
-  circle: {
-    width: 100,
-    height: 100,
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    margin: "auto",
-    border: `8px solid ${theme.colors.primary}`
-  },
-
-  button: {
-    ...theme.components.button.primary,
-    marginTop: 10
-  }
+  grid: { display: "grid", gap: 20, marginTop: 20 },
+  card: { padding: 20, borderRadius: 16 },
+  circle: { width: 100, height: 100, borderRadius: "50%" },
+  button: { padding: 10, cursor: "pointer" }
 };
