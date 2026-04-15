@@ -26,6 +26,50 @@ const formatTime = (sec = 0) => {
 const getKey = (d) =>
   `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
+/* ===== RING COMPONENT (ANIMATED) ===== */
+const Ring = ({ value, label, color }) => {
+  const radius = 40;
+  const stroke = 8;
+  const normalized = radius - stroke / 2;
+  const circumference = normalized * 2 * Math.PI;
+
+  return (
+    <div style={{ textAlign: "center" }}>
+      <svg height={100} width={100}>
+        <circle
+          stroke="rgba(255,255,255,0.1)"
+          fill="transparent"
+          strokeWidth={stroke}
+          r={normalized}
+          cx="50"
+          cy="50"
+        />
+
+        <motion.circle
+          stroke={color}
+          fill="transparent"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          r={normalized}
+          cx="50"
+          cy="50"
+          initial={{ strokeDasharray: circumference, strokeDashoffset: circumference }}
+          animate={{
+            strokeDashoffset: circumference - (value / 100) * circumference
+          }}
+          transition={{ duration: 1 }}
+        />
+      </svg>
+
+      <div style={{ marginTop: -70, fontWeight: "bold" }}>
+        {value}%
+      </div>
+
+      <p style={{ marginTop: 10 }}>{label}</p>
+    </div>
+  );
+};
+
 export default function Dashboard({
   logs = {},
   weightLogs = [],
@@ -45,6 +89,9 @@ export default function Dashboard({
     catch { return []; }
   });
   const [workoutInput, setWorkoutInput] = useState("");
+
+  /* ===== GOALS ===== */
+  const STEP_GOAL = 10000;
 
   useEffect(() => {
     localStorage.setItem("steps", steps);
@@ -70,6 +117,13 @@ export default function Dashboard({
       ...prev
     ]);
     setWorkoutInput("");
+  };
+
+  /* ===== FUTURE API ===== */
+  const fetchHealthData = async () => {
+    try {
+      // future API integration
+    } catch {}
   };
 
   /* ================= DATA ================= */
@@ -153,17 +207,20 @@ export default function Dashboard({
         <Stat label="Focus Time" value={formatTime(totalTime)} />
       </div>
 
-      {/* HEALTH */}
+      {/* 🔥 GOOGLE FIT UI */}
       <div style={styles.grid}>
-        <Card title="🚶 Steps">
-          <h2>{steps}</h2>
-          <button style={styles.button} onClick={() => setSteps(s => s + 500)}>
-            +500 steps
-          </button>
-        </Card>
+        <Card title="🔥 Daily Progress">
 
-        <Card title="❤️ Heart Points">
-          <Circle value={heartPoints} />
+          <div style={styles.rings}>
+            <Ring value={Math.min(100, Math.round((steps / STEP_GOAL) * 100))} label="Steps" color="#22c55e" />
+            <Ring value={heartPoints} label="Heart" color="#ef4444" />
+            <Ring value={activityPercent} label="Activity" color="#3b82f6" />
+          </div>
+
+          <p style={{ marginTop: 10 }}>
+            🚶 {steps} / {STEP_GOAL} steps
+          </p>
+
         </Card>
 
         <Card title="🏋️ Workouts">
@@ -178,8 +235,8 @@ export default function Dashboard({
         </Card>
 
         <Card title="🔗 Integrations">
-          <button style={styles.button}>Strava</button>
-          <button style={styles.button}>MyFitnessPal</button>
+          <button style={styles.button}>Connect Strava</button>
+          <button style={styles.button}>Connect MyFitnessPal</button>
         </Card>
       </div>
 
@@ -229,7 +286,7 @@ const Circle = ({ value }) => (
   <div style={styles.circle}>{value}%</div>
 );
 
-/* ===== FIXED STYLES ===== */
+/* ===== STYLES ===== */
 const styles = {
   container: {
     padding: 24,
@@ -243,9 +300,7 @@ const styles = {
     alignItems: "center"
   },
 
-  profile: {
-    cursor: "pointer"
-  },
+  profile: { cursor: "pointer" },
 
   stats: {
     display: "flex",
@@ -262,9 +317,15 @@ const styles = {
 
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
     gap: 20,
     marginTop: 20
+  },
+
+  rings: {
+    display: "flex",
+    justifyContent: "space-around",
+    alignItems: "center"
   },
 
   card: {
