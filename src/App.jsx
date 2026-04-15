@@ -27,10 +27,8 @@ import HabitReminderSystem from "./system/HabitReminderSystem";
 
 /* ================= SAFE ================= */
 const safeArray = (v) => (Array.isArray(v) ? v : []);
-
 const safeCall = (fn, ...args) => {
   if (typeof fn === "function") return fn(...args);
-  console.error("❌ Not a function:", fn);
 };
 
 /* ================= INSTALL BUTTON ================= */
@@ -40,6 +38,7 @@ function InstallButton() {
   useEffect(() => {
     const handler = (e) => {
       e.preventDefault();
+      console.log("✅ install prompt fired");
       setPromptEvent(e);
     };
 
@@ -77,6 +76,7 @@ function InstallButton() {
 
 export default function App() {
 
+  /* ================= AUTH ================= */
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
@@ -88,6 +88,37 @@ export default function App() {
     return () => safeCall(unsub);
   }, []);
 
+  const handleLogout = async () => {
+    await signOut(auth);
+    localStorage.removeItem("user");
+    window.location.href = "/login";
+  };
+
+  /* ================= USER ================= */
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user")) || null;
+    } catch {
+      return null;
+    }
+  });
+
+  const handleLoginUser = (userData) => {
+    localStorage.setItem("user", JSON.stringify(userData));
+    setUser(userData);
+  };
+
+  /* ================= THEME ================= */
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("theme") || "dark"
+  );
+
+  useEffect(() => {
+    document.body.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  /* ================= STATES ================= */
   const [items, setItems] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [weightLogs, setWeightLogs] = useState([]);
@@ -97,8 +128,6 @@ export default function App() {
   const [financeData, setFinanceData] = useState([]);
   const [chatHistory, setChatHistory] = useState([]);
 
-  const isLocalUpdate = useRef(false);
-  const localVersion = useRef(0);
   const initialLoad = useRef(true);
 
   /* ================= LOAD ================= */
@@ -106,62 +135,22 @@ export default function App() {
     if (!firebaseUser) return;
 
     const fetchData = async () => {
-      try {
-        const data = await loadData();
-        if (!data) return;
+      const data = await loadData();
+      if (!data) return;
 
-        setItems(safeArray(data.items));
-        setTasks(safeArray(data.tasks));
-        setWeightLogs(safeArray(data.weightLogs));
-        setWeightGoal(data.weightGoal || null);
-        setLogs(data.logs || {});
-        setGoal(data.goal || {});
-        setFinanceData(safeArray(data.financeData));
-        setChatHistory(safeArray(data.chatHistory));
+      setItems(safeArray(data.items));
+      setTasks(safeArray(data.tasks));
+      setWeightLogs(safeArray(data.weightLogs));
+      setWeightGoal(data.weightGoal || null);
+      setLogs(data.logs || {});
+      setGoal(data.goal || {});
+      setFinanceData(safeArray(data.financeData));
+      setChatHistory(safeArray(data.chatHistory));
 
-        localVersion.current = data.updatedAt || Date.now();
-        initialLoad.current = false;
-      } catch (err) {
-        console.error("❌ loadData crash:", err);
-      }
+      initialLoad.current = false;
     };
 
     fetchData();
-  }, [firebaseUser]);
-
-  /* ================= REALTIME ================= */
-  useEffect(() => {
-    if (!firebaseUser) return;
-
-    let unsub = () => {}; // ✅ always function
-
-    try {
-      const result = subscribeToData((data) => {
-        if (!data) return;
-        if (isLocalUpdate.current) return;
-        if (data.updatedAt < localVersion.current) return;
-
-        localVersion.current = data.updatedAt || Date.now();
-
-        setItems(data.items || []);
-        setTasks(data.tasks || []);
-        setWeightLogs(data.weightLogs || []);
-        setWeightGoal(data.weightGoal || null);
-        setLogs(data.logs || {});
-        setGoal(data.goal || {});
-        setFinanceData(data.financeData || []);
-        setChatHistory(data.chatHistory || []);
-      });
-
-      if (typeof result === "function") {
-        unsub = result;
-      }
-
-    } catch (err) {
-      console.error("❌ subscribe crash:", err);
-    }
-
-    return () => safeCall(unsub);
   }, [firebaseUser]);
 
   /* ================= SAVE ================= */
@@ -179,22 +168,9 @@ export default function App() {
       chatHistory,
       updatedAt: Date.now()
     });
+  }, [items, tasks, weightLogs, weightGoal, logs, goal, financeData, chatHistory, firebaseUser]);
 
-  }, [
-    items,
-    tasks,
-    weightLogs,
-    weightGoal,
-    logs,
-    goal,
-    financeData,
-    chatHistory,
-    firebaseUser
-  ]);
-
-  if (loadingAuth) {
-    return <div style={{ padding: 20 }}>Loading App...</div>;
-  }
+  if (loadingAuth) return <div style={{ padding: 20 }}>Loading...</div>;
 
   return (
     <NotificationProvider>
@@ -207,19 +183,41 @@ export default function App() {
       <BrowserRouter>
         <Routes>
 
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={<Login onLogin={handleLoginUser} />} />
+          <Route path="/onboarding" element={<Onboarding />} />
 
           <Route
             path="/"
             element={
               <ProtectedRoute firebaseUser={firebaseUser}>
-                <Layout />
+                <Layout
+                  user={user}
+                  onLogout={handleLogout}
+                  theme={theme}
+                  setTheme={setTheme}
+                />
               </ProtectedRoute>
             }
           >
-            <Route index element={<Dashboard logs={logs} tasks={tasks} items={items} />} />
+
+            <Route index element={<Dashboard logs={logs} tasks={tasks} items={items} user={user} weightLogs={weightLogs} />} />
+
+            <Route path="habits" element={<Habits items={items} setItems={setItems} weightLogs={weightLogs} />} />
+
             <Route path="tasks" element={<Tasks tasks={tasks} setTasks={setTasks} />} />
+
+            <Route path="activities" element={<Activities items={items} setItems={setItems} />} />
+
+            <Route path="analytics" element={<Analytics logs={logs} tasks={tasks} user={user} />} />
+
             <Route path="finance" element={<Finance financeData={financeData} setFinanceData={setFinanceData} />} />
+
+            <Route path="chat" element={<Chat chatHistory={chatHistory} setChatHistory={setChatHistory} items={items} tasks={tasks} weightLogs={weightLogs} />} />
+
+            <Route path="goals" element={<Goals />} />
+
+            <Route path="profile" element={<Profile user={user} />} />
+
           </Route>
 
           <Route path="*" element={<Navigate to="/" />} />
