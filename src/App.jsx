@@ -40,10 +40,7 @@ setIsInstallable(true);
 
 ```
 window.addEventListener("beforeinstallprompt", handler);
-
-return () => {
-  window.removeEventListener("beforeinstallprompt", handler);
-};
+return () => window.removeEventListener("beforeinstallprompt", handler);
 ```
 
 }, []);
@@ -55,11 +52,7 @@ if (!deferredPrompt) return;
 deferredPrompt.prompt();
 const choice = await deferredPrompt.userChoice;
 
-if (choice.outcome === "accepted") {
-  console.log("🎉 App installed");
-} else {
-  console.log("❌ Install dismissed");
-}
+console.log(choice.outcome === "accepted" ? "🎉 Installed" : "❌ Dismissed");
 
 setDeferredPrompt(null);
 setIsInstallable(false);
@@ -67,10 +60,7 @@ setIsInstallable(false);
 
 };
 
-if (!isInstallable) {
-console.log("❌ App not installable yet");
-return null;
-}
+if (!isInstallable) return null;
 
 return (
 <button
@@ -98,25 +88,18 @@ const safeArray = (v) => (Array.isArray(v) ? v : []);
 
 export default function App() {
 
-/* ================= LOADING SPLASH ================= */
 const [loadingScreen, setLoadingScreen] = useState(true);
-
 useEffect(() => {
 const timer = setTimeout(() => setLoadingScreen(false), 1000);
 return () => clearTimeout(timer);
 }, []);
 
-/* ================= THEME ================= */
-const [theme, setTheme] = useState(
-() => localStorage.getItem("theme") || "dark"
-);
-
+const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
 useEffect(() => {
 document.body.setAttribute("data-theme", theme);
 localStorage.setItem("theme", theme);
 }, [theme]);
 
-/* ================= AUTH ================= */
 const [firebaseUser, setFirebaseUser] = useState(null);
 const [loadingAuth, setLoadingAuth] = useState(true);
 
@@ -134,7 +117,6 @@ localStorage.clear();
 window.location.href = "/login";
 };
 
-/* ================= USER ================= */
 const [user, setUser] = useState(() => {
 try {
 return JSON.parse(localStorage.getItem("user")) || null;
@@ -148,7 +130,6 @@ localStorage.setItem("user", JSON.stringify(userData));
 setUser(userData);
 };
 
-/* ================= DATA ================= */
 const [items, setItems] = useState([]);
 const [tasks, setTasks] = useState([]);
 const [weightLogs, setWeightLogs] = useState([]);
@@ -189,75 +170,79 @@ fetchData();
 
 }, [firebaseUser]);
 
-/* ================= REALTIME SYNC ================= */
+/* ================= REALTIME SYNC (SAFE) ================= */
 useEffect(() => {
 if (!firebaseUser) return;
 
 ```
-const unsub = subscribeToData((data) => {
-  if (!data) return;
+let unsub;
 
-  if (isLocalUpdate.current) return;
-  if (data.updatedAt && data.updatedAt < localVersion.current) return;
+try {
+  unsub = subscribeToData((data) => {
+    if (!data) return;
 
-  localVersion.current = data.updatedAt || Date.now();
+    if (isLocalUpdate.current) return;
+    if (data.updatedAt && data.updatedAt < localVersion.current) return;
 
-  setItems(prev =>
-    JSON.stringify(prev) === JSON.stringify(data.items)
-      ? prev
-      : data.items || []
-  );
+    localVersion.current = data.updatedAt || Date.now();
 
-  setTasks(data.tasks || []);
-  setWeightLogs(data.weightLogs || []);
-  setWeightGoal(data.weightGoal || null);
-  setLogs(data.logs || {});
-  setGoal(data.goal || {});
-  setFinanceData(data.financeData || []);
-  setChatHistory(data.chatHistory || []);
-});
+    setItems(data.items || []);
+    setTasks(data.tasks || []);
+    setWeightLogs(data.weightLogs || []);
+    setWeightGoal(data.weightGoal || null);
+    setLogs(data.logs || {});
+    setGoal(data.goal || {});
+    setFinanceData(data.financeData || []);
+    setChatHistory(data.chatHistory || []);
+  });
+} catch (err) {
+  console.error("❌ subscribeToData error:", err);
+}
 
-return () => unsub && unsub();
+return () => {
+  if (typeof unsub === "function") unsub();
+};
 ```
 
 }, [firebaseUser]);
 
-/* ================= SAFE SET ================= */
 const safeSetItems = (updater) => {
 isLocalUpdate.current = true;
 
 ```
 setItems(prev => {
-  const updated =
-    typeof updater === "function" ? updater(prev) : updater;
-
+  const updated = typeof updater === "function" ? updater(prev) : updater;
   localVersion.current = Date.now();
   return updated;
 });
 
-setTimeout(() => {
-  isLocalUpdate.current = false;
-}, 1000);
+setTimeout(() => (isLocalUpdate.current = false), 1000);
 ```
 
 };
 
-/* ================= SAVE ================= */
+/* ================= SAVE (SAFE) ================= */
 useEffect(() => {
 if (!firebaseUser || initialLoad.current) return;
 
 ```
-queueSave({
-  items,
-  tasks,
-  weightLogs,
-  weightGoal,
-  logs,
-  goal,
-  financeData,
-  chatHistory,
-  updatedAt: Date.now()
-});
+try {
+  if (typeof queueSave === "function") {
+    queueSave({
+      items,
+      tasks,
+      weightLogs,
+      weightGoal,
+      logs,
+      goal,
+      financeData,
+      chatHistory,
+      updatedAt: Date.now()
+    });
+  }
+} catch (err) {
+  console.error("❌ queueSave error:", err);
+}
 ```
 
 }, [
@@ -272,7 +257,6 @@ chatHistory,
 firebaseUser
 ]);
 
-/* ================= UI ================= */
 if (loadingAuth) {
 return <div style={{ padding: 20 }}>Loading App...</div>;
 }
