@@ -25,210 +25,150 @@ import { NotificationProvider } from "./context/NotificationContext";
 import ReminderSystem from "./system/ReminderSystem";
 import HabitReminderSystem from "./system/HabitReminderSystem";
 
-/* ================= PWA INSTALL BUTTON ================= */
-function InstallButton() {
-const [deferredPrompt, setDeferredPrompt] = useState(null);
-const [isInstallable, setIsInstallable] = useState(false);
-
-useEffect(() => {
-const handler = (e) => {
-e.preventDefault();
-console.log("✅ beforeinstallprompt fired");
-setDeferredPrompt(e);
-setIsInstallable(true);
-};
-
-```
-window.addEventListener("beforeinstallprompt", handler);
-return () => window.removeEventListener("beforeinstallprompt", handler);
-```
-
-}, []);
-
-const installApp = async () => {
-if (!deferredPrompt) return;
-
-```
-deferredPrompt.prompt();
-const choice = await deferredPrompt.userChoice;
-
-console.log(choice.outcome === "accepted" ? "🎉 Installed" : "❌ Dismissed");
-
-setDeferredPrompt(null);
-setIsInstallable(false);
-```
-
-};
-
-if (!isInstallable) return null;
-
-return (
-<button
-onClick={installApp}
-style={{
-position: "fixed",
-bottom: 20,
-right: 20,
-padding: "12px 16px",
-borderRadius: "10px",
-background: "#0f172a",
-color: "white",
-border: "none",
-fontWeight: "bold",
-cursor: "pointer",
-zIndex: 9999
-}}
->
-📲 Install App </button>
-);
-}
-
 /* ================= SAFE ================= */
 const safeArray = (v) => (Array.isArray(v) ? v : []);
 
+const safeCall = (fn, ...args) => {
+  if (typeof fn === "function") return fn(...args);
+  console.error("❌ Not a function:", fn);
+};
+
+/* ================= INSTALL BUTTON ================= */
+function InstallButton() {
+  const [promptEvent, setPromptEvent] = useState(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setPromptEvent(e);
+    };
+
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  if (!promptEvent) return null;
+
+  return (
+    <button
+      onClick={async () => {
+        promptEvent.prompt();
+        await promptEvent.userChoice;
+        setPromptEvent(null);
+      }}
+      style={{
+        position: "fixed",
+        bottom: 20,
+        right: 20,
+        padding: "12px 16px",
+        borderRadius: "10px",
+        background: "#0f172a",
+        color: "white",
+        border: "none",
+        fontWeight: "bold",
+        cursor: "pointer",
+        zIndex: 9999
+      }}
+    >
+      📲 Install App
+    </button>
+  );
+}
+
 export default function App() {
 
-const [loadingScreen, setLoadingScreen] = useState(true);
-useEffect(() => {
-const timer = setTimeout(() => setLoadingScreen(false), 1000);
-return () => clearTimeout(timer);
-}, []);
+  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
 
-const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
-useEffect(() => {
-document.body.setAttribute("data-theme", theme);
-localStorage.setItem("theme", theme);
-}, [theme]);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setFirebaseUser(user);
+      setLoadingAuth(false);
+    });
+    return () => safeCall(unsub);
+  }, []);
 
-const [firebaseUser, setFirebaseUser] = useState(null);
-const [loadingAuth, setLoadingAuth] = useState(true);
+  const [items, setItems] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [weightLogs, setWeightLogs] = useState([]);
+  const [weightGoal, setWeightGoal] = useState(null);
+  const [logs, setLogs] = useState({});
+  const [goal, setGoal] = useState({});
+  const [financeData, setFinanceData] = useState([]);
+  const [chatHistory, setChatHistory] = useState([]);
 
-useEffect(() => {
-const unsub = onAuthStateChanged(auth, (user) => {
-setFirebaseUser(user);
-setLoadingAuth(false);
-});
-return () => unsub();
-}, []);
+  const isLocalUpdate = useRef(false);
+  const localVersion = useRef(0);
+  const initialLoad = useRef(true);
 
-const handleLogout = async () => {
-await signOut(auth);
-localStorage.clear();
-window.location.href = "/login";
-};
+  /* ================= LOAD ================= */
+  useEffect(() => {
+    if (!firebaseUser) return;
 
-const [user, setUser] = useState(() => {
-try {
-return JSON.parse(localStorage.getItem("user")) || null;
-} catch {
-return null;
-}
-});
+    const fetchData = async () => {
+      try {
+        const data = await loadData();
+        if (!data) return;
 
-const handleLoginUser = (userData) => {
-localStorage.setItem("user", JSON.stringify(userData));
-setUser(userData);
-};
+        setItems(safeArray(data.items));
+        setTasks(safeArray(data.tasks));
+        setWeightLogs(safeArray(data.weightLogs));
+        setWeightGoal(data.weightGoal || null);
+        setLogs(data.logs || {});
+        setGoal(data.goal || {});
+        setFinanceData(safeArray(data.financeData));
+        setChatHistory(safeArray(data.chatHistory));
 
-const [items, setItems] = useState([]);
-const [tasks, setTasks] = useState([]);
-const [weightLogs, setWeightLogs] = useState([]);
-const [weightGoal, setWeightGoal] = useState(null);
-const [logs, setLogs] = useState({});
-const [goal, setGoal] = useState({});
-const [financeData, setFinanceData] = useState([]);
-const [chatHistory, setChatHistory] = useState([]);
+        localVersion.current = data.updatedAt || Date.now();
+        initialLoad.current = false;
+      } catch (err) {
+        console.error("❌ loadData crash:", err);
+      }
+    };
 
-const isLocalUpdate = useRef(false);
-const localVersion = useRef(0);
-const initialLoad = useRef(true);
+    fetchData();
+  }, [firebaseUser]);
 
-/* ================= LOAD ================= */
-useEffect(() => {
-if (!firebaseUser) return;
+  /* ================= REALTIME ================= */
+  useEffect(() => {
+    if (!firebaseUser) return;
 
-```
-const fetchData = async () => {
-  const data = await loadData();
-  if (!data) return;
+    let unsub = () => {}; // ✅ always function
 
-  setItems(safeArray(data.items));
-  setTasks(safeArray(data.tasks));
-  setWeightLogs(safeArray(data.weightLogs));
-  setWeightGoal(data.weightGoal || null);
-  setLogs(data.logs || {});
-  setGoal(data.goal || {});
-  setFinanceData(safeArray(data.financeData));
-  setChatHistory(safeArray(data.chatHistory));
+    try {
+      const result = subscribeToData((data) => {
+        if (!data) return;
+        if (isLocalUpdate.current) return;
+        if (data.updatedAt < localVersion.current) return;
 
-  localVersion.current = data.updatedAt || Date.now();
-  initialLoad.current = false;
-};
+        localVersion.current = data.updatedAt || Date.now();
 
-fetchData();
-```
+        setItems(data.items || []);
+        setTasks(data.tasks || []);
+        setWeightLogs(data.weightLogs || []);
+        setWeightGoal(data.weightGoal || null);
+        setLogs(data.logs || {});
+        setGoal(data.goal || {});
+        setFinanceData(data.financeData || []);
+        setChatHistory(data.chatHistory || []);
+      });
 
-}, [firebaseUser]);
+      if (typeof result === "function") {
+        unsub = result;
+      }
 
-/* ================= REALTIME SYNC (SAFE) ================= */
-useEffect(() => {
-if (!firebaseUser) return;
+    } catch (err) {
+      console.error("❌ subscribe crash:", err);
+    }
 
-```
-let unsub;
+    return () => safeCall(unsub);
+  }, [firebaseUser]);
 
-try {
-  unsub = subscribeToData((data) => {
-    if (!data) return;
+  /* ================= SAVE ================= */
+  useEffect(() => {
+    if (!firebaseUser || initialLoad.current) return;
 
-    if (isLocalUpdate.current) return;
-    if (data.updatedAt && data.updatedAt < localVersion.current) return;
-
-    localVersion.current = data.updatedAt || Date.now();
-
-    setItems(data.items || []);
-    setTasks(data.tasks || []);
-    setWeightLogs(data.weightLogs || []);
-    setWeightGoal(data.weightGoal || null);
-    setLogs(data.logs || {});
-    setGoal(data.goal || {});
-    setFinanceData(data.financeData || []);
-    setChatHistory(data.chatHistory || []);
-  });
-} catch (err) {
-  console.error("❌ subscribeToData error:", err);
-}
-
-return () => {
-  if (typeof unsub === "function") unsub();
-};
-```
-
-}, [firebaseUser]);
-
-const safeSetItems = (updater) => {
-isLocalUpdate.current = true;
-
-```
-setItems(prev => {
-  const updated = typeof updater === "function" ? updater(prev) : updater;
-  localVersion.current = Date.now();
-  return updated;
-});
-
-setTimeout(() => (isLocalUpdate.current = false), 1000);
-```
-
-};
-
-/* ================= SAVE (SAFE) ================= */
-useEffect(() => {
-if (!firebaseUser || initialLoad.current) return;
-
-```
-try {
-  if (typeof queueSave === "function") {
-    queueSave({
+    safeCall(queueSave, {
       items,
       tasks,
       weightLogs,
@@ -239,44 +179,26 @@ try {
       chatHistory,
       updatedAt: Date.now()
     });
+
+  }, [
+    items,
+    tasks,
+    weightLogs,
+    weightGoal,
+    logs,
+    goal,
+    financeData,
+    chatHistory,
+    firebaseUser
+  ]);
+
+  if (loadingAuth) {
+    return <div style={{ padding: 20 }}>Loading App...</div>;
   }
-} catch (err) {
-  console.error("❌ queueSave error:", err);
-}
-```
 
-}, [
-items,
-tasks,
-weightLogs,
-weightGoal,
-logs,
-goal,
-financeData,
-chatHistory,
-firebaseUser
-]);
+  return (
+    <NotificationProvider>
 
-if (loadingAuth) {
-return <div style={{ padding: 20 }}>Loading App...</div>;
-}
-
-return (
-<>
-{loadingScreen ? (
-<div style={{
-height: "100vh",
-display: "flex",
-justifyContent: "center",
-alignItems: "center",
-background: "#0f172a",
-color: "white",
-fontSize: "24px"
-}}>
-🔥 Loading Tracker... </div>
-) : ( <NotificationProvider>
-
-```
       <InstallButton />
 
       <ReminderSystem items={items} tasks={tasks} logs={logs} />
@@ -285,47 +207,19 @@ fontSize: "24px"
       <BrowserRouter>
         <Routes>
 
-          <Route path="/login" element={<Login onLogin={handleLoginUser} />} />
-          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/login" element={<Login />} />
 
           <Route
             path="/"
             element={
               <ProtectedRoute firebaseUser={firebaseUser}>
-                <Layout
-                  user={user}
-                  onLogout={handleLogout}
-                  theme={theme}
-                  setTheme={setTheme}
-                />
+                <Layout />
               </ProtectedRoute>
             }
           >
-
-            <Route index element={<Dashboard logs={logs} tasks={tasks} items={items} user={user} weightLogs={weightLogs} />} />
-
-            <Route path="habits" element={
-              <Habits
-                items={items}
-                setItems={safeSetItems}
-                weightLogs={weightLogs}
-                addWeight={(w) => {
-                  setWeightLogs(prev => [
-                    ...prev,
-                    { weight: w, date: new Date().toISOString() }
-                  ]);
-                }}
-              />
-            }/>
-
+            <Route index element={<Dashboard logs={logs} tasks={tasks} items={items} />} />
             <Route path="tasks" element={<Tasks tasks={tasks} setTasks={setTasks} />} />
-            <Route path="activities" element={<Activities items={items} setItems={safeSetItems} />} />
-            <Route path="analytics" element={<Analytics logs={logs} tasks={tasks} user={user} />} />
             <Route path="finance" element={<Finance financeData={financeData} setFinanceData={setFinanceData} />} />
-            <Route path="chat" element={<Chat chatHistory={chatHistory} setChatHistory={setChatHistory} items={items} tasks={tasks} weightLogs={weightLogs} />} />
-            <Route path="goals" element={<Goals />} />
-            <Route path="profile" element={<Profile user={user} />} />
-
           </Route>
 
           <Route path="*" element={<Navigate to="/" />} />
@@ -334,7 +228,5 @@ fontSize: "24px"
       </BrowserRouter>
 
     </NotificationProvider>
-  )}
-</>
-);
+  );
 }
