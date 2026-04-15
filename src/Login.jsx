@@ -8,9 +8,19 @@ import { doc, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { useNotification } from "./context/NotificationContext";
 
-export default function Login({ onLogin }) {
+/* ================= SAFE CALL ================= */
+const safeCall = (fn, ...args) => {
+  if (typeof fn === "function") {
+    return fn(...args);
+  } else {
+    console.error("❌ Not a function:", fn);
+  }
+};
+
+export default function Login({ onLogin = () => {} }) {
+
   const navigate = useNavigate();
-  const { showNotification } = useNotification();
+  const { showNotification } = useNotification() || {};
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,23 +31,29 @@ export default function Login({ onLogin }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  /* ================= AUTO LOGIN ================= */
   useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      onLogin(JSON.parse(savedUser));
-      navigate("/");
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        safeCall(onLogin, parsed);
+        navigate("/");
+      }
+    } catch (err) {
+      console.error("❌ auto login error:", err);
     }
   }, []);
 
-  // ===== EMAIL LOGIN =====
+  /* ================= EMAIL LOGIN ================= */
   const handleSubmit = async () => {
     if (!email || !password) {
-      showNotification("Enter email & password", "error");
+      safeCall(showNotification, "Enter email & password", "error");
       return;
     }
 
     if (isRegister && (!fullName || !username)) {
-      showNotification("Fill all fields", "error");
+      safeCall(showNotification, "Fill all fields", "error");
       return;
     }
 
@@ -60,7 +76,8 @@ export default function Login({ onLogin }) {
           email
         });
 
-        showNotification("Account created 🎉", "success");
+        safeCall(showNotification, "Account created 🎉", "success");
+
       } else {
         userCredential = await signInWithEmailAndPassword(
           auth,
@@ -68,7 +85,7 @@ export default function Login({ onLogin }) {
           password
         );
 
-        showNotification("Login successful 🚀", "success");
+        safeCall(showNotification, "Login successful 🚀", "success");
       }
 
       const user = userCredential.user;
@@ -79,19 +96,21 @@ export default function Login({ onLogin }) {
       };
 
       localStorage.setItem("user", JSON.stringify(userData));
-      onLogin(userData);
+
+      safeCall(onLogin, userData);
 
       navigate("/");
+
     } catch (err) {
       const msg = err.message || "Login failed";
       setError(msg);
-      showNotification(msg, "error");
+      safeCall(showNotification, msg, "error");
     }
 
     setLoading(false);
   };
 
-  // ===== GOOGLE LOGIN =====
+  /* ================= GOOGLE LOGIN ================= */
   const handleGoogleLogin = async () => {
     setLoading(true);
 
@@ -117,15 +136,17 @@ export default function Login({ onLogin }) {
       };
 
       localStorage.setItem("user", JSON.stringify(userData));
-      onLogin(userData);
 
-      showNotification("Google login successful 🎉", "success");
+      safeCall(onLogin, userData);
+
+      safeCall(showNotification, "Google login successful 🎉", "success");
 
       navigate("/");
+
     } catch (err) {
       const msg = err.message || "Google login failed";
       setError(msg);
-      showNotification(msg, "error");
+      safeCall(showNotification, msg, "error");
     }
 
     setLoading(false);
@@ -202,7 +223,7 @@ export default function Login({ onLogin }) {
   );
 }
 
-// ===== STYLES =====
+/* ================= STYLES ================= */
 const styles = {
   container: {
     height: "100vh",
@@ -235,8 +256,7 @@ const styles = {
 
   logo: {
     width: 80,
-    marginBottom: 10,
-    filter: "drop-shadow(0 0 20px #fff)"
+    marginBottom: 10
   },
 
   brand: {
