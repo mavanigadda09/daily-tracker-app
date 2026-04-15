@@ -14,9 +14,21 @@ import {
   Wallet
 } from "lucide-react";
 
-import { theme as themeVars } from "./theme";
+/* ================= SAFE CALL ================= */
+const safeCall = (fn, ...args) => {
+  if (typeof fn === "function") {
+    return fn(...args);
+  } else {
+    console.error("❌ Not a function:", fn);
+  }
+};
 
-export default function Layout({ user, onLogout, theme, setTheme }) {
+export default function Layout({
+  user = {},
+  onLogout = () => {},
+  theme = "dark",
+  setTheme = () => {}
+}) {
 
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
@@ -72,7 +84,7 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
                 whileTap={{ scale: 0.9 }}
                 style={styles.iconBtn}
                 onClick={() =>
-                  setTheme(prev => prev === "dark" ? "light" : "dark")
+                  safeCall(setTheme, prev => prev === "dark" ? "light" : "dark")
                 }
               >
                 {theme === "dark" ? "🌞" : "🌙"}
@@ -129,7 +141,10 @@ export default function Layout({ user, onLogout, theme, setTheme }) {
             </div>
           )}
 
-          <button style={styles.logout} onClick={onLogout}>
+          <button
+            style={styles.logout}
+            onClick={() => safeCall(onLogout)}
+          >
             {collapsed ? "⏻" : "Logout"}
           </button>
 
@@ -287,8 +302,6 @@ const styles = {
 
   main: {
     flex: 1,
-    padding: 24,
-    background: "var(--bg)",
-    color: "var(--text)"
+    padding: 24
   }
 };
