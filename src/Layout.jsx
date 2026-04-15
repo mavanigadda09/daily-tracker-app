@@ -5,13 +5,12 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   CheckSquare,
-  ListTodo,
-  Activity,
   BarChart3,
   User,
   Menu,
   MessageCircle,
-  Wallet
+  Wallet,
+  Activity
 } from "lucide-react";
 
 /* ================= SAFE CALL ================= */
@@ -33,14 +32,16 @@ export default function Layout({
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
+  /* ✅ FIXED NAV ITEMS */
   const navItems = [
-  { path: "/", label: "Dashboard", icon: LayoutDashboard },
-  { path: "/productivity", label: "Productivity", icon: CheckSquare },
-  { path: "/finance", label: "Finance", icon: Wallet },
-  { path: "/chat", label: "AI Chat", icon: MessageCircle },
-  { path: "/analytics", label: "Analytics", icon: BarChart3 },
-  { path: "/profile", label: "Profile", icon: User }
-];
+    { path: "/", label: "Dashboard", icon: LayoutDashboard },
+    { path: "/habits", label: "Health", icon: CheckSquare },
+    { path: "/productivity", label: "Productivity", icon: Activity },
+    { path: "/finance", label: "Finance", icon: Wallet },
+    { path: "/chat", label: "AI Chat", icon: MessageCircle },
+    { path: "/analytics", label: "Analytics", icon: BarChart3 },
+    { path: "/profile", label: "Profile", icon: User }
+  ];
 
   const isActive = (path) => {
     if (path === "/") return location.pathname === "/";
@@ -82,7 +83,9 @@ export default function Layout({
                 whileTap={{ scale: 0.9 }}
                 style={styles.iconBtn}
                 onClick={() =>
-                  safeCall(setTheme, prev => prev === "dark" ? "light" : "dark")
+                  safeCall(setTheme, prev =>
+                    prev === "dark" ? "light" : "dark"
+                  )
                 }
               >
                 {theme === "dark" ? "🌞" : "🌙"}
@@ -234,8 +237,7 @@ const styles = {
     padding: "10px 14px",
     borderRadius: 10,
     textDecoration: "none",
-    color: "var(--text-muted)",
-    transition: "0.2s"
+    color: "var(--text-muted)"
   },
 
   active: {
