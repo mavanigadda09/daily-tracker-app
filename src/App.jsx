@@ -25,10 +25,63 @@ import { NotificationProvider } from "./context/NotificationContext";
 import ReminderSystem from "./system/ReminderSystem";
 import HabitReminderSystem from "./system/HabitReminderSystem";
 
+/* ================= PWA INSTALL BUTTON ================= */
+function InstallButton() {
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const installApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    setDeferredPrompt(null);
+  };
+
+  if (!deferredPrompt) return null;
+
+  return (
+    <button
+      onClick={installApp}
+      style={{
+        position: "fixed",
+        bottom: 20,
+        right: 20,
+        padding: "12px 16px",
+        borderRadius: "10px",
+        background: "#0f172a",
+        color: "white",
+        border: "none",
+        fontWeight: "bold",
+        cursor: "pointer",
+        zIndex: 9999
+      }}
+    >
+      📲 Install App
+    </button>
+  );
+}
+
 /* ================= SAFE ================= */
 const safeArray = (v) => (Array.isArray(v) ? v : []);
 
 export default function App() {
+
+  /* ================= LOADING SPLASH ================= */
+  const [loadingScreen, setLoadingScreen] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoadingScreen(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   /* ================= THEME ================= */
   const [theme, setTheme] = useState(
@@ -83,7 +136,7 @@ export default function App() {
   const [chatHistory, setChatHistory] = useState([]);
 
   const isLocalUpdate = useRef(false);
-  const localVersion = useRef(0); // 🔥 VERSION CONTROL
+  const localVersion = useRef(0);
   const initialLoad = useRef(true);
 
   /* ================= LOAD ================= */
@@ -110,38 +163,23 @@ export default function App() {
     fetchData();
   }, [firebaseUser]);
 
-  /* ================= 🔥 FINAL FIXED REALTIME SYNC ================= */
+  /* ================= REALTIME SYNC ================= */
   useEffect(() => {
     if (!firebaseUser) return;
 
     const unsub = subscribeToData((data) => {
       if (!data) return;
 
-      // 🔥 BLOCK during local update
-      if (isLocalUpdate.current) {
-        console.log("⛔ Skipping cloud (local update)");
-        return;
-      }
-
-      // 🔥 BLOCK stale data
-      if (data.updatedAt && data.updatedAt < localVersion.current) {
-        console.log("⏩ Ignoring stale cloud data");
-        return;
-      }
-
-      console.log("☁️ Applying cloud update");
+      if (isLocalUpdate.current) return;
+      if (data.updatedAt && data.updatedAt < localVersion.current) return;
 
       localVersion.current = data.updatedAt || Date.now();
 
-      setItems(prev => {
-        if (!data.items) return prev;
-
-        if (JSON.stringify(prev) === JSON.stringify(data.items)) {
-          return prev;
-        }
-
-        return data.items;
-      });
+      setItems(prev =>
+        JSON.stringify(prev) === JSON.stringify(data.items)
+          ? prev
+          : data.items || []
+      );
 
       setTasks(data.tasks || []);
       setWeightLogs(data.weightLogs || []);
@@ -163,13 +201,13 @@ export default function App() {
       const updated =
         typeof updater === "function" ? updater(prev) : updater;
 
-      localVersion.current = Date.now(); // 🔥 update version
+      localVersion.current = Date.now();
       return updated;
     });
 
     setTimeout(() => {
       isLocalUpdate.current = false;
-    }, 1000); // longer lock
+    }, 1000);
   };
 
   /* ================= SAVE ================= */
@@ -185,7 +223,7 @@ export default function App() {
       goal,
       financeData,
       chatHistory,
-      updatedAt: Date.now() // 🔥 CRITICAL
+      updatedAt: Date.now()
     });
 
   }, [
@@ -211,94 +249,80 @@ export default function App() {
   }
 
   return (
-    <NotificationProvider>
+    <>
+      {loadingScreen ? (
+        <div style={{
+          height: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          background: "#0f172a",
+          color: "white",
+          fontSize: "24px"
+        }}>
+          🔥 Loading Tracker...
+        </div>
+      ) : (
+        <NotificationProvider>
 
-      <ReminderSystem items={items} tasks={tasks} logs={logs} />
-      <HabitReminderSystem items={items} />
+          <InstallButton />
 
-      <BrowserRouter>
-        <Routes>
+          <ReminderSystem items={items} tasks={tasks} logs={logs} />
+          <HabitReminderSystem items={items} />
 
-          <Route path="/login" element={<Login onLogin={handleLoginUser} />} />
-          <Route path="/onboarding" element={<Onboarding />} />
+          <BrowserRouter>
+            <Routes>
 
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute firebaseUser={firebaseUser}>
-                <Layout
-                  user={user}
-                  onLogout={handleLogout}
-                  theme={theme}
-                  setTheme={setTheme}
-                />
-              </ProtectedRoute>
-            }
-          >
+              <Route path="/login" element={<Login onLogin={handleLoginUser} />} />
+              <Route path="/onboarding" element={<Onboarding />} />
 
-            <Route index element={
-              <Dashboard
-                logs={logs}
-                tasks={tasks}
-                items={items}
-                user={user}
-                weightLogs={weightLogs}
-              />
-            }/>
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute firebaseUser={firebaseUser}>
+                    <Layout
+                      user={user}
+                      onLogout={handleLogout}
+                      theme={theme}
+                      setTheme={setTheme}
+                    />
+                  </ProtectedRoute>
+                }
+              >
 
-            <Route path="habits" element={
-              <Habits
-                items={items}
-                setItems={safeSetItems}
-                weightLogs={weightLogs}
-                addWeight={(w) => {
-                  setWeightLogs(prev => [
-                    ...prev,
-                    { weight: w, date: new Date().toISOString() }
-                  ]);
-                }}
-              />
-            }/>
+                <Route index element={<Dashboard logs={logs} tasks={tasks} items={items} user={user} weightLogs={weightLogs} />} />
 
-            <Route path="tasks" element={
-              <Tasks tasks={tasks} setTasks={setTasks} />
-            }/>
+                <Route path="habits" element={
+                  <Habits
+                    items={items}
+                    setItems={safeSetItems}
+                    weightLogs={weightLogs}
+                    addWeight={(w) => {
+                      setWeightLogs(prev => [
+                        ...prev,
+                        { weight: w, date: new Date().toISOString() }
+                      ]);
+                    }}
+                  />
+                }/>
 
-            <Route path="activities" element={
-              <Activities items={items} setItems={safeSetItems} />
-            }/>
+                <Route path="tasks" element={<Tasks tasks={tasks} setTasks={setTasks} />} />
+                <Route path="activities" element={<Activities items={items} setItems={safeSetItems} />} />
+                <Route path="analytics" element={<Analytics logs={logs} tasks={tasks} user={user} />} />
+                <Route path="finance" element={<Finance financeData={financeData} setFinanceData={setFinanceData} />} />
+                <Route path="chat" element={<Chat chatHistory={chatHistory} setChatHistory={setChatHistory} items={items} tasks={tasks} weightLogs={weightLogs} />} />
+                <Route path="goals" element={<Goals />} />
+                <Route path="profile" element={<Profile user={user} />} />
 
-            <Route path="analytics" element={
-              <Analytics logs={logs} tasks={tasks} user={user} />
-            }/>
+              </Route>
 
-            <Route path="finance" element={
-              <Finance
-                financeData={financeData}
-                setFinanceData={setFinanceData}
-              />
-            }/>
+              <Route path="*" element={<Navigate to="/" />} />
 
-            <Route path="chat" element={
-              <Chat
-                chatHistory={chatHistory}
-                setChatHistory={setChatHistory}
-                items={items}
-                tasks={tasks}
-                weightLogs={weightLogs}
-              />
-            }/>
+            </Routes>
+          </BrowserRouter>
 
-            <Route path="goals" element={<Goals />} />
-            <Route path="profile" element={<Profile user={user} />} />
-
-          </Route>
-
-          <Route path="*" element={<Navigate to="/" />} />
-
-        </Routes>
-      </BrowserRouter>
-
-    </NotificationProvider>
+        </NotificationProvider>
+      )}
+    </>
   );
 }
