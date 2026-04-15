@@ -22,35 +22,42 @@ const getLocalBackup = () => {
   try {
     const raw = localStorage.getItem(LOCAL_KEY);
     return raw ? safeData(JSON.parse(raw)) : safeData();
-  } catch {
+  } catch (err) {
+    console.error("❌ Local read error:", err);
     return safeData();
   }
 };
 
 const setLocalBackup = (data) => {
-  localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
+  try {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
+  } catch (err) {
+    console.error("❌ Local write error:", err);
+  }
 };
 
-/* ================= SAVE (🔥 SIMPLE + FIXED) ================= */
+/* ================= SAVE ================= */
 export const queueSave = async (data) => {
   try {
     const user = auth.currentUser;
-    if (!user) return;
 
     const payload = {
       ...safeData(data),
       updatedAt: Date.now()
     };
 
-    // ✅ update local immediately
+    // ✅ ALWAYS save locally first (even if no user)
     setLocalBackup(payload);
 
-    // ✅ save instantly to Firestore (NO DELAY)
+    if (!user) {
+      console.warn("⚠️ No user, saved locally only");
+      return;
+    }
+
     const docRef = doc(db, "users", user.uid);
     await setDoc(docRef, payload, { merge: false });
 
     console.log("✅ Cloud saved");
-
   } catch (err) {
     console.error("🔥 Save error:", err);
   }
@@ -60,17 +67,20 @@ export const queueSave = async (data) => {
 export const loadData = async () => {
   try {
     const user = auth.currentUser;
-    if (!user) return getLocalBackup();
+    const local = getLocalBackup();
+
+    // ✅ if no user → return local safely
+    if (!user) {
+      console.warn("⚠️ No user, using local data");
+      return local;
+    }
 
     const docRef = doc(db, "users", user.uid);
     const snap = await getDoc(docRef);
 
-    const local = getLocalBackup();
-
     if (snap.exists()) {
       const remote = safeData(snap.data());
 
-      // ✅ choose latest
       const final =
         remote.updatedAt > local.updatedAt ? remote : local;
 
@@ -79,7 +89,6 @@ export const loadData = async () => {
     }
 
     return local;
-
   } catch (err) {
     console.error("🔥 Load error:", err);
     return getLocalBackup();
@@ -87,43 +96,64 @@ export const loadData = async () => {
 };
 
 /* ================= REALTIME ================= */
-export const subscribeToData = (callback) => {
-  const user = auth.currentUser;
-  if (!user) return;
+export const subscribeToData = (callback = () => {}) => {
+  try {
+    const user = auth.currentUser;
 
-  const docRef = doc(db, "users", user.uid);
-
-  return onSnapshot(
-    docRef,
-    (snapshot) => {
-      if (!snapshot.exists()) return;
-
-      const remote = safeData(snapshot.data());
-      const local = getLocalBackup();
-
-      // ✅ ignore stale data
-      if (remote.updatedAt <= local.updatedAt) {
-        console.log("⏩ Ignoring stale cloud");
-        return;
-      }
-
-      console.log("☁️ Applying cloud update");
-
-      setLocalBackup(remote);
-      callback(remote);
-    },
-    (error) => {
-      console.error("🔥 Realtime error:", error);
+    // ✅ Always return cleanup function (prevents crashes)
+    if (!user) {
+      console.warn("⚠️ No user, realtime disabled");
+      return () => {};
     }
-  );
+
+    const docRef = doc(db, "users", user.uid);
+
+    const unsubscribe = onSnapshot(
+      docRef,
+      (snapshot) => {
+        if (!snapshot.exists()) return;
+
+        const remote = safeData(snapshot.data());
+        const local = getLocalBackup();
+
+        if (remote.updatedAt <= local.updatedAt) {
+          console.log("⏩ Ignoring stale cloud");
+          return;
+        }
+
+        console.log("☁️ Applying cloud update");
+
+        setLocalBackup(remote);
+        callback(remote);
+      },
+      (error) => {
+        console.error("🔥 Realtime error:", error);
+      }
+    );
+
+    return unsubscribe;
+  } catch (err) {
+    console.error("🔥 Subscribe crash:", err);
+    return () => {};
+  }
 };
 
-/* ================= FINANCE HELPERS (FIX BUILD ERROR) ================= */
+/* ================= FINANCE HELPERS ================= */
 
 export const addFinance = (item, setFinanceData) => {
-  setFinanceData(prev => [...prev, item]);
+  if (typeof setFinanceData !== "function") {
+    console.error("❌ setFinanceData is not a function");
+    return;
+  }
+
+  setFinanceData((prev) => [...prev, item]);
 };
 
 export const deleteFinance = (id, setFinanceData) => {
-  setFinanceData(prev => prev.filter(f => f.id !== id));
+  if (typeof setFinanceData !== "function") {
+    console.error("❌ setFinanceData is not a function");
+    return;
+  }
+
+  setFinanceData((prev) => prev.filter((f) => f.id !== id));
 };
