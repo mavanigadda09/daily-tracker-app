@@ -3,10 +3,9 @@ import { useState, useEffect, useRef } from "react";
 
 import Dashboard from "./Dashboard";
 import Analytics from "./Analytics";
-import Tasks from "./Tasks";
 import Habits from "./Habits";
 import Goals from "./Goals";
-import Activities from "./Activities";
+import Productivity from "./Productivity";
 import Profile from "./Profile";
 import Chat from "./Chat";
 import Finance from "./Finance";
@@ -204,9 +203,7 @@ export default function App() {
 
             <Route path="habits" element={<Habits items={items} setItems={setItems} weightLogs={weightLogs} />} />
 
-            <Route path="tasks" element={<Tasks tasks={tasks} setTasks={setTasks} />} />
-
-            <Route path="activities" element={<Activities items={items} setItems={setItems} />} />
+            <Route path="productivity" element={<Productivity tasks={tasks} setTasks={setTasks} items={items} setItems={setItems} /> } />
 
             <Route path="analytics" element={<Analytics logs={logs} tasks={tasks} user={user} />} />
 

@@ -36,8 +36,7 @@ export default function Layout({
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
     { path: "/habits", label: "Health", icon: CheckSquare },
-    { path: "/tasks", label: "Tasks", icon: ListTodo },
-    { path: "/activities", label: "Activities", icon: Activity },
+    { path: "/productivity", label: "Productivity" }
     { path: "/finance", label: "Finance", icon: Wallet },
     { path: "/chat", label: "AI Chat", icon: MessageCircle },
     { path: "/analytics", label: "Analytics", icon: BarChart3 },
