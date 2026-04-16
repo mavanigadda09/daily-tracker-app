@@ -1,31 +1,64 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function Profile({ user, setUser, onLogout }) {
 
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(user?.name || "");
-  const [goal, setGoal] = useState(user?.goal || "");
-  const [focus, setFocus] = useState(user?.focus || "productivity");
+  const [localUser, setLocalUser] = useState(user || null);
 
-  if (!user) return null;
+  const [name, setName] = useState("");
+  const [goal, setGoal] = useState("");
+  const [focus, setFocus] = useState("productivity");
+
+  // ✅ LOAD USER SAFELY (fix for blank screen)
+  useEffect(() => {
+    if (!user) {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setLocalUser(parsed);
+        setUser && setUser(parsed);
+      }
+    } else {
+      setLocalUser(user);
+    }
+  }, [user]);
+
+  // ✅ Sync state
+  useEffect(() => {
+    if (localUser) {
+      setName(localUser.name || "");
+      setGoal(localUser.goal || "");
+      setFocus(localUser.focus || "productivity");
+    }
+  }, [localUser]);
+
+  // ❌ DO NOT RETURN NULL → show fallback UI instead
+  if (!localUser) {
+    return (
+      <div style={styles.container}>
+        <h2>Loading profile...</h2>
+      </div>
+    );
+  }
 
   // ===== SAVE =====
   const handleSave = () => {
     const updated = {
-      ...user,
+      ...localUser,
       name,
       goal,
       focus
     };
 
     localStorage.setItem("user", JSON.stringify(updated));
-    setUser(updated);
+    setLocalUser(updated);
+    setUser && setUser(updated);
     setEditing(false);
   };
 
-  // ===== RESET DATA =====
+  // ===== RESET =====
   const handleReset = () => {
-    if (!confirm("Reset all app data?")) return;
+    if (!window.confirm("Reset all app data?")) return;
 
     localStorage.clear();
     window.location.reload();
@@ -40,7 +73,7 @@ export default function Profile({ user, setUser, onLogout }) {
 
         {/* AVATAR */}
         <div style={styles.avatar}>
-          {name?.charAt(0).toUpperCase()}
+          {name?.charAt(0)?.toUpperCase() || "U"}
         </div>
 
         {/* NAME */}
@@ -51,11 +84,13 @@ export default function Profile({ user, setUser, onLogout }) {
             onChange={(e) => setName(e.target.value)}
           />
         ) : (
-          <h2 style={styles.name}>{name}</h2>
+          <h2 style={styles.name}>{name || "User"}</h2>
         )}
 
         {/* EMAIL */}
-        <p style={styles.email}>{user.email}</p>
+        <p style={styles.email}>
+          {localUser.email || "No email"}
+        </p>
 
         {/* GOAL */}
         {editing ? (
@@ -136,7 +171,7 @@ export default function Profile({ user, setUser, onLogout }) {
   );
 }
 
-// ================= STYLES =================
+/* ===== STYLES (unchanged) ===== */
 const styles = {
   container: {
     padding: 20,
@@ -145,11 +180,7 @@ const styles = {
     alignItems: "center",
     gap: 20
   },
-
-  title: {
-    fontSize: 28
-  },
-
+  title: { fontSize: 28 },
   card: {
     width: 360,
     background: "var(--card)",
@@ -161,7 +192,6 @@ const styles = {
     alignItems: "center",
     gap: 12
   },
-
   avatar: {
     width: 70,
     height: 70,
@@ -174,24 +204,10 @@ const styles = {
     fontWeight: "bold",
     color: "#fff"
   },
-
-  name: {
-    fontSize: 20
-  },
-
-  email: {
-    color: "var(--text-muted)"
-  },
-
-  goal: {
-    marginTop: 5
-  },
-
-  meta: {
-    color: "var(--text-muted)",
-    fontSize: 14
-  },
-
+  name: { fontSize: 20 },
+  email: { color: "var(--text-muted)" },
+  goal: { marginTop: 5 },
+  meta: { color: "var(--text-muted)", fontSize: 14 },
   input: {
     padding: 10,
     borderRadius: 8,
@@ -200,12 +216,7 @@ const styles = {
     color: "var(--text)",
     width: "100%"
   },
-
-  focusRow: {
-    display: "flex",
-    gap: 8
-  },
-
+  focusRow: { display: "flex", gap: 8 },
   focusBtn: {
     flex: 1,
     padding: 6,
@@ -215,12 +226,10 @@ const styles = {
     cursor: "pointer",
     color: "var(--text)"
   },
-
   focusActive: {
     background: "var(--accent)",
     color: "#fff"
   },
-
   actions: {
     display: "flex",
     flexDirection: "column",
@@ -228,7 +237,6 @@ const styles = {
     width: "100%",
     marginTop: 10
   },
-
   editBtn: {
     padding: 10,
     background: "#3b82f6",
@@ -236,7 +244,6 @@ const styles = {
     color: "#fff",
     borderRadius: 8
   },
-
   saveBtn: {
     padding: 10,
     background: "#22c55e",
@@ -244,7 +251,6 @@ const styles = {
     color: "#fff",
     borderRadius: 8
   },
-
   cancelBtn: {
     padding: 10,
     background: "#6b7280",
@@ -252,7 +258,6 @@ const styles = {
     color: "#fff",
     borderRadius: 8
   },
-
   logoutBtn: {
     padding: 10,
     background: "#ef4444",
@@ -260,7 +265,6 @@ const styles = {
     color: "#fff",
     borderRadius: 8
   },
-
   resetBtn: {
     padding: 10,
     background: "#111827",
