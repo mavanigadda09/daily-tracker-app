@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
+import "./App.css";
 
 // Pages
 import Dashboard from "./Dashboard";
@@ -143,12 +144,12 @@ export default function App() {
     setTimeout(() => (isLocalUpdate.current = false), 1000);
   };
 
-  if (loadingAuth) return <div style={{ padding: 20, background: "#0f172a", height: "100vh", color: "white" }}>Syncing...</div>;
+  if (loadingAuth) return <div style={{ padding: 20, background: "#020617", height: "100vh", color: "white" }}>Syncing...</div>;
 
   return (
     <NotificationProvider>
       {loadingScreen ? (
-        <div style={{ height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", background: "#0f172a", color: "white", fontSize: "24px" }}>
+        <div style={{ height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", background: "#020617", color: "white", fontSize: "24px" }}>
           🔥 Loading Tracker...
         </div>
       ) : (
@@ -186,6 +187,7 @@ export default function App() {
                     items={items} 
                     setItems={safeSetItems} 
                     weightLogs={weightLogs} 
+                    setWeightLogs={setWeightLogs}
                     addWeight={(w) => setWeightLogs(prev => [...prev, { weight: w, date: new Date().toISOString() }])} 
                   />
                 } />
@@ -194,6 +196,7 @@ export default function App() {
                 <Route path="finance" element={<Finance financeData={financeData} setFinanceData={setFinanceData} />} />
                 <Route path="chat" element={<Chat chatHistory={chatHistory} setChatHistory={setChatHistory} items={items} tasks={tasks} weightLogs={weightLogs} />} />
                 <Route path="goals" element={<Goals />} />
+                {/* Profile Sync Fix: Pass user and setUser */}
                 <Route path="profile" element={<Profile user={user} setUser={setUser} />} />
               </Route>
 
