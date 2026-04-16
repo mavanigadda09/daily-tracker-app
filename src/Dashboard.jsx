@@ -18,7 +18,6 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
       const currentTime = Date.now();
       if ((currentTime - lastUpdate) > 100) {
         const deltaZ = Math.abs(acc.z - lastZ);
-        // Threshold: A value of ~10-12 usually indicates a distinct step/jerk
         if (deltaZ > 12) {
           setSteps(prev => prev + 1);
         }
@@ -35,7 +34,6 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
             window.addEventListener("devicemotion", handleMotion);
           }
         } else {
-          // Standard browser support
           window.addEventListener("devicemotion", handleMotion);
         }
       } catch (err) {
@@ -69,7 +67,6 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
     const max = Math.max(...weights);
     const range = max - min || 1;
 
-    // Generate points for the SVG polyline
     const points = weights.map((w, i) => {
       const x = (i / (weights.length - 1)) * (width - padding * 2) + padding;
       const y = height - ((w - min) / range * (height - padding * 2) + padding);
@@ -106,7 +103,6 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
   return (
     <div style={styles.pageWrapper}>
       <div className="phoenix-watermark" />
-
       <div style={styles.content}>
         <header style={styles.header}>
           <h1 style={styles.greeting}>
@@ -115,9 +111,7 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
           <p style={styles.subtitle}>Your daily vitals are synchronized.</p>
         </header>
 
-        <div className="bento-grid-mobile" style={styles.bentoGrid}>
-          
-          {/* Main Activity Card */}
+        <div className="bento-grid-mobile">
           <div className="glass-panel main-card-mobile" style={{ ...styles.card, ...styles.mainCard }}>
             <h3 style={styles.cardTitle}>Daily Movement</h3>
             <div style={styles.progressCircleContainer}>
@@ -125,11 +119,10 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
                 ...styles.progressCircle,
                 borderColor: steps > 0 ? 'var(--accent)' : '#1e293b'
               }}>
-                <span style={styles.progressValue}>{steps}</span>
+                <span style={styles.progressValue}>{steps.toLocaleString()}</span>
                 <span style={styles.progressLabel}>Steps</span>
               </div>
             </div>
-            
             <div style={styles.goalTrack}>
                 <div style={{...styles.goalFill, width: `${progressPercent}%`}}></div>
             </div>
@@ -146,7 +139,6 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
             <h2 className="stat-value-mobile" style={styles.statValue}>{activeHabits}</h2>
           </div>
 
-          {/* Health Summary with Live Sparkline */}
           <div className="glass-panel main-card-mobile" style={styles.card}>
             <h3 style={styles.cardTitle}>Weight Trend</h3>
             <h2 style={styles.statValue}>
@@ -154,7 +146,6 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
             </h2>
             {renderSparkline()}
           </div>
-          
         </div>
       </div>
     </div>
@@ -167,7 +158,21 @@ const styles = {
   header: { marginBottom: "30px" },
   greeting: { fontSize: "2.5rem", fontWeight: "bold", margin: 0 },
   subtitle: { color: "var(--text-muted)", marginTop: "5px", fontSize: "14px" },
-  bentoGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" },
   card: { padding: "24px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" },
   mainCard: { gridRow: "span 1" },
-  cardTitle: { fontSize: "0.75rem", marginBottom: "15px", color: "
+  cardTitle: { fontSize: "0.75rem", marginBottom: "15px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "1.5px" },
+  statValue: { fontSize: "2.5rem", fontWeight: "800", margin: 0, color: "var(--accent)" },
+  statLabel: { color: "var(--text-muted)", margin: "0 0 5px 0", fontSize: "0.85rem" },
+  progressCircleContainer: { margin: "10px 0" },
+  progressCircle: {
+    width: "140px", height: "140px", borderRadius: "50%", border: `8px solid transparent`,
+    borderTopColor: 'var(--accent)', display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+    background: "rgba(255,255,255,0.03)",
+  },
+  progressValue: { fontSize: "32px", fontWeight: "bold", color: "#fff" },
+  progressLabel: { fontSize: "12px", color: "var(--text-muted)" },
+  goalTrack: { width: "100%", height: "6px", background: "#1e293b", borderRadius: "10px", marginTop: "20px", overflow: "hidden" },
+  goalFill: { height: "100%", background: "linear-gradient(90deg, var(--accent), var(--accent-orange))", transition: "width 0.5s ease" },
+  cardFooter: { marginTop: "10px", color: "var(--text-muted)", fontSize: "11px", fontStyle: "italic" },
+  fallbackText: { fontSize: '11px', color: 'var(--accent-orange)', marginTop: '15px', fontStyle: 'italic' }
+};
