@@ -174,8 +174,10 @@ export default function App() {
               >
                 <Route index element={<Dashboard logs={logs} tasks={tasks} items={items} user={user} weightLogs={weightLogs} />} />
                 
-                {/* FIXED NAVIGATION PATHS */}
-                <Route path="tasks" element={
+                {/* UPDATED PATHS: Changed 'tasks' to 'productivity' 
+                   and 'activities' to 'habits' to match navigation 
+                */}
+                <Route path="productivity" element={
                   <Productivity 
                     tasks={tasks} 
                     setTasks={setTasks} 
@@ -184,7 +186,7 @@ export default function App() {
                   />
                 } />
 
-                <Route path="activities" element={
+                <Route path="habits" element={
                   <Habits 
                     items={items} 
                     setItems={safeSetItems} 
@@ -201,6 +203,7 @@ export default function App() {
                 <Route path="profile" element={<Profile user={user} setUser={setUser} />} />
               </Route>
 
+              {/* Catch-all Redirect */}
               <Route path="*" element={<Navigate to={firebaseUser ? "/" : "/login"} replace />} />
             </Routes>
           </BrowserRouter>
