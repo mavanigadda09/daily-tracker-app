@@ -1,39 +1,52 @@
 <!doctype html>
-
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
 
-```
-<!-- Favicon -->
-<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-<!-- Viewport -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Viewport -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<!-- PWA Manifest -->
-<link rel="manifest" href="/manifest.json" />
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
 
-<!-- Theme Color -->
-<meta name="theme-color" content="#0f172a" />
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#0f172a" />
 
-<!-- Apple Support (optional but recommended) -->
-<link rel="apple-touch-icon" href="/pwa-192.png" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- ✅ iOS PWA Support -->
+    <link rel="apple-touch-icon" href="/pwa-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-<title>My Tracker App</title>
-```
+    <!-- ✅ Better Install + SEO -->
+    <meta name="description" content="Track habits, tasks, and goals daily" />
+    <meta name="application-name" content="Tracker App" />
 
+    <!-- ✅ Prevent zoom issues on mobile -->
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <title>My Tracker App</title>
   </head>
 
   <body>
     <div id="root"></div>
 
-```
-<!-- Main App -->
-<script type="module" src="/src/main.jsx"></script>
-```
+    <!-- Main App -->
+    <script type="module" src="/src/main.jsx"></script>
+
+    <!-- ✅ SERVICE WORKER REGISTER (CRITICAL FOR INSTALL BUTTON) -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker
+            .register("/sw.js")
+            .then(() => console.log("✅ Service Worker Registered"))
+            .catch((err) => console.log("SW failed:", err));
+        });
+      }
+    </script>
 
   </body>
 </html>
