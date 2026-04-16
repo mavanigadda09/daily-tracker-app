@@ -6,7 +6,7 @@ import Dashboard from "./Dashboard";
 import Analytics from "./Analytics";
 import Habits from "./Habits";
 import Goals from "./Goals";
-import Productivity from "./Productivity"; // ✅ Consolidated Module
+import Productivity from "./Productivity"; 
 import Profile from "./Profile";
 import Chat from "./Chat";
 import Finance from "./Finance";
@@ -34,14 +34,13 @@ export default function App() {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
   
-  // User Profile State (Single Source of Truth)
   const [user, setUser] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem("user")) || null;
+      const stored = localStorage.getItem("user");
+      return stored ? JSON.parse(stored) : null;
     } catch { return null; }
   });
 
-  // Data States
   const [items, setItems] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [weightLogs, setWeightLogs] = useState([]);
@@ -65,7 +64,6 @@ export default function App() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  // Auth Listener
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setFirebaseUser(u);
@@ -74,7 +72,6 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // Fix 1: Clean Logout without blank screen
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -90,7 +87,6 @@ export default function App() {
     setUser(userData);
   };
 
-  // Cloud Data Load
   useEffect(() => {
     if (!firebaseUser) return;
     const fetchData = async () => {
@@ -110,7 +106,6 @@ export default function App() {
     fetchData();
   }, [firebaseUser]);
 
-  // Realtime Sync
   useEffect(() => {
     if (!firebaseUser) return;
     const unsub = subscribeToData((data) => {
@@ -130,7 +125,6 @@ export default function App() {
     return () => unsub && unsub();
   }, [firebaseUser]);
 
-  // Cloud Save
   useEffect(() => {
     if (!firebaseUser || initialLoad.current) return;
     queueSave({
@@ -139,7 +133,6 @@ export default function App() {
     });
   }, [items, tasks, weightLogs, weightGoal, logs, goal, financeData, chatHistory, firebaseUser]);
 
-  // Helper for sub-module updates
   const safeSetItems = (updater) => {
     isLocalUpdate.current = true;
     setItems(prev => {
@@ -179,7 +172,6 @@ export default function App() {
               >
                 <Route index element={<Dashboard logs={logs} tasks={tasks} items={items} user={user} weightLogs={weightLogs} />} />
                 
-                {/* Fix 2: Updated Productivity Route */}
                 <Route path="productivity" element={
                   <Productivity 
                     tasks={tasks} 
@@ -202,8 +194,6 @@ export default function App() {
                 <Route path="finance" element={<Finance financeData={financeData} setFinanceData={setFinanceData} />} />
                 <Route path="chat" element={<Chat chatHistory={chatHistory} setChatHistory={setChatHistory} items={items} tasks={tasks} weightLogs={weightLogs} />} />
                 <Route path="goals" element={<Goals />} />
-                
-                {/* Fix 3: Profile Sync Prop */}
                 <Route path="profile" element={<Profile user={user} setUser={setUser} />} />
               </Route>
 
