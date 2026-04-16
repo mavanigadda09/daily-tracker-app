@@ -4,10 +4,9 @@ import { useState, useEffect, useRef } from "react";
 // Pages
 import Dashboard from "./Dashboard";
 import Analytics from "./Analytics";
-import Tasks from "./Tasks";
 import Habits from "./Habits";
 import Goals from "./Goals";
-import Activities from "./Activities";
+import Productivity from "./Productivity"; // ✅ Consolidated Module
 import Profile from "./Profile";
 import Chat from "./Chat";
 import Finance from "./Finance";
@@ -17,7 +16,7 @@ import Onboarding from "./Onboarding";
 // Components & Systems
 import Layout from "./Layout";
 import ProtectedRoute from "./ProtectedRoute";
-import InstallButton from "./components/InstallButton"; // ✅ Case-sensitive fixed
+import InstallButton from "./components/InstallButton"; 
 import { NotificationProvider } from "./context/NotificationContext";
 import ReminderSystem from "./system/ReminderSystem";
 import HabitReminderSystem from "./system/HabitReminderSystem";
@@ -35,13 +34,11 @@ export default function App() {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
   
-  // User Profile State (Source of Truth)
+  // User Profile State (Single Source of Truth)
   const [user, setUser] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("user")) || null;
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   });
 
   // Data States
@@ -58,13 +55,11 @@ export default function App() {
   const localVersion = useRef(0);
   const initialLoad = useRef(true);
 
-  // Initial Loading Screen
   useEffect(() => {
     const timer = setTimeout(() => setLoadingScreen(false), 1000);
     return () => clearTimeout(timer);
   }, []);
 
-  // Theme Sync
   useEffect(() => {
     document.body.setAttribute("data-theme", theme);
     localStorage.setItem("theme", theme);
@@ -79,12 +74,12 @@ export default function App() {
     return () => unsub();
   }, []);
 
+  // Fix 1: Clean Logout without blank screen
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      localStorage.removeItem("user"); // Clear specific user data
+      localStorage.removeItem("user");
       setUser(null);
-      // Let React Router handle the redirect naturally via the Routes logic
     } catch (err) {
       console.error("Logout error:", err);
     }
@@ -144,6 +139,7 @@ export default function App() {
     });
   }, [items, tasks, weightLogs, weightGoal, logs, goal, financeData, chatHistory, firebaseUser]);
 
+  // Helper for sub-module updates
   const safeSetItems = (updater) => {
     isLocalUpdate.current = true;
     setItems(prev => {
@@ -154,27 +150,25 @@ export default function App() {
     setTimeout(() => (isLocalUpdate.current = false), 1000);
   };
 
-  if (loadingAuth) return <div style={{ padding: 20, background: "#0f172a", height: "100vh", color: "white" }}>Syncing Auth...</div>;
+  if (loadingAuth) return <div style={{ padding: 20, background: "#0f172a", height: "100vh", color: "white" }}>Syncing...</div>;
 
   return (
-    <>
+    <NotificationProvider>
       {loadingScreen ? (
         <div style={{ height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", background: "#0f172a", color: "white", fontSize: "24px" }}>
           🔥 Loading Tracker...
         </div>
       ) : (
-        <NotificationProvider>
+        <>
           <InstallButton />
           <ReminderSystem items={items} tasks={tasks} logs={logs} />
           <HabitReminderSystem items={items} />
 
           <BrowserRouter>
             <Routes>
-              {/* Public Routes */}
-              <Route path="/login" element={firebaseUser ? <Navigate to="/" /> : <Login onLogin={handleLoginUser} />} />
+              <Route path="/login" element={firebaseUser ? <Navigate to="/" replace /> : <Login onLogin={handleLoginUser} />} />
               <Route path="/onboarding" element={<Onboarding />} />
 
-              {/* Protected Routes */}
               <Route
                 path="/"
                 element={
@@ -184,6 +178,17 @@ export default function App() {
                 }
               >
                 <Route index element={<Dashboard logs={logs} tasks={tasks} items={items} user={user} weightLogs={weightLogs} />} />
+                
+                {/* Fix 2: Updated Productivity Route */}
+                <Route path="productivity" element={
+                  <Productivity 
+                    tasks={tasks} 
+                    setTasks={setTasks} 
+                    items={items} 
+                    setItems={safeSetItems} 
+                  />
+                } />
+
                 <Route path="habits" element={
                   <Habits 
                     items={items} 
@@ -192,20 +197,21 @@ export default function App() {
                     addWeight={(w) => setWeightLogs(prev => [...prev, { weight: w, date: new Date().toISOString() }])} 
                   />
                 } />
-                <Route path="tasks" element={<Tasks tasks={tasks} setTasks={setTasks} />} />
-                <Route path="activities" element={<Activities items={items} setItems={safeSetItems} />} />
+
                 <Route path="analytics" element={<Analytics logs={logs} tasks={tasks} user={user} />} />
                 <Route path="finance" element={<Finance financeData={financeData} setFinanceData={setFinanceData} />} />
                 <Route path="chat" element={<Chat chatHistory={chatHistory} setChatHistory={setChatHistory} items={items} tasks={tasks} weightLogs={weightLogs} />} />
                 <Route path="goals" element={<Goals />} />
+                
+                {/* Fix 3: Profile Sync Prop */}
                 <Route path="profile" element={<Profile user={user} setUser={setUser} />} />
               </Route>
 
-              <Route path="*" element={<Navigate to="/" />} />
+              <Route path="*" element={<Navigate to={firebaseUser ? "/" : "/login"} replace />} />
             </Routes>
           </BrowserRouter>
-        </NotificationProvider>
+        </>
       )}
-    </>
+    </NotificationProvider>
   );
 }
