@@ -93,12 +93,25 @@ export default function App() {
     window.location.href = "/login";
   };
 
-  /* ================= USER ================= */
+  /* ================= USER (🔥 FIXED SAFELY) ================= */
   const [user, setUser] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem("user")) || null;
+      const stored = localStorage.getItem("user");
+      return stored
+        ? JSON.parse(stored)
+        : {
+            name: "User",
+            email: "user@email.com",
+            goal: "",
+            focus: "productivity"
+          };
     } catch {
-      return null;
+      return {
+        name: "User",
+        email: "user@email.com",
+        goal: "",
+        focus: "productivity"
+      };
     }
   });
 
@@ -106,6 +119,13 @@ export default function App() {
     localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
   };
+
+  // ✅ SYNC USER (NEW — DOES NOT BREAK ANYTHING)
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("user", JSON.stringify(user));
+    }
+  }, [user]);
 
   /* ================= THEME ================= */
   const [theme, setTheme] = useState(
@@ -222,60 +242,24 @@ export default function App() {
               }
             />
 
-            <Route
-              path="habits"
-              element={
-                <Habits
-                  items={items}
-                  setItems={setItems}
-                  weightLogs={weightLogs}
-                />
-              }
-            />
-
-            <Route
-              path="productivity"
-              element={
-                <Productivity
-                  tasks={tasks}
-                  setTasks={setTasks}
-                  items={items}
-                  setItems={setItems}
-                />
-              }
-            />
-
-            <Route
-              path="analytics"
-              element={<Analytics logs={logs} tasks={tasks} user={user} />}
-            />
-
-            <Route
-              path="finance"
-              element={
-                <Finance
-                  financeData={financeData}
-                  setFinanceData={setFinanceData}
-                />
-              }
-            />
-
-            <Route
-              path="chat"
-              element={
-                <Chat
-                  chatHistory={chatHistory}
-                  setChatHistory={setChatHistory}
-                  items={items}
-                  tasks={tasks}
-                  weightLogs={weightLogs}
-                />
-              }
-            />
-
+            <Route path="habits" element={<Habits items={items} setItems={setItems} weightLogs={weightLogs} />} />
+            <Route path="productivity" element={<Productivity tasks={tasks} setTasks={setTasks} items={items} setItems={setItems} />} />
+            <Route path="analytics" element={<Analytics logs={logs} tasks={tasks} user={user} />} />
+            <Route path="finance" element={<Finance financeData={financeData} setFinanceData={setFinanceData} />} />
+            <Route path="chat" element={<Chat chatHistory={chatHistory} setChatHistory={setChatHistory} items={items} tasks={tasks} weightLogs={weightLogs} />} />
             <Route path="goals" element={<Goals />} />
 
-            <Route path="profile" element={<Profile user={user} />} />
+            {/* ✅ FIXED PROFILE */}
+            <Route
+              path="profile"
+              element={
+                <Profile
+                  user={user}
+                  setUser={setUser}
+                  onLogout={handleLogout}
+                />
+              }
+            />
 
           </Route>
 
