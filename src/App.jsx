@@ -5,9 +5,9 @@ import "./App.css";
 // Pages
 import Dashboard from "./Dashboard";
 import Analytics from "./Analytics";
-import Habits from "./Habits";
+import Habits from "./Habits"; // Maps to /activities
 import Goals from "./Goals";
-import Productivity from "./Productivity"; 
+import Productivity from "./Productivity"; // Maps to /tasks
 import Profile from "./Profile";
 import Chat from "./Chat";
 import Finance from "./Finance";
@@ -42,6 +42,7 @@ export default function App() {
     } catch { return null; }
   });
 
+  // State Management
   const [items, setItems] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [weightLogs, setWeightLogs] = useState([]);
@@ -51,9 +52,11 @@ export default function App() {
   const [financeData, setFinanceData] = useState([]);
   const [chatHistory, setChatHistory] = useState([]);
 
+  // Persistence & Sync Refs
   const isLocalUpdate = useRef(false);
   const localVersion = useRef(0);
   const initialLoad = useRef(true);
+  const sessionAlertTriggered = useRef(false); // Phoenix Alert Logic
 
   useEffect(() => {
     const timer = setTimeout(() => setLoadingScreen(false), 1000);
@@ -88,6 +91,7 @@ export default function App() {
     setUser(userData);
   };
 
+  // Cloud Data Fetching
   useEffect(() => {
     if (!firebaseUser) return;
     const fetchData = async () => {
@@ -107,6 +111,7 @@ export default function App() {
     fetchData();
   }, [firebaseUser]);
 
+  // Real-time Cloud Sync
   useEffect(() => {
     if (!firebaseUser) return;
     const unsub = subscribeToData((data) => {
@@ -126,6 +131,7 @@ export default function App() {
     return () => unsub && unsub();
   }, [firebaseUser]);
 
+  // Queue Save Logic
   useEffect(() => {
     if (!firebaseUser || initialLoad.current) return;
     queueSave({
@@ -144,16 +150,17 @@ export default function App() {
     setTimeout(() => (isLocalUpdate.current = false), 1000);
   };
 
-  if (loadingAuth) return <div style={{ padding: 20, background: "#020617", height: "100vh", color: "white" }}>Syncing...</div>;
+  if (loadingAuth) return <div style={{ padding: 20, background: "#020617", height: "100vh", color: "white" }}>Syncing Phoenix Data...</div>;
 
   return (
     <NotificationProvider>
       {loadingScreen ? (
-        <div style={{ height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", background: "#020617", color: "white", fontSize: "24px" }}>
-          🔥 Loading Tracker...
+        <div style={{ height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", background: "#020617", color: "#facc15", fontSize: "24px", fontWeight: "bold" }}>
+          🔥 PHOENIX
         </div>
       ) : (
         <>
+          <div className="phoenix-watermark" /> {/* Branding Requirement */}
           <InstallButton />
           <ReminderSystem items={items} tasks={tasks} logs={logs} />
           <HabitReminderSystem items={items} />
@@ -173,7 +180,8 @@ export default function App() {
               >
                 <Route index element={<Dashboard logs={logs} tasks={tasks} items={items} user={user} weightLogs={weightLogs} />} />
                 
-                <Route path="productivity" element={
+                {/* Fixed Import Logic: Replaced Tasks with Productivity */}
+                <Route path="tasks" element={
                   <Productivity 
                     tasks={tasks} 
                     setTasks={setTasks} 
@@ -182,7 +190,8 @@ export default function App() {
                   />
                 } />
 
-                <Route path="habits" element={
+                {/* Fixed Import Logic: Replaced Activities with Habits */}
+                <Route path="activities" element={
                   <Habits 
                     items={items} 
                     setItems={safeSetItems} 
@@ -196,7 +205,8 @@ export default function App() {
                 <Route path="finance" element={<Finance financeData={financeData} setFinanceData={setFinanceData} />} />
                 <Route path="chat" element={<Chat chatHistory={chatHistory} setChatHistory={setChatHistory} items={items} tasks={tasks} weightLogs={weightLogs} />} />
                 <Route path="goals" element={<Goals />} />
-                {/* Profile Sync Fix: Pass user and setUser */}
+                
+                {/* Profile Sync Fix: Properly passing user and setUser */}
                 <Route path="profile" element={<Profile user={user} setUser={setUser} />} />
               </Route>
 
