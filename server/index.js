@@ -20,14 +20,20 @@ const MEMORY_FILE = "./memory.json";
 
 const loadMemory = () => {
   try {
+    if (!fs.existsSync(MEMORY_FILE)) return {};
     return JSON.parse(fs.readFileSync(MEMORY_FILE, "utf-8"));
-  } catch {
+  } catch (err) {
+    console.error("Memory load error:", err);
     return {};
   }
 };
 
 const saveMemory = (data) => {
-  fs.writeFileSync(MEMORY_FILE, JSON.stringify(data, null, 2));
+  try {
+    fs.writeFileSync(MEMORY_FILE, JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.error("Memory save error:", err);
+  }
 };
 
 let userMemory = loadMemory();
@@ -38,7 +44,6 @@ const safeParse = (text) => {
     return JSON.parse(text);
   } catch {
     try {
-      // Attempt to extract JSON
       const match = text.match(/\{[\s\S]*\}/);
       if (match) return JSON.parse(match[0]);
     } catch {}
@@ -73,18 +78,19 @@ const callOpenAI = async (messages, retries = 2) => {
   try {
     return await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      messages
+      messages,
+      temperature: 0.7
     });
   } catch (err) {
     if (retries > 0) {
-      console.log("Retrying OpenAI...");
+      console.log("🔁 Retrying OpenAI...");
       return callOpenAI(messages, retries - 1);
     }
     throw err;
   }
 };
 
-/* ================= RATE LIMIT (BASIC) ================= */
+/* ================= RATE LIMIT ================= */
 const requests = {};
 
 const isRateLimited = (userId) => {
@@ -104,7 +110,15 @@ const isRateLimited = (userId) => {
   return false;
 };
 
-/* ================= ROUTE ================= */
+/* ================= HEALTH CHECK ================= */
+app.get("/", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "AI server running 🚀"
+  });
+});
+
+/* ================= AI ROUTE ================= */
 app.post("/ai", async (req, res) => {
   try {
     const { message, context, userId = "default" } = req.body;
@@ -169,7 +183,7 @@ ${JSON.stringify(context)}
       }
     ]);
 
-    const raw = completion.choices[0].message.content;
+    const raw = completion.choices?.[0]?.message?.content || "";
 
     const parsed = safeParse(raw);
 
@@ -202,6 +216,8 @@ ${JSON.stringify(context)}
 });
 
 /* ================= START ================= */
-app.listen(5000, () => {
-  console.log("🚀 AI Server running on http://localhost:5000");
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 AI Server running on http://localhost:${PORT}`);
 });
