@@ -24,54 +24,14 @@ import { NotificationProvider } from "./context/NotificationContext";
 import ReminderSystem from "./system/ReminderSystem";
 import HabitReminderSystem from "./system/HabitReminderSystem";
 
+/* ✅ IMPORT NEW INSTALL BUTTON */
+import InstallButton from "./InstallButton";
+
 /* ================= SAFE ================= */
 const safeArray = (v) => (Array.isArray(v) ? v : []);
 const safeCall = (fn, ...args) => {
   if (typeof fn === "function") return fn(...args);
 };
-
-/* ================= INSTALL BUTTON ================= */
-function InstallButton() {
-  const [promptEvent, setPromptEvent] = useState(null);
-
-  useEffect(() => {
-    const handler = (e) => {
-      e.preventDefault();
-      console.log("✅ install prompt fired");
-      setPromptEvent(e);
-    };
-
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
-
-  if (!promptEvent) return null;
-
-  return (
-    <button
-      onClick={async () => {
-        promptEvent.prompt();
-        await promptEvent.userChoice;
-        setPromptEvent(null);
-      }}
-      style={{
-        position: "fixed",
-        bottom: 20,
-        right: 20,
-        padding: "12px 16px",
-        borderRadius: "10px",
-        background: "#0f172a",
-        color: "white",
-        border: "none",
-        fontWeight: "bold",
-        cursor: "pointer",
-        zIndex: 9999
-      }}
-    >
-      📲 Install App
-    </button>
-  );
-}
 
 export default function App() {
 
@@ -93,7 +53,7 @@ export default function App() {
     window.location.href = "/login";
   };
 
-  /* ================= USER (🔥 FIXED SAFELY) ================= */
+  /* ================= USER ================= */
   const [user, setUser] = useState(() => {
     try {
       const stored = localStorage.getItem("user");
@@ -120,7 +80,7 @@ export default function App() {
     setUser(userData);
   };
 
-  // ✅ SYNC USER (NEW — DOES NOT BREAK ANYTHING)
+  // ✅ Sync user
   useEffect(() => {
     if (user) {
       localStorage.setItem("user", JSON.stringify(user));
@@ -204,6 +164,7 @@ export default function App() {
   return (
     <NotificationProvider>
 
+      {/* 🔥 NEW SMART INSTALL UI */}
       <InstallButton />
 
       <ReminderSystem items={items} tasks={tasks} logs={logs} />
@@ -249,7 +210,6 @@ export default function App() {
             <Route path="chat" element={<Chat chatHistory={chatHistory} setChatHistory={setChatHistory} items={items} tasks={tasks} weightLogs={weightLogs} />} />
             <Route path="goals" element={<Goals />} />
 
-            {/* ✅ FIXED PROFILE */}
             <Route
               path="profile"
               element={
