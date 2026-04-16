@@ -24,7 +24,7 @@ import { NotificationProvider } from "./context/NotificationContext";
 import ReminderSystem from "./system/ReminderSystem";
 import HabitReminderSystem from "./system/HabitReminderSystem";
 
-/* ✅ IMPORT NEW INSTALL BUTTON */
+/* ✅ KEEP YOUR INSTALL BUTTON */
 import InstallButton from "./InstallButton";
 
 /* ================= SAFE ================= */
@@ -47,10 +47,15 @@ export default function App() {
     return () => safeCall(unsub);
   }, []);
 
+  /* 🔥 FIXED LOGOUT (NO RELOAD) */
   const handleLogout = async () => {
     await signOut(auth);
+
+    // clear user safely
     localStorage.removeItem("user");
-    window.location.href = "/login";
+    setUser(null); // ✅ important
+
+    // let ProtectedRoute redirect naturally
   };
 
   /* ================= USER ================= */
@@ -80,10 +85,12 @@ export default function App() {
     setUser(userData);
   };
 
-  // ✅ Sync user
+  /* ✅ FIX: sync + fallback */
   useEffect(() => {
     if (user) {
       localStorage.setItem("user", JSON.stringify(user));
+    } else {
+      localStorage.removeItem("user");
     }
   }, [user]);
 
@@ -164,7 +171,7 @@ export default function App() {
   return (
     <NotificationProvider>
 
-      {/* 🔥 NEW SMART INSTALL UI */}
+      {/* ✅ INSTALL BUTTON ALWAYS AVAILABLE */}
       <InstallButton />
 
       <ReminderSystem items={items} tasks={tasks} logs={logs} />
