@@ -16,71 +16,55 @@ export const NotificationProvider = ({ children }) => {
   const timeouts = useRef(new Map());
   const audioRef = useRef(null);
 
-  // ✅ SAFE SYSTEM NOTIFICATION (iPhone compatible)
+  // ✅ SYSTEM NOTIFICATION (Push support)
   const safeNotify = (message) => {
     try {
       if (typeof window === "undefined") return;
-
       if ("Notification" in window) {
         if (Notification.permission === "granted") {
-          new Notification(message);
+          new Notification("Phoenix", { body: message, icon: "/phoenix.png" });
         } else if (Notification.permission !== "denied") {
           Notification.requestPermission().then((permission) => {
             if (permission === "granted") {
-              new Notification(message);
-            } else {
-              fallback(message);
+              new Notification("Phoenix", { body: message, icon: "/phoenix.png" });
             }
           });
-        } else {
-          fallback(message);
         }
-      } else {
-        fallback(message);
       }
-    } catch {
-      fallback(message);
+    } catch (e) {
+      console.warn("System notification blocked or unsupported.");
     }
-  };
-
-  const fallback = (msg) => {
-    // iPhone fallback
-    alert(msg);
   };
 
   const showNotification = (message, type = "info") => {
     const id = crypto.randomUUID();
-
     const newNotif = { id, message, type };
+    
     setNotifications((prev) => [...prev, newNotif]);
 
-    // 🔊 SOUND (safe)
+    // 🔊 PHOENIX CHIME (Subtle)
     try {
       if (!audioRef.current) {
-        audioRef.current = new Audio(
-          "https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"
-        );
-        audioRef.current.volume = 0.3;
+        audioRef.current = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
+        audioRef.current.volume = 0.2;
       }
       audioRef.current.currentTime = 0;
       audioRef.current.play();
     } catch {}
 
-    // 📳 VIBRATION (safe)
-    try {
-      if (typeof navigator !== "undefined" && navigator.vibrate) {
-        navigator.vibrate([100, 50, 100]);
-      }
-    } catch {}
+    // 📳 HAPTIC FEEDBACK
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(40);
+    }
 
-    // 🔔 SYSTEM NOTIFICATION (NEW)
+    // 🔔 TRIGGER SYSTEM PUSH
     safeNotify(message);
 
     // ⏳ AUTO REMOVE
     const timeout = setTimeout(() => {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       timeouts.current.delete(id);
-    }, 3000);
+    }, 3500);
 
     timeouts.current.set(id, timeout);
   };
@@ -94,14 +78,15 @@ export const NotificationProvider = ({ children }) => {
           {notifications.map((n) => (
             <motion.div
               key={n.id}
-              initial={{ opacity: 0, x: 100 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 100 }}
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
               style={{
                 ...styles.toast,
                 ...styles[n.type]
               }}
             >
+              <span style={{ marginRight: '8px' }}>🔥</span>
               {n.message}
             </motion.div>
           ))}
@@ -114,24 +99,45 @@ export const NotificationProvider = ({ children }) => {
 const styles = {
   container: {
     position: "fixed",
-    top: 20,
-    right: 20,
+    bottom: 40, // Thumb-friendly bottom placement
+    left: "50%",
+    transform: "translateX(-50%)",
     display: "flex",
-    flexDirection: "column",
-    gap: 10,
-    zIndex: 9999
+    flexDirection: "column-reverse", // Newest on bottom
+    gap: 12,
+    zIndex: 10000,
+    width: "100%",
+    maxWidth: "350px",
+    padding: "0 20px",
+    pointerEvents: "none"
   },
 
   toast: {
-    padding: "12px 16px",
-    borderRadius: 10,
-    color: "#fff",
-    fontSize: 14,
-    minWidth: 220,
-    boxShadow: "0 8px 25px rgba(0,0,0,0.3)"
+    pointerEvents: "auto",
+    padding: "14px 20px",
+    borderRadius: "25px", // Capsule shape
+    color: "#020617", // Midnight blue text for contrast
+    fontSize: "14px",
+    fontWeight: "bold",
+    textAlign: "center",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+    backdropFilter: "blur(8px)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "1px solid rgba(255,255,255,0.1)"
   },
 
-  success: { background: "#22c55e" },
-  error: { background: "#ef4444" },
-  info: { background: "#3b82f6" }
+  // Phoenix Theme Types
+  success: { 
+    background: "linear-gradient(135deg, #facc15, #f97316)", // Gold to Orange
+  },
+  error: { 
+    background: "#ef4444",
+    color: "#fff"
+  },
+  info: { 
+    background: "rgba(255, 255, 255, 0.95)",
+    color: "#020617"
+  }
 };

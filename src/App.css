@@ -3,69 +3,98 @@
   --accent: #facc15;       /* Phoenix Gold */
   --accent-orange: #f97316; /* Phoenix Orange */
   --bg: #020617;           /* Midnight Blue/Black */
-  --card: rgba(15, 23, 42, 0.7); 
-  --card-hover: rgba(30, 41, 59, 0.9);
+  --card: rgba(15, 23, 42, 0.6); 
+  --card-hover: rgba(30, 41, 59, 0.85);
   --text: #f8fafc;
   --text-muted: #94a3b8;
-  --border: rgba(51, 65, 85, 0.5);
+  --border: rgba(255, 255, 255, 0.08);
   
   /* Layout Constants */
-  --radius-lg: 1.5rem;
-  --transition-fast: 0.2s ease;
+  --radius-lg: 1.25rem;
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Global Reset & Mobile Safety */
 body {
   margin: 0;
+  padding: 0;
   background-color: var(--bg);
   color: var(--text);
   font-family: 'Inter', -apple-system, sans-serif;
-  overflow-x: hidden; /* Prevent horizontal scrolling on mobile */
+  overflow-x: hidden;
+  /* Removes the tap highlight box on mobile devices */
+  -webkit-tap-highlight-color: transparent; 
 }
 
-/* Phoenix Background Watermark Logic */
+/* 1. LAYERED BACKGROUND WATERMARK */
 .phoenix-watermark {
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 80vw;
-  height: 80vh;
-  background-image: url('/phoenix.png'); /* Ensure file is in /public folder */
+  width: 90vw;
+  height: 90vh;
+  background-image: url('/phoenix.png'); 
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
-  opacity: 0.06; /* Discreet branding requirement */
+  opacity: 0.03; 
   pointer-events: none;
-  z-index: 0;
-  filter: grayscale(100%) brightness(1.5);
+  z-index: -1; /* Placed behind all content layers */
+  filter: grayscale(100%) brightness(1.2);
 }
 
-/* Glassmorphism Panels */
+/* 2. GLASSMORPHISM BENTO PANELS */
 .glass-panel {
   background: var(--card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  transition: transform var(--transition-fast), background var(--transition-fast);
+  transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+  box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2);
 }
 
-.glass-panel:hover {
+/* Tactile feedback for mobile users */
+.glass-panel:active {
+  transform: scale(0.98);
   background: var(--card-hover);
-  transform: translateY(-2px);
-  border-color: rgba(250, 204, 21, 0.2); /* Slight gold glow on hover */
 }
 
-/* Bento Grid Layout Helpers */
-.bento-grid {
+/* 3. BENTO GRID COMPACTION LOGIC */
+.bento-grid-mobile {
   display: grid;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 12px;
+  padding: 12px;
 }
 
-/* Scrollbar Styling (Phoenix Theme) */
+/* Desktop: Flexible columns */
+@media (min-width: 769px) {
+  .bento-grid-mobile {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+}
+
+/* Mobile: Compact 2-column layout */
+@media (max-width: 768px) {
+  .bento-grid-mobile {
+    grid-template-columns: repeat(2, 1fr); 
+  }
+  
+  /* Forces prominent cards (Movement, Weight) to take full width */
+  .main-card-mobile {
+    grid-column: span 2;
+  }
+
+  /* Shrinks large numbers to fit in smaller side-by-side cards */
+  .stat-value-mobile {
+    font-size: 1.8rem !important;
+  }
+}
+
+/* 4. SCROLLBAR (PHOENIX THEME) */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -78,13 +107,28 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-orange);
+  background: var(--accent);
 }
 
-/* Mobile Responsiveness */
-@media (max-width: 768px) {
-  .phoenix-watermark {
-    width: 95vw;
-    opacity: 0.04;
-  }
+/* 5. UTILITY CLASSES (Warning-Free Text Gradients) */
+.text-phoenix-gradient {
+  background: linear-gradient(135deg, var(--accent), var(--accent-orange));
+  background-clip: text;
+  -webkit-background-clip: text; /* Vendor prefix for compatibility */
+  -webkit-text-fill-color: transparent;
+}
+
+.phoenix-btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-orange));
+  color: var(--bg);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+
+.phoenix-btn-primary:active {
+  filter: brightness(0.9);
 }

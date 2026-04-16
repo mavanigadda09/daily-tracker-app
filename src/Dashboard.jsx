@@ -1,27 +1,31 @@
 import React, { useEffect, useRef, useState } from "react";
 import { theme } from "./theme";
+import { useNotification } from "./context/NotificationContext";
 
 export default function Dashboard({ user, tasks = [], items = [], weightLogs = [] }) {
+  const { showNotification } = useNotification();
   const welcomeShown = useRef(false);
   
-  // Fix: Initialized at 0. No auto-incrementing useEffect to prevent "Ghost Steps".
+  // Local state for steps (initialized to 0)
   const [steps, setSteps] = useState(0); 
 
-  /* ================= FIX: SESSION-AWARE POPUP ================= */
+  /* ================= PHOENIX TOAST WELCOME ================= */
   useEffect(() => {
-    // Uses the useRef to ensure alert only triggers once per session load
     if (user && user.name && !welcomeShown.current) {
-      alert(`Welcome back, ${user.name} 🚀`);
+      showNotification(`Welcome back, ${user.name} 🔥`, "success");
       welcomeShown.current = true;
     }
-  }, [user]);
+  }, [user, showNotification]);
 
-  /* ================= STATS CALCULATION ================= */
+  /* ================= STATS CALCULATION & FALLBACKS ================= */
   const completedTasks = tasks.filter(t => t.status === "completed").length;
   const activeHabits = items.filter(i => i.type === "habit").length;
-  const latestWeight = weightLogs.length > 0 
+  
+  // Stability Fix: Fallback to 0.0 if no weight logs exist
+  const hasWeightData = weightLogs && weightLogs.length > 0;
+  const latestWeight = hasWeightData 
     ? weightLogs[weightLogs.length - 1].weight 
-    : "N/A";
+    : "0.0";
 
   // Calculate step progress percentage
   const stepGoal = 10000;
@@ -29,24 +33,22 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
 
   return (
     <div style={styles.pageWrapper}>
-      {/* PHOENIX BACKGROUND WATERMARK - Optimized Opacity */}
-      <div style={styles.watermarkContainer}>
-        <img src="/phoenix.png" style={styles.watermark} alt="Phoenix Logo" />
-      </div>
+      {/* PHOENIX BACKGROUND WATERMARK (Handled by App.css class) */}
+      <div className="phoenix-watermark" />
 
       <div style={styles.content}>
         <header style={styles.header}>
           <h1 style={styles.greeting}>
-            Rise, <span style={styles.accentText}>{user?.name?.split(' ')[0] || 'User'}</span> 🔥
+            Rise, <span className="text-phoenix-gradient">{user?.name?.split(' ')[0] || 'User'}</span>
           </h1>
           <p style={styles.subtitle}>Your daily progress is synchronized.</p>
         </header>
 
-        {/* BENTO GRID LAYOUT */}
-        <div style={styles.bentoGrid}>
+        {/* BENTO GRID LAYOUT - Using Compaction Classes */}
+        <div className="bento-grid-mobile" style={styles.bentoGrid}>
           
-          {/* Main Activity Card (Bento Large) */}
-          <div className="glass-panel" style={{ ...styles.card, ...styles.mainCard }}>
+          {/* Main Activity Card (Bento Large / Full-width mobile) */}
+          <div className="glass-panel main-card-mobile" style={{ ...styles.card, ...styles.mainCard }}>
             <h3 style={styles.cardTitle}>Daily Movement</h3>
             <div style={styles.progressCircleContainer}>
               <div style={{
@@ -63,7 +65,6 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
             </div>
             <p style={styles.cardFooter}>Goal: 10,000 steps</p>
             
-            {/* Manual increment for testing/real tracking */}
             <button 
               onClick={() => setSteps(prev => prev + 500)}
               style={styles.stepBtn}
@@ -72,29 +73,35 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
             </button>
           </div>
 
-          {/* Stats Bento Column (Side-by-Side Mobile Optimization) */}
-          <div style={styles.statsCol}>
-            <div className="glass-panel" style={styles.card}>
-              <p style={styles.statLabel}>Tasks Done</p>
-              <h2 style={styles.statValue}>{completedTasks}</h2>
-            </div>
-            <div className="glass-panel" style={styles.card}>
-              <p style={styles.statLabel}>Active Habits</p>
-              <h2 style={styles.statValue}>{activeHabits}</h2>
-            </div>
+          {/* Stats Bento (Side-by-side on mobile via CSS) */}
+          <div className="glass-panel" style={styles.card}>
+            <p style={styles.statLabel}>Tasks Done</p>
+            <h2 className="stat-value-mobile" style={styles.statValue}>{completedTasks}</h2>
           </div>
 
-          {/* Health Summary Card */}
           <div className="glass-panel" style={styles.card}>
+            <p style={styles.statLabel}>Active Habits</p>
+            <h2 className="stat-value-mobile" style={styles.statValue}>{activeHabits}</h2>
+          </div>
+
+          {/* Health Summary Card (Full-width mobile) */}
+          <div className="glass-panel main-card-mobile" style={styles.card}>
             <h3 style={styles.cardTitle}>Current Weight</h3>
             <h2 style={styles.statValue}>
               {latestWeight} <small style={{fontSize: '14px', color: 'var(--text-muted)'}}>kg</small>
             </h2>
-            <div style={styles.miniChartPlaceholder}>
-                <div style={{...styles.sparkBar, height: '40%'}}></div>
-                <div style={{...styles.sparkBar, height: '70%'}}></div>
-                <div style={{...styles.sparkBar, height: '50%', background: '#f97316', opacity: 1}}></div>
-            </div>
+            
+            {!hasWeightData ? (
+              <p style={styles.fallbackText}>
+                ⚠️ No logs found. Start tracking in Habits!
+              </p>
+            ) : (
+              <div style={styles.miniChartPlaceholder}>
+                  <div style={{...styles.sparkBar, height: '40%'}}></div>
+                  <div style={{...styles.sparkBar, height: '70%'}}></div>
+                  <div style={{...styles.sparkBar, height: '50%', background: 'var(--accent-orange)', opacity: 1}}></div>
+              </div>
+            )}
           </div>
           
         </div>
@@ -107,23 +114,9 @@ const styles = {
   pageWrapper: {
     position: "relative",
     minHeight: "100vh",
-    background: theme.colors.bg,
-    color: theme.colors.text,
+    color: "var(--text)",
     overflowX: "hidden",
-    padding: theme.spacing.lg,
-  },
-  watermarkContainer: {
-    position: "fixed",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    zIndex: 0,
-    opacity: 0.05, // Phoenix Branding: Low opacity watermark
-    pointerEvents: "none",
-  },
-  watermark: {
-    width: "min(90vw, 600px)",
-    filter: "grayscale(100%) brightness(200%)",
+    padding: "20px",
   },
   content: {
     position: "relative",
@@ -131,77 +124,69 @@ const styles = {
     maxWidth: "1200px",
     margin: "0 auto",
   },
-  header: { marginBottom: theme.spacing.xl },
+  header: { marginBottom: "30px" },
   greeting: { fontSize: "2.5rem", fontWeight: "bold", margin: 0 },
-  accentText: {
-    background: "linear-gradient(135deg, #facc15, #f97316)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-  },
-  subtitle: { color: theme.colors.textMuted, marginTop: theme.spacing.xs },
+  subtitle: { color: "var(--text-muted)", marginTop: "5px", fontSize: "14px" },
   bentoGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-    gap: theme.spacing.md,
+    // Base layout for desktop; CSS handles the mobile repeat(2, 1fr)
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
   },
   card: {
-    background: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.lg,
+    padding: "24px",
     display: "flex",
     flexDirection: "column",
-    border: "1px solid rgba(255,255,255,0.05)",
-  },
-  mainCard: {
-    gridRow: "span 2",
     alignItems: "center",
     justifyContent: "center",
     textAlign: "center",
   },
-  statsCol: { 
-    display: "flex", 
-    flexDirection: "column", 
-    gap: theme.spacing.md 
+  mainCard: {
+    gridRow: "span 1", 
   },
   cardTitle: { 
-    fontSize: "0.8rem", 
-    marginBottom: theme.spacing.md, 
-    color: theme.colors.textMuted, 
+    fontSize: "0.75rem", 
+    marginBottom: "15px", 
+    color: "var(--text-muted)", 
     textTransform: "uppercase", 
     letterSpacing: "1.5px" 
   },
-  statValue: { fontSize: "2.8rem", fontWeight: "800", margin: 0, color: "#facc15" },
-  statLabel: { color: theme.colors.textMuted, margin: 0, fontSize: "0.85rem" },
-  progressCircleContainer: { margin: "20px 0" },
+  statValue: { fontSize: "2.5rem", fontWeight: "800", margin: 0, color: "var(--accent)" },
+  statLabel: { color: "var(--text-muted)", margin: "0 0 5px 0", fontSize: "0.85rem" },
+  progressCircleContainer: { margin: "10px 0" },
   progressCircle: {
-    width: "180px",
-    height: "180px",
+    width: "140px",
+    height: "140px",
     borderRadius: "50%",
-    border: `10px solid transparent`,
-    borderTopColor: '#facc15', // Gold accent
+    border: `8px solid transparent`,
+    borderTopColor: 'var(--accent)',
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     background: "rgba(255,255,255,0.03)",
-    boxShadow: `inset 0 0 20px rgba(0,0,0,0.2)`,
   },
-  progressValue: { fontSize: "42px", fontWeight: "bold", color: "#fff" },
-  progressLabel: { fontSize: "12px", color: theme.colors.textMuted },
-  goalTrack: { width: "80%", height: "8px", background: "#1e293b", borderRadius: "10px", marginTop: "24px", overflow: "hidden" },
-  goalFill: { height: "100%", background: "linear-gradient(90deg, #facc15, #f97316)", transition: "width 0.5s ease-in-out" },
-  cardFooter: { marginTop: "12px", color: theme.colors.textMuted, fontSize: "12px" },
+  progressValue: { fontSize: "32px", fontWeight: "bold", color: "#fff" },
+  progressLabel: { fontSize: "11px", color: "var(--text-muted)" },
+  goalTrack: { width: "100%", height: "6px", background: "#1e293b", borderRadius: "10px", marginTop: "20px", overflow: "hidden" },
+  goalFill: { height: "100%", background: "linear-gradient(90deg, var(--accent), var(--accent-orange))", transition: "width 0.5s ease" },
+  cardFooter: { marginTop: "10px", color: "var(--text-muted)", fontSize: "11px" },
   stepBtn: {
-    marginTop: "20px",
-    padding: "8px 16px",
+    marginTop: "15px",
+    padding: "8px 20px",
     borderRadius: "20px",
     border: "none",
     background: "rgba(250, 204, 21, 0.1)",
-    color: "#facc15",
+    color: "var(--accent)",
     fontSize: "12px",
     cursor: "pointer",
     fontWeight: "bold"
   },
-  miniChartPlaceholder: { display: "flex", alignItems: "flex-end", gap: "8px", height: "50px", marginTop: "20px" },
-  sparkBar: { flex: 1, background: "#facc15", opacity: 0.2, borderRadius: "4px" }
+  miniChartPlaceholder: { display: "flex", alignItems: "flex-end", gap: "6px", height: "40px", marginTop: "15px", width: "100%" },
+  sparkBar: { flex: 1, background: "var(--accent)", opacity: 0.2, borderRadius: "3px" },
+  fallbackText: {
+    fontSize: '11px', 
+    color: 'var(--accent-orange)', 
+    marginTop: '12px',
+    fontStyle: 'italic'
+  }
 };
