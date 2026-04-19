@@ -47,16 +47,15 @@ export const PROTECTED_ROUTES = [
     ),
   },
   {
-    path: "habits",
-    element: (appData) => wrap(
-      <Habits
-        items={appData.items}
-        setItems={appData.setItems}
-        weightLogs={appData.weightLogs}
-        addWeight={appData.addWeight}
-      />
-    ),
-  },
+  path: "/habits",
+  element: (data, user) => (
+    <Habits
+      items={data.items}
+      setItems={data.setItems}
+      weightLogs={data.weightLogs}
+    />
+  )
+},
   {
     path: "analytics",
     element: (appData, user) => wrap(
