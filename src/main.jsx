@@ -1,27 +1,46 @@
+/**
+ * main.jsx — Application bootstrap
+ * ─────────────────────────────────────────────────────────────
+ * Responsibilities (in execution order):
+ *   1. Guard: verify #root exists
+ *   2. Theme: validate + apply (true FOUC prevention is in index.html)
+ *   3. Render: React 18 createRoot with StrictMode + ErrorBoundary
+ *   4. Service worker: register, detect updates, surface refresh prompt
+ *
+ * Theme note:
+ *   The inline <script> in index.html (see index.html) runs synchronously
+ *   before first paint — that is the only reliable FOUC prevention.
+ *   This file's theme call is a safety net for the rare case where
+ *   index.html is served without that script (e.g. a different CDN edge).
+ */
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import "./index.css";
-import App from "./App.jsx";
-import ErrorBoundary from "./ErrorBoundary";
+import App         from "./App.jsx";
+import ErrorBoundary from "./ErrorBoundary.jsx";
+import { initTheme } from "./utils/theme.js";
+import { registerServiceWorker } from "./utils/serviceWorker.js";
 
-/* ================= ROOT ================= */
+// ─── 1. Root guard ────────────────────────────────────────────
 const rootElement = document.getElementById("root");
-
 if (!rootElement) {
-  throw new Error("Root element not found");
+  // Throw synchronously — nothing can render without a mount point.
+  throw new Error(
+    "[Phoenix] #root element not found. Check your index.html."
+  );
 }
 
-/* ================= THEME INIT ================= */
-// Apply theme BEFORE React loads (prevents flicker)
-try {
-  const savedTheme = localStorage.getItem("theme") || "dark";
-  document.body.setAttribute("data-theme", savedTheme);
-} catch (e) {
-  console.warn("⚠️ Theme load failed:", e);
+// ─── 2. Theme safety net ──────────────────────────────────────
+// index.html already ran this before first paint. This call is a
+// no-op if data-theme is already set, but prevents a bare page if
+// the inline script was somehow stripped.
+if (!document.documentElement.hasAttribute("data-theme")) {
+  initTheme();
 }
 
-/* ================= RENDER ================= */
+// ─── 3. Render ────────────────────────────────────────────────
 createRoot(rootElement).render(
   <StrictMode>
     <ErrorBoundary>
@@ -30,37 +49,7 @@ createRoot(rootElement).render(
   </StrictMode>
 );
 
-/* ================= SERVICE WORKER ================= */
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", async () => {
-    try {
-      const registration = await navigator.serviceWorker.register("/sw.js");
-
-      console.log("✅ Service Worker registered:", registration);
-
-      // 🔥 AUTO UPDATE SERVICE WORKER
-      if (registration.waiting) {
-        console.log("🔄 New version available");
-      }
-
-      registration.onupdatefound = () => {
-        const newWorker = registration.installing;
-
-        if (newWorker) {
-          newWorker.onstatechange = () => {
-            if (newWorker.state === "installed") {
-              if (navigator.serviceWorker.controller) {
-                console.log("🚀 New content available, refresh to update");
-              } else {
-                console.log("📦 Content cached for offline use");
-              }
-            }
-          };
-        }
-      };
-
-    } catch (error) {
-      console.log("❌ Service Worker registration failed:", error);
-    }
-  });
-}
+// ─── 4. Service worker ────────────────────────────────────────
+// Deferred to after React has painted — SW registration is never
+// on the critical path and should not block the first render.
+registerServiceWorker();
