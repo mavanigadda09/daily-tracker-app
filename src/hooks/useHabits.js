@@ -16,6 +16,27 @@ const getLastNDays = (n) => {
   return days;
 };
 
+// ─── Time Intelligence (NEW) ────────────────────────────────
+
+const getTimeStatus = (time) => {
+  if (!time) return null;
+
+  const now = new Date();
+  const [h, m] = time.split(":").map(Number);
+
+  const target = new Date();
+  target.setHours(h, m, 0, 0);
+
+  const diff = target - now;
+  const minutes = diff / (1000 * 60);
+
+  if (minutes > 0 && minutes <= 60) return "soon";
+  if (minutes < 0 && minutes >= -60) return "missed";
+  if (minutes < -60) return "overdue";
+
+  return "normal";
+};
+
 // ─── Streak calculation ─────────────────────────────────────
 
 export function calcStreak(completed = {}) {
@@ -48,7 +69,7 @@ export function useHabits(items, setItems) {
   );
 
   // ─────────────────────────────────────────────────────────
-  // 🧠 ENRICH HABITS (THIS IS THE BIG UPGRADE)
+  // 🧠 ENRICH HABITS (UPGRADED INTELLIGENCE LAYER)
   // ─────────────────────────────────────────────────────────
 
   const enrichedHabits = useMemo(() => {
@@ -61,26 +82,52 @@ export function useHabits(items, setItems) {
       const weekDone = weekKeys.filter((k) => completed[k]?.done).length;
       const weekProgress = Math.round((weekDone / 7) * 100);
 
-      // Is done today
+      // Done today
       const doneToday = !!completed[todayKey]?.done;
 
-      // Priority system
-      const priorityScore =
-        (doneToday ? 0 : 50) +
-        (h.streak >= 3 ? 30 : 0) +
-        (h.time ? 10 : 0);
+      // Time intelligence
+      const timeStatus = getTimeStatus(h.time);
+
+      // Consistency (last 7 days ratio)
+      const consistency = weekDone / 7;
+
+      // Habit age (days since created)
+      const ageDays = h.createdAt
+        ? Math.floor((Date.now() - h.createdAt) / (1000 * 60 * 60 * 24))
+        : 0;
+
+      // Priority scoring (UPGRADED)
+      let priorityScore = 0;
+
+      if (!doneToday) priorityScore += 50;
+
+      if (timeStatus === "overdue") priorityScore += 40;
+      else if (timeStatus === "missed") priorityScore += 30;
+      else if (timeStatus === "soon") priorityScore += 20;
+
+      if (h.streak >= 5) priorityScore += 25;
+      else if (h.streak >= 3) priorityScore += 15;
+
+      if (consistency < 0.4) priorityScore += 20;
+
+      if (ageDays < 3) priorityScore += 10; // new habit boost
 
       return {
         ...h,
         doneToday,
         weekProgress,
         priorityScore,
+
+        // 🆕 NEW FIELDS (non-breaking)
+        timeStatus,
+        consistency,
+        ageDays,
       };
     });
   }, [habits, todayKey]);
 
   // ─────────────────────────────────────────────────────────
-  // 📊 PARTITION BY VIEW
+  // 📊 PARTITION BY VIEW (SMART SORTING)
   // ─────────────────────────────────────────────────────────
 
   const getPartitionedHabits = useCallback(
@@ -88,7 +135,19 @@ export function useHabits(items, setItems) {
       if (view === "day") {
         const pending = enrichedHabits
           .filter((h) => !h.doneToday)
-          .sort((a, b) => b.priorityScore - a.priorityScore);
+          .sort((a, b) => {
+            // 🚨 Hard priority rules
+            if (a.timeStatus === "overdue" && b.timeStatus !== "overdue")
+              return -1;
+            if (b.timeStatus === "overdue" && a.timeStatus !== "overdue")
+              return 1;
+
+            if (a.timeStatus === "soon" && b.timeStatus !== "soon") return -1;
+            if (b.timeStatus === "soon" && a.timeStatus !== "soon") return 1;
+
+            // fallback to score
+            return b.priorityScore - a.priorityScore;
+          });
 
         const completed = enrichedHabits.filter((h) => h.doneToday);
 
@@ -97,7 +156,7 @@ export function useHabits(items, setItems) {
 
       if (view === "week") {
         return {
-          pending: enrichedHabits, // show all
+          pending: enrichedHabits,
           completed: [],
         };
       }
@@ -115,7 +174,7 @@ export function useHabits(items, setItems) {
   );
 
   // ─────────────────────────────────────────────────────────
-  // 🔄 ACTIONS
+  // 🔄 ACTIONS (UNCHANGED — SAFE)
   // ─────────────────────────────────────────────────────────
 
   const toggleHabit = useCallback(
@@ -199,6 +258,6 @@ export function useHabits(items, setItems) {
     addHabit,
     deleteHabit,
     editHabit,
-    getPartitionedHabits, // 🔥 NEW (IMPORTANT)
+    getPartitionedHabits,
   };
 }
