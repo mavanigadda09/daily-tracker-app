@@ -1,5 +1,5 @@
 /**
- * routes.jsx — lazy-loaded routes for code splitting
+ * routes.jsx — lazy-loaded routes for code splitting (FIXED)
  */
 import React, { lazy, Suspense } from "react";
 
@@ -46,16 +46,19 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
+
+  // ✅ FIXED HABITS ROUTE
   {
-  path: "/habits",
-  element: (data, user) => (
-    <Habits
-      items={data.items}
-      setItems={data.setItems}
-      weightLogs={data.weightLogs}
-    />
-  )
-},
+    path: "habits", // 🚨 IMPORTANT: no leading slash
+    element: (appData, user) => wrap(
+      <Habits
+        items={appData.items}
+        setItems={appData.setItems}
+        weightLogs={appData.weightLogs}
+      />
+    ),
+  },
+
   {
     path: "analytics",
     element: (appData, user) => wrap(
@@ -97,6 +100,7 @@ export const PROTECTED_ROUTES = [
   },
 ];
 
+// ─── Dashboard ────────────────────────────────────────────────
 export function dashboardElement(dashboardData, user) {
   return (
     <Dashboard
