@@ -49,12 +49,15 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (id.includes("firebase/app"))       return "vendor-firebase-app";
-            if (id.includes("firebase/auth"))      return "vendor-firebase-auth";
-            if (id.includes("firebase/firestore")) return "vendor-firebase-db";
-            if (id.includes("react-dom"))          return "vendor-react";
-            if (id.includes("node_modules/react")) return "vendor-react";
-          },
+  if (id.includes("firebase/app"))       return "vendor-firebase-app";
+  if (id.includes("firebase/auth"))      return "vendor-firebase-auth";
+  if (id.includes("firebase/firestore")) return "vendor-firebase-db";
+  if (id.includes("recharts") || id.includes("d3-"))
+                                         return "vendor-charts";
+  if (id.includes("framer-motion"))      return "vendor-motion";
+  if (id.includes("react-dom"))          return "vendor-react";
+  if (id.includes("node_modules/react")) return "vendor-react";
+},
           chunkFileNames: "assets/js/[name]-[hash].js",
           entryFileNames: "assets/js/[name]-[hash].js",
           assetFileNames: "assets/[ext]/[name]-[hash].[ext]",
