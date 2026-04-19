@@ -8,7 +8,7 @@
  */
 
 import React, { useEffect, useRef } from "react";
-import { useNotification } from "./context/NotificationContext";
+import { useNotification } from "../../context/NotificationContext";
 import { useDashboardIntelligence } from "./useDashboardIntelligence";
 
 // ─── Severity → accent mapping ───────────────────────────────

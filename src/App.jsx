@@ -13,9 +13,10 @@ import { useAppData }         from "./hooks/useAppData";
 import { useTheme }           from "./hooks/useTheme";
 import { useReminderSystems } from "./hooks/useReminderSystems";
 
-import { mapToDashboardData }                 from "./features/dashboard/dashboardAdapter";
+// ✅ FIX: changed to DEFAULT import (no curly braces)
+import mapToDashboardData from "./features/dashboard/dashboardAdapter";
 
-// ✅ FIXED IMPORT PATHS
+// ✅ already correct
 import { PROTECTED_ROUTES, dashboardElement } from "./features/dashboard/routes";
 import { AppLoader }                          from "./features/dashboard/AppLoader";
 
@@ -24,7 +25,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import Login          from "./Login";
 import Onboarding     from "./Onboarding";
 
-// ─── Shell (needs Router context for useNavigate inside useAuth) ──
+// ─── Shell ─────────────────────────────────────────────────────
 function AppInner() {
   const [theme, setTheme]                                  = useTheme();
   const { firebaseUser, loadingAuth, user, login, logout } = useAuth();
@@ -90,7 +91,7 @@ function AppInner() {
   );
 }
 
-// ─── Root
+// ─── Root ──────────────────────────────────────────────────────
 export default function App() {
   return (
     <NotificationProvider>
