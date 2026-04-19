@@ -1,25 +1,43 @@
 /**
- * routes.jsx — FIXED PATHS
+ * routes.jsx — lazy-loaded routes for code splitting
  */
+import React, { lazy, Suspense } from "react";
 
-import React from "react";
-
-// ✅ FIXED: same folder
+// ─── Eager (above the fold — always needed) ───────────────────
 import Dashboard from "./Dashboard";
 
-// ✅ FIXED: go up 2 levels (these are in src/)
-import Productivity from "../../Productivity";
-import Habits       from "../../Habits";
-import Analytics    from "../../Analytics";
-import Finance      from "../../Finance";
-import Chat         from "../../Chat";
-import Goals        from "../../Goals";
-import Profile      from "../../Profile";
+// ─── Lazy (loaded only when user navigates there) ─────────────
+const Productivity = lazy(() => import("../../productivity/Productivity"));
+const Habits       = lazy(() => import("../../habits/Habits"));
+const Analytics    = lazy(() => import("../../pages/Analytics"));
+const Finance      = lazy(() => import("../finance/Finance"));
+const Chat         = lazy(() => import("../../chat/Chat"));
+const Goals        = lazy(() => import("../goals/Goals"));
+const Profile      = lazy(() => import("../../profile/Profile"));
 
+// ─── Fallback ─────────────────────────────────────────────────
+const PageLoader = () => (
+  <div style={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    height: "60vh",
+    color: "var(--color-text-secondary)",
+    fontSize: "0.9rem",
+  }}>
+    Loading…
+  </div>
+);
+
+const wrap = (element) => (
+  <Suspense fallback={<PageLoader />}>{element}</Suspense>
+);
+
+// ─── Routes ───────────────────────────────────────────────────
 export const PROTECTED_ROUTES = [
   {
     path: "productivity",
-    element: (appData) => (
+    element: (appData) => wrap(
       <Productivity
         tasks={appData.tasks}
         setTasks={appData.setTasks}
@@ -30,7 +48,7 @@ export const PROTECTED_ROUTES = [
   },
   {
     path: "habits",
-    element: (appData) => (
+    element: (appData) => wrap(
       <Habits
         items={appData.items}
         setItems={appData.setItems}
@@ -41,7 +59,7 @@ export const PROTECTED_ROUTES = [
   },
   {
     path: "analytics",
-    element: (appData, user) => (
+    element: (appData, user) => wrap(
       <Analytics
         logs={appData.logs}
         tasks={appData.tasks}
@@ -51,7 +69,7 @@ export const PROTECTED_ROUTES = [
   },
   {
     path: "finance",
-    element: (appData) => (
+    element: (appData) => wrap(
       <Finance
         financeData={appData.financeData}
         setFinanceData={appData.setFinanceData}
@@ -60,7 +78,7 @@ export const PROTECTED_ROUTES = [
   },
   {
     path: "chat",
-    element: (appData) => (
+    element: (appData) => wrap(
       <Chat
         chatHistory={appData.chatHistory}
         setChatHistory={appData.setChatHistory}
@@ -72,11 +90,11 @@ export const PROTECTED_ROUTES = [
   },
   {
     path: "goals",
-    element: () => <Goals />,
+    element: () => wrap(<Goals />),
   },
   {
     path: "profile",
-    element: (_appData, user) => <Profile user={user} />,
+    element: (_appData, user) => wrap(<Profile user={user} />),
   },
 ];
 

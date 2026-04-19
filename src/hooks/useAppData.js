@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { queueSave, subscribeToData, loadData } from "../cloud";
+import { queueSave, subscribeToData, loadData } from "../utils/cloud";
 
 // ─── Helpers ──────────────────────────────────────────────────
 const safeArray = (v) => (Array.isArray(v) ? v : []);

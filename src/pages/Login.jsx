@@ -7,7 +7,7 @@
  */
 
 import { useState, useId } from "react";
-import { auth, db, signInWithGoogle } from "./firebase";
+import { auth, db, signInWithGoogle } from "../firebase";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -15,7 +15,7 @@ import {
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import { useNotification } from "./context/NotificationContext";
+import { useNotification } from "../context/NotificationContext";
 
 // ─── Firebase error → human message ──────────────────────────
 const FIREBASE_ERRORS = {

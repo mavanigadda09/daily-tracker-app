@@ -6,86 +6,103 @@
  *   Register → onupdatefound → installing → installed
  *       ↓                                       ↓
  *   (first install)                     (update available)
- *   "Cached for offline"            → promptUserToRefresh()
- *                                       → postMessage SKIP_WAITING
- *                                       → window.location.reload()
+ *   dispatches "phoenix:sw-offline"  →  dispatches "phoenix:sw-update"
+ *                                    →  Layout.jsx shows update banner
+ *                                    →  user accepts → SKIP_WAITING
+ *                                    →  window.location.reload()
  *
- * The user refresh prompt is a lightweight browser `confirm()` by
- * default. Replace `promptUserToRefresh` with your own toast/modal
- * if you want branded UX (see comment below).
+ * UI decoupling:
+ *   This module never imports React components. It communicates via
+ *   CustomEvents so any component can listen without creating a
+ *   dependency chain back to the bootstrap layer.
  *
- * skipWaiting is triggered only with explicit user consent so we
- * never forcibly interrupt an active user session.
+ *   To trigger reload from UI after user accepts:
+ *     window.dispatchEvent(new CustomEvent("phoenix:sw-accept"));
+ *   This file listens for that event and calls skipAndReload().
  */
 
 // ─── Config ───────────────────────────────────────────────────
 
-const SW_URL  = "/sw.js";
+const SW_URL = "/sw.js";
 
 /** Dev-mode structured logger. Silent in production. */
 const log = {
   info : (...a) => import.meta.env.DEV && console.info ("[SW]", ...a),
   warn : (...a) => import.meta.env.DEV && console.warn ("[SW]", ...a),
-  error: (...a) =>                         console.error("[SW]", ...a), // always
+  error: (...a) =>                         console.error("[SW]", ...a),
 };
 
-// ─── Update prompt ────────────────────────────────────────────
-
-/**
- * Ask the user if they want to reload for the new version.
- *
- * ── Customisation point ──────────────────────────────────────
- * Replace this with a toast / snackbar / modal for branded UX:
- *
- *   import { showUpdateBanner } from "../components/UpdateBanner";
- *   export function promptUserToRefresh(worker) {
- *     showUpdateBanner({ onAccept: () => skipAndReload(worker) });
- *   }
- * ─────────────────────────────────────────────────────────────
- *
- * @param {ServiceWorker} worker — the waiting service worker
- */
-function promptUserToRefresh(worker) {
-  const accepted = window.confirm(
-    "A new version of Phoenix Tracker is available.\n\nRefresh now to get the latest update?"
-  );
-  if (accepted) {
-    skipAndReload(worker);
-  }
-}
+// ─── Skip + Reload ────────────────────────────────────────────
 
 /**
  * Tell the waiting worker to skip its waiting phase, then reload
  * once the new worker takes control.
  *
+ * Listener is registered BEFORE postMessage to avoid the race
+ * between controllerchange firing and the reload call.
+ *
  * @param {ServiceWorker} worker
  */
 function skipAndReload(worker) {
-  // Listen for the controller change BEFORE posting the message so
-  // there is no race between the reload and the controllerchange event.
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    window.location.reload();
-  }, { once: true });
-
+  navigator.serviceWorker.addEventListener(
+    "controllerchange",
+    () => window.location.reload(),
+    { once: true }
+  );
   worker.postMessage({ type: "SKIP_WAITING" });
+}
+
+// ─── Update notification ──────────────────────────────────────
+
+/**
+ * Notify the app that a new SW version is waiting.
+ * Dispatches "phoenix:sw-update" with the waiting worker attached
+ * so the UI can call skipAndReload when the user accepts.
+ *
+ * The UI should listen for "phoenix:sw-accept" to confirm, OR
+ * call skipAndReload directly via the detail reference.
+ *
+ * Replaces window.confirm() — keeps this module UI-agnostic.
+ *
+ * @param {ServiceWorker} worker — the waiting service worker
+ * @param {function}      [onUpdate] — optional callback from main.jsx
+ */
+function notifyUpdate(worker, onUpdate) {
+  log.info("Update installed and waiting. Notifying app.");
+
+  // Attach worker to event so the UI can trigger skipAndReload
+  // without needing a direct import of this module.
+  window.dispatchEvent(
+    new CustomEvent("phoenix:sw-update", {
+      detail: {
+        accept: () => skipAndReload(worker),
+      },
+    })
+  );
+
+  // Also call the imperative callback if provided (used in main.jsx)
+  onUpdate?.();
 }
 
 // ─── Update detection ─────────────────────────────────────────
 
 /**
  * Wire up the full update lifecycle on a registration.
+ *
  * @param {ServiceWorkerRegistration} registration
+ * @param {function} [onUpdate]  — called when update is waiting
+ * @param {function} [onOffline] — called on first install (offline-ready)
  */
-function handleRegistrationUpdates(registration) {
-  // Case 1: a worker was already waiting when we registered
-  // (e.g. the user had the tab open during a previous deployment).
+function handleRegistrationUpdates(registration, onUpdate, onOffline) {
+  // Case 1: worker already waiting when we registered.
+  // Happens when user had the tab open during a previous deployment.
   if (registration.waiting) {
     log.info("Update ready (worker was already waiting).");
-    promptUserToRefresh(registration.waiting);
+    notifyUpdate(registration.waiting, onUpdate);
     return;
   }
 
-  // Case 2: a new worker is found and begins installing.
+  // Case 2: new worker found and begins installing.
   registration.onupdatefound = () => {
     const installing = registration.installing;
     if (!installing) return;
@@ -94,16 +111,16 @@ function handleRegistrationUpdates(registration) {
 
     installing.onstatechange = () => {
       log.info(`Worker state → ${installing.state}`);
-
       if (installing.state !== "installed") return;
 
       if (navigator.serviceWorker.controller) {
-        // An existing controller means this is an update, not first install.
-        log.info("Update installed and waiting. Prompting user.");
-        promptUserToRefresh(installing);
+        // Existing controller = this is an update, not first install
+        notifyUpdate(installing, onUpdate);
       } else {
-        // No previous controller — this is the initial install.
+        // No previous controller = initial install, app is now offline-ready
         log.info("App cached for offline use.");
+        window.dispatchEvent(new CustomEvent("phoenix:sw-offline"));
+        onOffline?.();
       }
     };
   };
@@ -114,17 +131,20 @@ function handleRegistrationUpdates(registration) {
 /**
  * Register the service worker and set up the full update lifecycle.
  * Safe to call unconditionally — guards against unsupported browsers
- * and non-HTTPS environments automatically.
+ * and non-HTTPS automatically.
  *
- * Deferred to the "load" event so it never blocks the first paint.
+ * Deferred to the "load" event so it never blocks first paint.
+ *
+ * @param {object}   [options]
+ * @param {function} [options.onUpdate]  — called when a new SW is waiting
+ * @param {function} [options.onOffline] — called when app is offline-ready
  */
-export function registerServiceWorker() {
+export function registerServiceWorker({ onUpdate, onOffline } = {}) {
   if (!("serviceWorker" in navigator)) {
     log.info("Service workers not supported in this browser.");
     return;
   }
 
-  // SW requires a secure context except on localhost.
   if (!window.isSecureContext) {
     log.warn("Service worker skipped: not a secure context (HTTPS required).");
     return;
@@ -133,17 +153,15 @@ export function registerServiceWorker() {
   window.addEventListener("load", async () => {
     try {
       const registration = await navigator.serviceWorker.register(SW_URL, {
-        // "all" causes the SW to intercept every request from the app origin.
-        // Change to "/" if you want to scope it to a sub-path.
         scope: "/",
       });
 
       log.info("Registered.", { scope: registration.scope });
 
-      handleRegistrationUpdates(registration);
+      handleRegistrationUpdates(registration, onUpdate, onOffline);
 
-      // Periodically check for updates (every 60 minutes while the tab is open).
-      // The browser also checks on navigation, but this catches long-lived sessions.
+      // Periodic update check — catches long-lived sessions.
+      // Browser also checks on navigation automatically.
       setInterval(() => {
         registration.update().catch((err) => {
           log.warn("Periodic update check failed:", err);
@@ -151,7 +169,6 @@ export function registerServiceWorker() {
       }, 60 * 60 * 1000);
 
     } catch (error) {
-      // Registration failure is non-fatal — log it but don't crash the app.
       log.error("Registration failed:", error);
     }
   });
@@ -159,7 +176,7 @@ export function registerServiceWorker() {
 
 /**
  * Unregister all service workers for this origin.
- * Useful for dev tooling or a "clear cache" feature.
+ * Useful for dev tooling or a "clear cache" reset feature.
  * @returns {Promise<void>}
  */
 export async function unregisterServiceWorker() {

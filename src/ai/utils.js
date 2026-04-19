@@ -1,192 +1,124 @@
-// ================= HABIT HELPERS =================
+/**
+ * ai/utils.js
+ * Pure utility functions for AI response processing only.
+ * No API calls. No domain logic. No imports from other files.
+ */
 
-export const getHabitStats = (habit) => {
-  if (!habit?.completed) return null;
+// ─── Constants ──────────────────────────────────────────────
 
-  const values = Object.values(habit.completed);
-  if (!values.length) return null;
+export const VALID_ACTIONS = [
+  "ADD_TASK",
+  "ADD_HABIT",
+  "ADD_EXPENSE",
+  "ADD_GOAL",
+];
 
-  const misses = values.filter(v => !v).length;
-  const rate = values.length ? misses / values.length : 0;
+export const AI_ERROR_MESSAGES = {
+  NETWORK: "Connection failed. Check your internet and try again.",
+  TIMEOUT: "Response took too long. Please try again.",
+  INVALID: "Received an unexpected response. Please try again.",
+  BLOCKED: "That request couldn't be processed. Try rephrasing.",
+  DEFAULT: "Something went wrong. Please try again.",
+};
 
-  return {
-    total: values.length,
-    misses,
-    rate
+// ─── History ────────────────────────────────────────────────
+
+/**
+ * Trims conversation history to last N turns.
+ * Prevents context window overflow on long chats.
+ * @param {Array}  messages  - Full chat history [{role, content}]
+ * @param {number} maxTurns  - Max user+assistant pairs to keep
+ */
+export function formatHistory(messages, maxTurns = 10) {
+  const turns = messages.filter(
+    (m) => m.role === "user" || m.role === "assistant"
+  );
+  return turns.slice(-(maxTurns * 2));
+}
+
+// ─── Action Parsing ─────────────────────────────────────────
+
+/**
+ * Safely parses an AI action block from response text.
+ * Returns null if missing, malformed, or unrecognised action type.
+ * Never throws.
+ *
+ * Expected shape: { "action": "ADD_TASK", "data": { ... } }
+ */
+export function parseAction(text) {
+  try {
+    const match = text.match(/\{[\s\S]*?"action"[\s\S]*?\}/);
+    if (!match) return null;
+
+    const parsed = JSON.parse(match[0]);
+
+    if (!parsed.action || !parsed.data)          return null;
+    if (!VALID_ACTIONS.includes(parsed.action))  return null;
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Maps a parsed action to a human-readable string.
+ * Used in chat UI to show confirmation before executing.
+ */
+export function describeAction(action) {
+  if (!action?.action || !action?.data) return "Unknown action";
+
+  const descriptions = {
+    ADD_TASK:    (d) => `Add task: "${d.title}"`,
+    ADD_HABIT:   (d) => `Add habit: "${d.name}"`,
+    ADD_EXPENSE: (d) => `Log ₹${d.amount} expense — ${d.category}`,
+    ADD_GOAL:    (d) => `Create goal: "${d.title}"`,
   };
-};
 
-export const getWorstHabit = (habits = []) => {
-  if (!Array.isArray(habits) || !habits.length) {
-    return { worstHabit: null, worstRate: 0 };
-  }
+  return descriptions[action.action]?.(action.data) ?? "Unknown action";
+}
 
-  let worstHabit = null;
-  let worstRate = 0;
+// ─── Input Sanitisation ─────────────────────────────────────
 
-  for (const h of habits) {
-    const stats = getHabitStats(h);
-    if (!stats) continue;
+/**
+ * Sanitises raw user input before sending to AI.
+ * Strips known prompt injection patterns.
+ * Hard caps at 2000 chars.
+ */
+export function sanitizeInput(input) {
+  if (typeof input !== "string") return "";
 
-    if (stats.rate > worstRate) {
-      worstRate = stats.rate;
-      worstHabit = h?.name || "Unknown";
-    }
-  }
+  return input
+    .trim()
+    .slice(0, 2000)
+    .replace(/\[INST\]|\[\/INST\]|<s>|<\/s>/gi, "")
+    .replace(/ignore\s+(previous|all|above)\s+instructions?/gi, "");
+}
 
-  return { worstHabit, worstRate };
-};
+/**
+ * Returns true if the input looks like an action request.
+ * Used to decide whether to attach a data snapshot to the message.
+ */
+export function isActionRequest(input) {
+  const keywords = [
+    "add", "create", "new", "log", "track",
+    "set", "schedule", "remind", "record",
+  ];
+  const lower = input.toLowerCase();
+  return keywords.some((kw) => lower.includes(kw));
+}
 
-// ================= SMART GOAL =================
+// ─── Response Formatting ────────────────────────────────────
 
-export const parseSmartGoal = (goal) => {
-  if (!goal || typeof goal !== "string") return null;
+/**
+ * Cleans AI response text for display.
+ * Strips action JSON blocks and collapses extra whitespace.
+ */
+export function formatResponse(text) {
+  if (typeof text !== "string") return "";
 
-  const numMatch = goal.match(/\d+/);
-  const value = numMatch ? Number(numMatch[0]) : null;
-
-  const lower = goal.toLowerCase();
-
-  let unit = "count";
-
-  if (lower.includes("hour") || lower.includes("hr")) {
-    unit = "minutes";
-  } else if (lower.includes("min")) {
-    unit = "minutes";
-  } else if (lower.includes("cal")) {
-    unit = "calories";
-  } else if (lower.includes("page")) {
-    unit = "pages";
-  }
-
-  let target = value;
-
-  if (unit === "minutes" && lower.includes("hour") && value) {
-    target = value * 60;
-  }
-
-  return {
-    target: target || 0,
-    unit
-  };
-};
-
-export const calculatePercent = (value, target) => {
-  if (!target || target <= 0) return 0;
-
-  const percent = (Number(value || 0) / target) * 100;
-
-  return Math.min(Math.round(percent), 100);
-};
-
-// ================= DAILY =================
-
-export const getDailyData = (logs = {}, tasks = []) => {
-  const daily = {};
-
-  // Logs
-  Object.values(logs || {}).flat().forEach((l) => {
-    if (!l?.date) return;
-
-    const val = Number(l.value || 0);
-    if (!daily[l.date]) daily[l.date] = 0;
-
-    daily[l.date] += isNaN(val) ? 0 : val;
-  });
-
-  // Task durations
-  (tasks || []).forEach((t) => {
-    (t.logs || []).forEach((log) => {
-      if (!log?.date) return;
-
-      const minutes = Math.round((Number(log.duration) || 0) / 60);
-
-      if (!daily[log.date]) daily[log.date] = 0;
-      daily[log.date] += minutes;
-    });
-  });
-
-  return daily;
-};
-
-// ================= HEATMAP =================
-
-export const getHeatmapData = (daily = {}) => {
-  return Array.from({ length: 30 }).map((_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (29 - i));
-
-    const dateStr = d.toDateString();
-
-    return {
-      date: dateStr,
-      value: Number(daily[dateStr] || 0)
-    };
-  });
-};
-
-// ================= STREAK =================
-
-export const getStreak = (data = []) => {
-  if (!Array.isArray(data)) return 0;
-
-  let streak = 0;
-
-  for (let i = data.length - 1; i >= 0; i--) {
-    if (data[i]?.value > 0) streak++;
-    else break;
-  }
-
-  return streak;
-};
-
-// ================= CONSISTENCY =================
-
-export const getConsistencyScore = (heatmap = []) => {
-  if (!Array.isArray(heatmap) || !heatmap.length) return 0;
-
-  const activeDays = heatmap.filter(d => d?.value > 0).length;
-
-  return Math.round((activeDays / heatmap.length) * 100);
-};
-
-// ================= WEEKLY =================
-
-export const getWeeklyData = (daily = {}) => {
-  const result = [];
-
-  for (let i = 0; i < 7; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-
-    const key = d.toDateString();
-
-    result.push({
-      date: key,
-      value: daily[key] || 0
-    });
-  }
-
-  return result;
-};
-
-// ================= TASK BREAKDOWN =================
-
-export const getTaskBreakdown = (tasks = []) => {
-  const map = {};
-
-  tasks.forEach((task) => {
-    const name = task?.title || "Task";
-
-    const total = (task.logs || []).reduce((sum, log) => {
-      return sum + Math.round((log.duration || 0) / 60);
-    }, 0);
-
-    map[name] = (map[name] || 0) + total;
-  });
-
-  return Object.entries(map).map(([name, value]) => ({
-    name,
-    value
-  }));
-};
+  return text
+    .replace(/\{[\s\S]*?"action"[\s\S]*?\}/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}

@@ -9,7 +9,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { useNotification } from "../../context/NotificationContext";
-import { useDashboardIntelligence } from "./useDashboardIntelligence";
+import { useDashboardIntelligence } from "../../hooks/useDashboardIntelligence";
 
 // ─── Severity → accent mapping ───────────────────────────────
 const SEVERITY_COLOR = {

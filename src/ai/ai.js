@@ -1,4 +1,4 @@
-import { getWorstHabit } from "./utils";
+import { getWorstHabit } from "../utils/productivityUtils";
 
 // ================= AI INSIGHT =================
 

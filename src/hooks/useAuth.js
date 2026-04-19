@@ -1,13 +1,20 @@
 /**
  * useAuth.js
  * ─────────────────────────────────────────────────────────────
- * Manages Firebase auth state and the app-level "user" profile object.
+ * Manages Firebase auth state and the app-level "user" profile.
  *
- * logout():
- *   • Preserves the "theme" key in localStorage so the user's
- *     preference survives session changes.
- *   • Uses React Router's `useNavigate` instead of
- *     window.location.href for proper SPA navigation (no full reload).
+ * Key decisions:
+ *   • firebaseUser starts as `undefined` (not null) so consumers
+ *     can distinguish "still resolving" from "not logged in".
+ *     ProtectedRoute uses `isResolvingAuth` for this explicitly.
+ *
+ *   • isResolvingAuth is a dedicated boolean — cleaner than
+ *     checking `firebaseUser === undefined` in every consumer.
+ *
+ *   • logout() preserves theme key across localStorage.clear()
+ *     so the user's appearance preference survives session changes.
+ *
+ *   • logout() uses useNavigate (SPA nav, no full reload).
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -18,10 +25,11 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 export function useAuth() {
   const navigate = useNavigate();
 
-  const [firebaseUser, setFirebaseUser] = useState(null);
-  const [loadingAuth,  setLoadingAuth]  = useState(true);
+  // undefined = still resolving | null = not authed | object = authed
+  const [firebaseUser,     setFirebaseUser]     = useState(undefined);
+  const [isResolvingAuth,  setIsResolvingAuth]  = useState(true);
 
-  // ── Profile stored in localStorage ────────────────────────
+  // Profile stored in localStorage (display name, goal, focus)
   const [user, setUser] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("user")) ?? null;
@@ -33,28 +41,40 @@ export function useAuth() {
   // ── Firebase auth listener ─────────────────────────────────
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (fbUser) => {
-      setFirebaseUser(fbUser);
-      setLoadingAuth(false);
+      setFirebaseUser(fbUser ?? null); // normalize: never leave as undefined after resolve
+      setIsResolvingAuth(false);
     });
     return () => unsub();
   }, []);
 
-  // ── Handlers ──────────────────────────────────────────────
+  // ── Login: persist profile to localStorage ─────────────────
   const login = useCallback((userData) => {
     localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
   }, []);
 
+  // ── Logout: sign out + preserve theme ─────────────────────
   const logout = useCallback(async () => {
     await signOut(auth);
 
-    // Preserve theme preference across logout
     const theme = localStorage.getItem("theme");
     localStorage.clear();
     if (theme) localStorage.setItem("theme", theme);
 
+    setUser(null);
+    setFirebaseUser(null);
+
     navigate("/login", { replace: true });
   }, [navigate]);
 
-  return { firebaseUser, loadingAuth, user, login, logout };
+  return {
+    firebaseUser,
+    isResolvingAuth,
+    // loadingAuth kept as alias so existing consumers don't break
+    loadingAuth: isResolvingAuth,
+    user,
+    setUser,
+    login,
+    logout,
+  };
 }

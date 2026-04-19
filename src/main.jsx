@@ -1,41 +1,39 @@
 /**
  * main.jsx — Application bootstrap
  * ─────────────────────────────────────────────────────────────
- * Responsibilities (in execution order):
- *   1. Guard: verify #root exists
- *   2. Theme: validate + apply (true FOUC prevention is in index.html)
- *   3. Render: React 18 createRoot with StrictMode + ErrorBoundary
- *   4. Service worker: register, detect updates, surface refresh prompt
+ * Execution order:
+ *   1. Guard    — verify #root exists before anything else
+ *   2. Theme    — safety net if index.html inline script was stripped
+ *   3. Render   — React 18 StrictMode + ErrorBoundary
+ *   4. SW       — deferred post-paint, never blocks first render
  *
- * Theme note:
- *   The inline <script> in index.html (see index.html) runs synchronously
- *   before first paint — that is the only reliable FOUC prevention.
- *   This file's theme call is a safety net for the rare case where
- *   index.html is served without that script (e.g. a different CDN edge).
+ * FOUC prevention:
+ *   The inline <script> in index.html runs synchronously before first
+ *   paint. This file's initTheme() call is a fallback only — it runs
+ *   after the bundle parses, which is too late to prevent FOUC on its
+ *   own. index.html is the real guard.
  */
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import "./index.css";
-import App         from "./App.jsx";
-import ErrorBoundary from "./ErrorBoundary.jsx";
-import { initTheme } from "./utils/theme.js";
+import App             from "./App.jsx";
+import ErrorBoundary   from "./components/ErrorBoundary.jsx";
+import { initTheme }   from "./utils/theme.js";
 import { registerServiceWorker } from "./utils/serviceWorker.js";
 
 // ─── 1. Root guard ────────────────────────────────────────────
 const rootElement = document.getElementById("root");
 if (!rootElement) {
-  // Throw synchronously — nothing can render without a mount point.
   throw new Error(
-    "[Phoenix] #root element not found. Check your index.html."
+    "[Phoenix] Fatal: #root element missing. Verify index.html is intact."
   );
 }
 
 // ─── 2. Theme safety net ──────────────────────────────────────
-// index.html already ran this before first paint. This call is a
-// no-op if data-theme is already set, but prevents a bare page if
-// the inline script was somehow stripped.
+// hasAttribute check means this is a true no-op when index.html
+// already set data-theme before first paint.
 if (!document.documentElement.hasAttribute("data-theme")) {
   initTheme();
 }
@@ -49,7 +47,30 @@ createRoot(rootElement).render(
   </StrictMode>
 );
 
-// ─── 4. Service worker ────────────────────────────────────────
-// Deferred to after React has painted — SW registration is never
-// on the critical path and should not block the first render.
-registerServiceWorker();
+// ─── 4. Service worker — deferred post-paint ─────────────────
+// requestIdleCallback fires after the browser has painted and is
+// idle — ideal for non-critical work like SW registration.
+// setTimeout(0) is the fallback for Safari, which lacks rIC.
+//
+// onUpdate is called when a new SW version is waiting. The app
+// surfaces a refresh prompt via the NotificationContext toast
+// (handled inside registerServiceWorker via this callback).
+const swInit = () =>
+  registerServiceWorker({
+    onUpdate: () => {
+      // New version detected — SW is waiting to activate.
+      // Dispatch a custom event so any subscribed UI component
+      // (e.g. an update banner in Layout.jsx) can react without
+      // requiring a direct reference here.
+      window.dispatchEvent(new CustomEvent("phoenix:sw-update"));
+    },
+    onOffline: () => {
+      window.dispatchEvent(new CustomEvent("phoenix:sw-offline"));
+    },
+  });
+
+if ("requestIdleCallback" in window) {
+  requestIdleCallback(swInit);
+} else {
+  setTimeout(swInit, 0);
+}

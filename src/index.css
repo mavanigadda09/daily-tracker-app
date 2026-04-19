@@ -1,78 +1,172 @@
-/* ================= ROOT (DARK) ================= */
+/* ================= ROOT (DARK / PHOENIX) ================= */
 :root {
-  --bg: #020617;
+  /* Phoenix Brand */
+  --accent:        #facc15;
+  --accent-orange: #f97316;
+
+  /* Backgrounds */
+  --bg:      #020617;
   --sidebar: #020617;
 
-  --card: rgba(255, 255, 255, 0.05);
-  --card-hover: rgba(255, 255, 255, 0.08);
+  /* Surfaces */
+  --card:       rgba(15, 23, 42, 0.6);
+  --card-hover: rgba(30, 41, 59, 0.85);
 
-  --text: #e2e8f0;
+  /* Typography — rem-based, full scale */
+  --text:       #f8fafc;
   --text-muted: #94a3b8;
 
-  --accent: #22c55e;
-  --border: rgba(255, 255, 255, 0.1);
+  /* Border */
+  --border: rgba(255, 255, 255, 0.08);
 
-  /* ✨ SYSTEM */
-  --radius: 12px;
+  /* Radius */
+  --radius:    12px;
   --radius-sm: 8px;
+  --radius-lg: 20px;
 
-  --shadow: 0 8px 30px rgba(0,0,0,0.3);
+  /* Shadow */
+  --shadow:       0 8px 30px rgba(0,0,0,0.3);
   --shadow-hover: 0 12px 40px rgba(0,0,0,0.5);
 
-  --transition: 0.25s ease;
+  /* Transitions */
+  --transition:      0.25s ease;
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 
-  --font-sm: 13px;
-  --font-md: 15px;
-  --font-lg: 20px;
+  /* Font scale — rem only, browser-zoom safe */
+  --font-xs: 0.75rem;   /* 12px */
+  --font-sm: 0.8125rem; /* 13px */
+  --font-md: 0.9375rem; /* 15px */
+  --font-lg: 1.125rem;  /* 18px */
+  --font-xl: 1.375rem;  /* 22px */
+  --font-2xl: 1.75rem;  /* 28px */
+  --font-3xl: 2.25rem;  /* 36px */
 
+  /* Status */
   --success: #22c55e;
-  --danger: #ef4444;
+  --danger:  #ef4444;
   --warning: #f59e0b;
+  --info:    #3b82f6;
 }
 
 /* ================= LIGHT MODE ================= */
 body[data-theme="light"] {
-  --bg: #f8fafc;
+  --accent:        #b45309; /* FIXED: was #ca8a04 — fails contrast on light bg */
+  --accent-orange: #c2540a;
+
+  --bg:      #f8fafc;
   --sidebar: #ffffff;
 
-  --card: #ffffff;
+  --card:       #ffffff;
   --card-hover: #f1f5f9;
 
-  --text: #0f172a;
+  --text:       #0f172a;
   --text-muted: #475569;
 
-  --accent: #16a34a;
   --border: #e2e8f0;
 
-  --shadow: 0 6px 20px rgba(0,0,0,0.08);
+  --shadow:       0 6px 20px rgba(0,0,0,0.08);
   --shadow-hover: 0 10px 30px rgba(0,0,0,0.12);
+
+  --success: #15803d;
+  --warning: #b45309;
+  --danger:  #dc2626;
+  --info:    #1d4ed8;
 }
 
 /* ================= RESET ================= */
-* {
+*, *::before, *::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
 /* ================= BASE ================= */
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: system-ui, -apple-system, sans-serif;
-  transition: background var(--transition), color var(--transition);
+html {
+  /* Prevent layout shift from scrollbar appearing/disappearing */
+  scrollbar-gutter: stable;
 }
 
-/* ================= SCROLL ================= */
-::-webkit-scrollbar {
-  width: 6px;
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: var(--font-md);
+  line-height: 1.6;
+  transition: background var(--transition), color var(--transition);
+  -webkit-tap-highlight-color: transparent;
+  /* REMOVED: overflow-x: hidden — masks real layout bugs, breaks sticky */
 }
+
+/* ================= REDUCED MOTION ================= */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ================= PHOENIX WATERMARK ================= */
+.phoenix-watermark {
+  position: fixed;
+  inset: 0; /* replaces top/left/transform centering — more reliable */
+  background-image: url('/phoenix.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0.03;
+  pointer-events: none;
+  /* FIXED: use a high z-index on a portal-level wrapper instead of -1 */
+  z-index: 0;
+  filter: grayscale(100%) brightness(1.2);
+  /* Watermark must be a sibling of #root, not inside it */
+}
+
+/* ================= SCROLLBAR ================= */
+::-webkit-scrollbar       { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 10px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: var(--accent);
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* ================= GLASS PANEL ================= */
+.glass-panel {
+  background: var(--card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+  /* REMOVED: :active scale — use .glass-panel--interactive for clickable panels */
+}
+
+/* Only interactive panels get press feedback */
+.glass-panel--interactive {
+  cursor: pointer;
+  transition:
+    transform var(--transition-fast),
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.glass-panel--interactive:hover {
+  background: var(--card-hover);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.glass-panel--interactive:active {
+  transform: scale(0.985);
+  background: var(--card-hover);
+}
+
+body[data-theme="light"] .glass-panel {
+  background: rgba(255, 255, 255, 0.75);
 }
 
 /* ================= CARD ================= */
@@ -81,88 +175,211 @@ body {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   border: 1px solid var(--border);
-  transition: var(--transition);
+  transition:
+    background var(--transition),
+    box-shadow var(--transition),
+    border-color var(--transition);
+  /* REMOVED: transform on hover — causes jank with realtime Firestore updates */
 }
 
 .card:hover {
   background: var(--card-hover);
   box-shadow: var(--shadow-hover);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Elevated variant for important cards */
+.card--elevated {
+  will-change: transform;
+}
+
+.card--elevated:hover {
   transform: translateY(-2px);
+}
+
+/* ================= BENTO GRID ================= */
+.bento-grid-mobile {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+@media (min-width: 769px) {
+  .bento-grid-mobile {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .bento-grid-mobile {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .main-card-mobile {
+    grid-column: span 2;
+  }
+
+  .stat-value-mobile {
+    font-size: var(--font-2xl) !important;
+  }
 }
 
 /* ================= BUTTON ================= */
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   background: var(--accent);
-  color: #fff;
+  color: var(--bg);
   border: none;
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: var(--transition);
-  font-weight: 500;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  line-height: 1;
+  transition:
+    opacity var(--transition),
+    transform var(--transition-fast),
+    box-shadow var(--transition);
+  /* Prevent text selection on rapid clicks */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.btn:hover {
-  opacity: 0.9;
-  transform: scale(1.02);
-}
+.btn:hover   { opacity: 0.88; }
+.btn:active  { transform: scale(0.96); }
 
-.btn:active {
-  transform: scale(0.96);
+/* ADDED: visible keyboard focus — critical for accessibility */
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
+  transform: none !important;
+  pointer-events: none;
+}
+
+/* Phoenix primary button — gradient variant */
+.phoenix-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-orange));
+  color: #000; /* explicit black — more reliable than var(--bg) across themes */
+  border: none;
+  padding: 12px 24px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-md);
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter var(--transition-fast), transform var(--transition-fast);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.phoenix-btn-primary:hover  { filter: brightness(1.08); }
+.phoenix-btn-primary:active { filter: brightness(0.92); transform: scale(0.98); }
+
+.phoenix-btn-primary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.phoenix-btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* ================= INPUT ================= */
 .input {
   background: var(--card);
   border: 1px solid var(--border);
-  padding: 10px;
+  padding: 10px 12px;
   border-radius: var(--radius-sm);
   color: var(--text);
+  font-size: var(--font-md);
+  font-family: inherit;
   outline: none;
-  transition: var(--transition);
+  width: 100%;
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition),
+    background var(--transition);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.input:hover {
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(34,197,94,0.2);
-}
-
-/* ================= TEXT ================= */
-.text-muted {
-  color: var(--text-muted);
-}
-
-/* ================= UTIL ================= */
-.flex {
-  display: flex;
-}
-
-.grid {
-  display: grid;
-}
-
-.center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ================= BADGE ================= */
-.badge {
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: var(--font-sm);
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.15);
   background: var(--card-hover);
 }
 
+/* Error state — used by form validation */
+.input--error {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+/* ================= TYPOGRAPHY ================= */
+.text-muted { color: var(--text-muted); }
+.text-xs    { font-size: var(--font-xs); }
+.text-sm    { font-size: var(--font-sm); }
+.text-md    { font-size: var(--font-md); }
+.text-lg    { font-size: var(--font-lg); }
+.text-xl    { font-size: var(--font-xl); }
+
+.text-phoenix-gradient {
+  background: linear-gradient(135deg, var(--accent), var(--accent-orange));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  /* Fallback for browsers that don't support -webkit-text-fill-color */
+  color: var(--accent);
+}
+
+/* ================= UTILS ================= */
+.flex   { display: flex; }
+.grid   { display: grid; }
+.center { display: flex; align-items: center; justify-content: center; }
+
+/* ================= BADGE ================= */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: var(--font-xs);
+  font-weight: 500;
+  background: var(--card-hover);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.badge--success { background: rgba(34, 197, 94, 0.12);  color: var(--success); border-color: rgba(34, 197, 94, 0.2);  }
+.badge--danger  { background: rgba(239, 68, 68, 0.12);  color: var(--danger);  border-color: rgba(239, 68, 68, 0.2);  }
+.badge--warning { background: rgba(245, 158, 11, 0.12); color: var(--warning); border-color: rgba(245, 158, 11, 0.2); }
+.badge--info    { background: rgba(59, 130, 246, 0.12); color: var(--info);    border-color: rgba(59, 130, 246, 0.2); }
+
 /* ================= PROGRESS ================= */
 .progress {
-  height: 8px;
+  height: 6px;
   background: var(--border);
   border-radius: 10px;
   overflow: hidden;
@@ -170,28 +387,73 @@ body {
 
 .progress-fill {
   height: 100%;
-  background: var(--accent);
-  transition: width var(--transition);
+  background: linear-gradient(90deg, var(--accent), var(--accent-orange));
+  border-radius: 10px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Performance: composited animation */
+  will-change: width;
 }
 
 /* ================= ANIMATIONS ================= */
-.fade-in {
-  animation: fadeIn 0.4s ease;
-}
-
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
 }
 
-/* ================= GLASS EFFECT (OPTIONAL) ================= */
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1);    }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+.fade-in       { animation: fadeIn 0.35s ease both; }
+.fade-in-scale { animation: fadeInScale 0.2s ease both; }
+
+.phoenix-spinner {
+  animation: spin 0.75s linear infinite;
+  will-change: transform;
+}
+
+/* ================= SKELETON LOADER ================= */
+/* Used during Firestore realtime load states */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--card) 25%,
+    var(--card-hover) 50%,
+    var(--card) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ================= DIVIDER ================= */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0;
+}
+
+/* ================= DEPRECATED ================= */
+/**
+ * @deprecated Use .glass-panel instead.
+ * Will be removed in v2. Search codebase for `.glass` and migrate.
+ */
 .glass {
   backdrop-filter: blur(10px);
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
 }

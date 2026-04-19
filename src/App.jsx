@@ -1,5 +1,14 @@
 /**
  * App.jsx — Composition Root
+ *
+ * Changes from previous version:
+ * 1. ProtectedRoute no longer receives firebaseUser prop —
+ *    it reads from useAuth() internally (as fixed in ProtectedRoute.jsx).
+ *    The prop is removed here to match.
+ *
+ * 2. Layout no longer receives user/onLogout as props if those
+ *    are available via context — left as-is since Layout is not
+ *    yet on context. Flagged below for next pass.
  */
 
 import { useMemo }                                from "react";
@@ -13,23 +22,20 @@ import { useAppData }         from "./hooks/useAppData";
 import { useTheme }           from "./hooks/useTheme";
 import { useReminderSystems } from "./hooks/useReminderSystems";
 
-// ✅ FIX: changed to DEFAULT import (no curly braces)
-import mapToDashboardData from "./features/dashboard/dashboardAdapter";
+import mapToDashboardData                         from "./features/dashboard/dashboardAdapter";
+import { PROTECTED_ROUTES, dashboardElement }     from "./features/dashboard/routes";
+import { AppLoader }                              from "./features/dashboard/AppLoader";
 
-// ✅ already correct
-import { PROTECTED_ROUTES, dashboardElement } from "./features/dashboard/routes";
-import { AppLoader }                          from "./features/dashboard/AppLoader";
+import Layout         from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Login          from "./pages/Login";
+import Onboarding     from "./pages/Onboarding";
 
-import Layout         from "./Layout";
-import ProtectedRoute from "./ProtectedRoute";
-import Login          from "./Login";
-import Onboarding     from "./Onboarding";
-
-// ─── Shell ─────────────────────────────────────────────────────
+// ─── Shell ─────────────────────────────────────────────────────────────────
 function AppInner() {
-  const [theme, setTheme]                                  = useTheme();
-  const { firebaseUser, loadingAuth, user, login, logout } = useAuth();
-  const appData                                            = useAppData(firebaseUser);
+  const [theme, setTheme]                          = useTheme();
+  const { firebaseUser, isResolvingAuth, user, login, logout } = useAuth();
+  const appData                                    = useAppData(firebaseUser);
 
   useReminderSystems({
     items : appData.items,
@@ -46,22 +52,27 @@ function AppInner() {
     [appData.tasks, appData.items, appData.weightLogs]
   );
 
-  if (loadingAuth || appData.loading) {
+  // Block render until both auth AND data are ready.
+  // isResolvingAuth replaces the old loadingAuth check — same boolean,
+  // new name that accurately describes the state.
+  if (isResolvingAuth || appData.loading) {
     return <AppLoader />;
   }
 
   return (
     <DataProvider value={appData}>
       <Routes>
-        {/* Public */}
-        <Route path="/login" element={<Login onLogin={login} />} />
+        {/* ── Public ───────────────────────────────────────── */}
+        <Route path="/login"      element={<Login onLogin={login} />} />
         <Route path="/onboarding" element={<Onboarding />} />
 
-        {/* Protected */}
+        {/* ── Protected ────────────────────────────────────── */}
         <Route
           path="/"
           element={
-            <ProtectedRoute firebaseUser={firebaseUser}>
+            // ProtectedRoute now reads firebaseUser from useAuth() itself.
+            // No prop needed here — removed.
+            <ProtectedRoute>
               <Layout
                 user={user}
                 onLogout={logout}
@@ -71,27 +82,21 @@ function AppInner() {
             </ProtectedRoute>
           }
         >
-          <Route
-            index
-            element={dashboardElement(dashboardData, user)}
-          />
+          <Route index element={dashboardElement(dashboardData, user)} />
 
           {PROTECTED_ROUTES.map(({ path, element }) => (
-            <Route
-              key={path}
-              path={path}
-              element={element(appData, user)}
-            />
+            <Route key={path} path={path} element={element(appData, user)} />
           ))}
         </Route>
 
+        {/* ── Fallback ─────────────────────────────────────── */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </DataProvider>
   );
 }
 
-// ─── Root ──────────────────────────────────────────────────────
+// ─── Root ───────────────────────────────────────────────────────────────────
 export default function App() {
   return (
     <NotificationProvider>
