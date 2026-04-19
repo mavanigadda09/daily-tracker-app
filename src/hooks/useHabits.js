@@ -1,27 +1,27 @@
 import { useCallback, useMemo } from "react";
 
-// ─── Date utilities ────────────────────────────────────────────────────────────
+// ─── Date utilities ─────────────────────────────────────────
 
 export const getDateKey = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-const getYesterdayKey = () => {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return getDateKey(d);
+const getLastNDays = (n) => {
+  const days = [];
+  const now = new Date();
+  for (let i = 0; i < n; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    days.push(getDateKey(d));
+  }
+  return days;
 };
 
-/**
- * Calculates true consecutive-day streak from a completed map.
- * Walks backward from today counting unbroken daily completions.
- * Does NOT use the stored streak integer — recomputes from source of truth.
- */
+// ─── Streak calculation ─────────────────────────────────────
+
 export function calcStreak(completed = {}) {
-  if (!completed) return 0;
   let streak = 0;
   const cursor = new Date();
 
-  // If today isn't done yet, start counting from yesterday
   if (!completed[getDateKey(cursor)]?.done) {
     cursor.setDate(cursor.getDate() - 1);
   }
@@ -31,64 +31,14 @@ export function calcStreak(completed = {}) {
     if (!completed[key]?.done) break;
     streak++;
     cursor.setDate(cursor.getDate() - 1);
-    // Safety: don't walk back more than 3 years
     if (streak > 1095) break;
   }
 
   return streak;
 }
 
-// ─── View filter ──────────────────────────────────────────────────────────────
+// ─── Hook ───────────────────────────────────────────────────
 
-/**
- * Returns true if the habit was completed on ALL days in the window
- * for week/month views, or just today for day view.
- *
- * "All days" is intentionally strict — a habit half-done this week
- * should not show as complete.
- *
- * For week/month we check: completed on every day from window start to today.
- */
-export function isHabitCompleted(habit, view, todayKey) {
-  const completed = habit.completed || {};
-
-  if (view === "day") {
-    return !!completed[todayKey]?.done;
-  }
-
-  const now = new Date();
-  const days = [];
-
-  if (view === "week") {
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(now);
-      d.setDate(now.getDate() - i);
-      days.push(getDateKey(d));
-    }
-  }
-
-  if (view === "month") {
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const daysPassed = now.getDate();
-    for (let i = 0; i < daysPassed; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth(), i + 1);
-      days.push(getDateKey(d));
-    }
-    void daysInMonth; // referenced for clarity
-  }
-
-  // "Completed for period" = done on every elapsed day in the window
-  return days.every((key) => completed[key]?.done);
-}
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
-/**
- * All habit mutation logic. Zero localStorage — trusts DataContext / Firebase.
- *
- * @param {Array}    items    — full items array from DataContext
- * @param {Function} setItems — setter from DataContext
- */
 export function useHabits(items, setItems) {
   const todayKey = getDateKey();
 
@@ -97,7 +47,77 @@ export function useHabits(items, setItems) {
     [items]
   );
 
-  // ── Toggle: true two-way toggle with streak recalc ─────────────────────────
+  // ─────────────────────────────────────────────────────────
+  // 🧠 ENRICH HABITS (THIS IS THE BIG UPGRADE)
+  // ─────────────────────────────────────────────────────────
+
+  const enrichedHabits = useMemo(() => {
+    const weekKeys = getLastNDays(7);
+
+    return habits.map((h) => {
+      const completed = h.completed || {};
+
+      // Weekly progress %
+      const weekDone = weekKeys.filter((k) => completed[k]?.done).length;
+      const weekProgress = Math.round((weekDone / 7) * 100);
+
+      // Is done today
+      const doneToday = !!completed[todayKey]?.done;
+
+      // Priority system
+      const priorityScore =
+        (doneToday ? 0 : 50) +
+        (h.streak >= 3 ? 30 : 0) +
+        (h.time ? 10 : 0);
+
+      return {
+        ...h,
+        doneToday,
+        weekProgress,
+        priorityScore,
+      };
+    });
+  }, [habits, todayKey]);
+
+  // ─────────────────────────────────────────────────────────
+  // 📊 PARTITION BY VIEW
+  // ─────────────────────────────────────────────────────────
+
+  const getPartitionedHabits = useCallback(
+    (view) => {
+      if (view === "day") {
+        const pending = enrichedHabits
+          .filter((h) => !h.doneToday)
+          .sort((a, b) => b.priorityScore - a.priorityScore);
+
+        const completed = enrichedHabits.filter((h) => h.doneToday);
+
+        return { pending, completed };
+      }
+
+      if (view === "week") {
+        return {
+          pending: enrichedHabits, // show all
+          completed: [],
+        };
+      }
+
+      if (view === "month") {
+        return {
+          pending: enrichedHabits,
+          completed: [],
+        };
+      }
+
+      return { pending: [], completed: [] };
+    },
+    [enrichedHabits]
+  );
+
+  // ─────────────────────────────────────────────────────────
+  // 🔄 ACTIONS
+  // ─────────────────────────────────────────────────────────
+
   const toggleHabit = useCallback(
     (id) => {
       setItems((prev) =>
@@ -106,17 +126,16 @@ export function useHabits(items, setItems) {
 
           const alreadyDone = !!h.completed?.[todayKey]?.done;
 
-          // Un-completing today: remove the key, recalc streak
           if (alreadyDone) {
             const { [todayKey]: _, ...rest } = h.completed || {};
             return {
               ...h,
               completed: rest,
-              xp: Math.max(0, (h.xp || 0) - 10), // Reverse the XP award
+              xp: Math.max(0, (h.xp || 0) - 10),
+              streak: calcStreak(rest),
             };
           }
 
-          // Completing today
           const newCompleted = {
             ...(h.completed || {}),
             [todayKey]: { done: true, ts: Date.now() },
@@ -126,7 +145,6 @@ export function useHabits(items, setItems) {
             ...h,
             completed: newCompleted,
             xp: (h.xp || 0) + 10,
-            // Streak derived from completion map — not incremented blindly
             streak: calcStreak(newCompleted),
           };
         })
@@ -138,6 +156,7 @@ export function useHabits(items, setItems) {
   const addHabit = useCallback(
     (name) => {
       if (!name?.trim()) return;
+
       setItems((prev) => [
         ...prev,
         {
@@ -163,11 +182,23 @@ export function useHabits(items, setItems) {
     (id, newName) => {
       if (!newName?.trim()) return;
       setItems((prev) =>
-        prev.map((h) => (h.id === id ? { ...h, name: newName.trim() } : h))
+        prev.map((h) =>
+          h.id === id ? { ...h, name: newName.trim() } : h
+        )
       );
     },
     [setItems]
   );
 
-  return { habits, todayKey, toggleHabit, addHabit, deleteHabit, editHabit };
+  // ─────────────────────────────────────────────────────────
+
+  return {
+    habits: enrichedHabits,
+    todayKey,
+    toggleHabit,
+    addHabit,
+    deleteHabit,
+    editHabit,
+    getPartitionedHabits, // 🔥 NEW (IMPORTANT)
+  };
 }
