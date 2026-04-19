@@ -1,42 +1,30 @@
 /**
- * routes.jsx
- * ─────────────────────────────────────────────────────────────
- * Single source of truth for every route in the app.
- *
- * Shape per route:
- *   path        — React Router path string
- *   element     — factory (appData, user) => ReactElement
- *                 Using a factory keeps components lazy-evaluable and
- *                 avoids capturing stale closures in a static array.
- *
- * To add a route: add one entry here. App.jsx never needs to change.
+ * routes.jsx — FIXED PATHS
  */
 
 import React from "react";
 
-import Dashboard    from "./features/dashboard/Dashboard";
-import Productivity from "./Productivity";
-import Habits       from "./Habits";
-import Analytics    from "./Analytics";
-import Finance      from "./Finance";
-import Chat         from "./Chat";
-import Goals        from "./Goals";
-import Profile      from "./Profile";
+// ✅ FIXED: same folder
+import Dashboard from "./Dashboard";
 
-/**
- * @typedef {Object} RouteConfig
- * @property {string} path
- * @property {(appData: import('./hooks/useAppData').AppData, user: object|null, extras?: object) => React.ReactElement} element
- */
+// ✅ FIXED: go up 2 levels (these are in src/)
+import Productivity from "../../Productivity";
+import Habits       from "../../Habits";
+import Analytics    from "../../Analytics";
+import Finance      from "../../Finance";
+import Chat         from "../../Chat";
+import Goals        from "../../Goals";
+import Profile      from "../../Profile";
 
-/** @type {RouteConfig[]} */
 export const PROTECTED_ROUTES = [
   {
     path: "productivity",
     element: (appData) => (
       <Productivity
-        tasks={appData.tasks}       setTasks={appData.setTasks}
-        items={appData.items}       setItems={appData.setItems}
+        tasks={appData.tasks}
+        setTasks={appData.setTasks}
+        items={appData.items}
+        setItems={appData.setItems}
       />
     ),
   },
@@ -44,7 +32,8 @@ export const PROTECTED_ROUTES = [
     path: "habits",
     element: (appData) => (
       <Habits
-        items={appData.items}       setItems={appData.setItems}
+        items={appData.items}
+        setItems={appData.setItems}
         weightLogs={appData.weightLogs}
         addWeight={appData.addWeight}
       />
@@ -53,7 +42,11 @@ export const PROTECTED_ROUTES = [
   {
     path: "analytics",
     element: (appData, user) => (
-      <Analytics logs={appData.logs} tasks={appData.tasks} user={user} />
+      <Analytics
+        logs={appData.logs}
+        tasks={appData.tasks}
+        user={user}
+      />
     ),
   },
   {
@@ -87,11 +80,6 @@ export const PROTECTED_ROUTES = [
   },
 ];
 
-/**
- * Index route element factory — kept here so Dashboard's memoised
- * dashboardData can be passed in without the route config knowing
- * about mapToDashboardData.
- */
 export function dashboardElement(dashboardData, user) {
   return (
     <Dashboard

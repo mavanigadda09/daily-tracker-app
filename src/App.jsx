@@ -1,13 +1,5 @@
 /**
  * App.jsx — Composition Root
- * ─────────────────────────────────────────────────────────────
- * Single responsibility: wire providers, hooks, and the route tree.
- * No business logic. No Firebase calls. No inline styles.
- *
- * Reading order:
- *   1. Providers  (App)      — NotificationProvider, BrowserRouter
- *   2. Shell      (AppInner) — auth + data hooks, loading gate
- *   3. Routes     (routes.jsx) — all route definitions live there
  */
 
 import { useMemo }                                from "react";
@@ -21,9 +13,11 @@ import { useAppData }         from "./hooks/useAppData";
 import { useTheme }           from "./hooks/useTheme";
 import { useReminderSystems } from "./hooks/useReminderSystems";
 
-import { mapToDashboardData }                    from "./features/dashboard/dashboardAdapter";
-import { PROTECTED_ROUTES, dashboardElement }    from "./routes";
-import { AppLoader }                             from "./AppLoader";
+import { mapToDashboardData }                 from "./features/dashboard/dashboardAdapter";
+
+// ✅ FIXED IMPORT PATHS
+import { PROTECTED_ROUTES, dashboardElement } from "./features/dashboard/routes";
+import { AppLoader }                          from "./features/dashboard/AppLoader";
 
 import Layout         from "./Layout";
 import ProtectedRoute from "./ProtectedRoute";
@@ -36,14 +30,12 @@ function AppInner() {
   const { firebaseUser, loadingAuth, user, login, logout } = useAuth();
   const appData                                            = useAppData(firebaseUser);
 
-  // Reminder systems are pure side effects — run as a hook, not JSX.
   useReminderSystems({
     items : appData.items,
     tasks : appData.tasks,
     logs  : appData.logs,
   });
 
-  // Recompute only when the three relevant slices change.
   const dashboardData = useMemo(
     () => mapToDashboardData({
       tasks      : appData.tasks,
@@ -60,11 +52,11 @@ function AppInner() {
   return (
     <DataProvider value={appData}>
       <Routes>
-        {/* ── Public ─────────────────────────────────────────── */}
-        <Route path="/login"      element={<Login onLogin={login} />} />
+        {/* Public */}
+        <Route path="/login" element={<Login onLogin={login} />} />
         <Route path="/onboarding" element={<Onboarding />} />
 
-        {/* ── Protected shell ────────────────────────────────── */}
+        {/* Protected */}
         <Route
           path="/"
           element={
@@ -78,13 +70,11 @@ function AppInner() {
             </ProtectedRoute>
           }
         >
-          {/* Index — Dashboard with memoised data */}
           <Route
             index
             element={dashboardElement(dashboardData, user)}
           />
 
-          {/* All other protected routes driven by config in routes.jsx */}
           {PROTECTED_ROUTES.map(({ path, element }) => (
             <Route
               key={path}
@@ -100,7 +90,7 @@ function AppInner() {
   );
 }
 
-// ─── Root — provides Router + global notification context ─────
+// ─── Root
 export default function App() {
   return (
     <NotificationProvider>
