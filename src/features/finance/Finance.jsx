@@ -13,28 +13,27 @@ const formatCurrency = (num) =>
  *   1. Firestore Timestamp  → .toDate()
  *   2. ISO string / epoch   → new Date(val)
  *   3. Already a Date       → passthrough
- *
- * Returns a JS Date, or null if unparseable.
  */
 const normalizeDate = (val) => {
   if (!val) return null;
-  if (typeof val?.toDate === "function") return val.toDate(); // Firestore Timestamp
+  if (typeof val?.toDate === "function") return val.toDate();
   const d = new Date(val);
   return isNaN(d.getTime()) ? null : d;
 };
 
 const formatDate = (val) => {
   const d = normalizeDate(val);
-  return d ? d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+  return d
+    ? d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+    : "—";
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Finance({ financeData = [] }) {
-  const { notify } = useNotification(); // Replaces alert()
-  const [pendingDelete, setPendingDelete] = useState(null); // id or null
+  const { notify } = useNotification();
+  const [pendingDelete, setPendingDelete] = useState(null);
 
-  // Wire useFinanceForm with the async Firebase call
   const { fields, setField, handleSubmit, isSubmitting } = useFinanceForm(
     (entry) => addFinance(entry),
     notify
@@ -61,14 +60,13 @@ export default function Finance({ financeData = [] }) {
   }, [validFinance]);
 
   // ── Category breakdown (expense only) ─────────────────────────────────────
-  // Renamed from `categories` → `expenseByCategory` for clarity
   const expenseByCategory = useMemo(() => {
     const map = {};
     validFinance.forEach((f) => {
       if (f.type !== "expense") return;
       map[f.category] = (map[f.category] || 0) + f.amount;
     });
-    return Object.entries(map).sort((a, b) => b[1] - a[1]); // Largest first
+    return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [validFinance]);
 
   // ── Sorted transactions ────────────────────────────────────────────────────
@@ -94,7 +92,7 @@ export default function Finance({ financeData = [] }) {
     if (!pendingDelete) return;
     try {
       await deleteFinance(pendingDelete);
-    } catch (err) {
+    } catch {
       notify?.({ type: "error", message: "Delete failed. Try again." });
     } finally {
       setPendingDelete(null);
@@ -108,13 +106,12 @@ export default function Finance({ financeData = [] }) {
 
       {/* SUMMARY */}
       <div style={styles.summary}>
-        <SummaryCard label="Income" value={formatCurrency(income)} />
+        <SummaryCard label="Income"  value={formatCurrency(income)} />
         <SummaryCard label="Expense" value={formatCurrency(expense)} />
         <SummaryCard
           label="Balance"
           value={formatCurrency(balance)}
           valueStyle={{
-            // CSS variables — respects your theme system
             color: balance < 0
               ? "var(--color-text-danger)"
               : "var(--color-text-success)",
@@ -142,7 +139,6 @@ export default function Finance({ financeData = [] }) {
           <option value="income">Income</option>
         </select>
 
-        {/* Category: quick-pick ONLY — no free text input */}
         <select
           style={styles.select}
           value={fields.category}
@@ -180,8 +176,16 @@ export default function Finance({ financeData = [] }) {
             key={c}
             style={{
               ...styles.quickBtn,
-              // Visual active state — no extra state needed
-              outline: fields.category === c ? "2px solid var(--color-border-primary)" : "none",
+              // FIX: was var(--color-border-primary) — now uses the defined token
+              outline: fields.category === c
+                ? "2px solid var(--color-border-primary)"
+                : "none",
+              background: fields.category === c
+                ? "var(--color-background-info)"
+                : "var(--color-background-secondary)",
+              color: fields.category === c
+                ? "var(--color-text-info)"
+                : "var(--color-text-secondary)",
             }}
             onClick={() => setField("category", c)}
           >
@@ -216,6 +220,8 @@ export default function Finance({ financeData = [] }) {
               <div>
                 <span style={{
                   ...styles.typeBadge,
+                  // FIX: replaced undefined --color-background-success/danger
+                  // with the tokens now defined in index.css
                   background: f.type === "income"
                     ? "var(--color-background-success)"
                     : "var(--color-background-danger)",
@@ -233,7 +239,6 @@ export default function Finance({ financeData = [] }) {
                 {f.note && <div style={styles.note}>{f.note}</div>}
               </div>
 
-              {/* Two-stage delete: click → confirm → fire */}
               {pendingDelete === f.id ? (
                 <div style={styles.deleteConfirm}>
                   <span style={styles.deletePrompt}>Delete?</span>
@@ -269,7 +274,6 @@ function SummaryCard({ label, value, valueStyle }) {
 }
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
-// ALL colors use CSS variables — dark/light mode works automatically
 
 const styles = {
   root: {
@@ -285,9 +289,11 @@ const styles = {
     display: "flex",
     gap: 12,
     marginBottom: 20,
+    flexWrap: "wrap",
   },
   card: {
     flex: 1,
+    minWidth: 100,
     padding: 16,
     borderRadius: 10,
     background: "var(--color-background-secondary)",
@@ -320,6 +326,7 @@ const styles = {
     borderRadius: 6,
     color: "var(--color-text-primary)",
     fontSize: 14,
+    outline: "none",
   },
   select: {
     padding: "8px 10px",
@@ -328,6 +335,8 @@ const styles = {
     borderRadius: 6,
     color: "var(--color-text-primary)",
     fontSize: 14,
+    outline: "none",
+    cursor: "pointer",
   },
   addBtn: {
     padding: "8px 18px",
@@ -339,6 +348,7 @@ const styles = {
     fontSize: 14,
     cursor: "pointer",
     transition: "opacity 0.15s",
+    whiteSpace: "nowrap",
   },
   quickRow: {
     display: "flex",
@@ -348,13 +358,12 @@ const styles = {
   },
   quickBtn: {
     padding: "5px 10px",
-    background: "var(--color-background-secondary)",
     border: "1px solid var(--color-border-secondary)",
     borderRadius: 6,
-    color: "var(--color-text-secondary)",
     cursor: "pointer",
     fontSize: 13,
-    transition: "outline 0.1s",
+    transition: "all 0.1s",
+    fontFamily: "inherit",
   },
   section: {
     marginBottom: 24,
@@ -368,6 +377,8 @@ const styles = {
   empty: {
     color: "var(--color-text-tertiary)",
     fontSize: 14,
+    padding: "20px 0",
+    textAlign: "center",
   },
   row: {
     display: "flex",
@@ -409,11 +420,13 @@ const styles = {
     fontSize: 14,
     padding: "2px 6px",
     borderRadius: 4,
+    flexShrink: 0,
   },
   deleteConfirm: {
     display: "flex",
     alignItems: "center",
     gap: 6,
+    flexShrink: 0,
   },
   deletePrompt: {
     fontSize: 12,
@@ -422,7 +435,7 @@ const styles = {
   confirmBtn: {
     background: "var(--color-background-danger)",
     color: "var(--color-text-danger)",
-    border: "none",
+    border: "1px solid var(--color-border-danger)",
     borderRadius: 4,
     padding: "3px 8px",
     cursor: "pointer",

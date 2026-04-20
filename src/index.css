@@ -46,11 +46,42 @@
   --danger:  #ef4444;
   --warning: #f59e0b;
   --info:    #3b82f6;
+
+  /* ── LAYOUT / COMPONENT ALIASES ────────────────────────────────────────── */
+  /* All --color-* vars used by Layout.jsx, Finance.jsx, Habits.jsx etc.     */
+  /* Defined here in :root so they apply in dark mode (the default).         */
+  /* Light-mode overrides are in body[data-theme="light"] below.             */
+
+  /* Backgrounds */
+  --color-background-primary:   #020617;
+  --color-background-secondary: rgba(15, 23, 42, 0.95);
+  --color-background-tertiary:  #020617;
+  --color-background-info:      rgba(250, 204, 21, 0.15);
+  --color-background-success:   rgba(34, 197, 94, 0.12);
+  --color-background-danger:    rgba(239, 68, 68, 0.12);
+  --color-background-warning:   rgba(245, 158, 11, 0.12);
+
+  /* Text */
+  --color-text-primary:   #f8fafc;
+  --color-text-secondary: #94a3b8;
+  --color-text-tertiary:  #475569;
+  --color-text-muted:     #64748b;
+  --color-text-success:   #22c55e;
+  --color-text-danger:    #ef4444;
+  --color-text-warning:   #f59e0b;
+  --color-text-info:      #facc15;
+
+  /* Borders */
+  --color-border-primary:   rgba(255, 255, 255, 0.12);
+  --color-border-secondary: rgba(255, 255, 255, 0.08);
+  --color-border-tertiary:  rgba(255, 255, 255, 0.06);
+  --color-border-danger:    rgba(239, 68, 68, 0.4);
+  --color-border-success:   rgba(34, 197, 94, 0.3);
 }
 
 /* ================= LIGHT MODE ================= */
 body[data-theme="light"] {
-  --accent:        #b45309; /* FIXED: was #ca8a04 — fails contrast on light bg */
+  --accent:        #b45309;
   --accent-orange: #c2540a;
 
   --bg:      #f8fafc;
@@ -71,6 +102,32 @@ body[data-theme="light"] {
   --warning: #b45309;
   --danger:  #dc2626;
   --info:    #1d4ed8;
+
+  /* Background aliases — light */
+  --color-background-primary:   #ffffff;
+  --color-background-secondary: #f8fafc;
+  --color-background-tertiary:  #f1f5f9;
+  --color-background-info:      rgba(180, 83, 9, 0.1);
+  --color-background-success:   rgba(21, 128, 61, 0.1);
+  --color-background-danger:    rgba(220, 38, 38, 0.1);
+  --color-background-warning:   rgba(180, 83, 9, 0.1);
+
+  /* Text aliases — light */
+  --color-text-primary:   #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-tertiary:  #94a3b8;
+  --color-text-muted:     #64748b;
+  --color-text-success:   #15803d;
+  --color-text-danger:    #dc2626;
+  --color-text-warning:   #b45309;
+  --color-text-info:      #b45309;
+
+  /* Border aliases — light */
+  --color-border-primary:   #cbd5e1;
+  --color-border-secondary: #e2e8f0;
+  --color-border-tertiary:  #f1f5f9;
+  --color-border-danger:    rgba(220, 38, 38, 0.3);
+  --color-border-success:   rgba(21, 128, 61, 0.3);
 }
 
 /* ================= RESET ================= */
@@ -82,7 +139,6 @@ body[data-theme="light"] {
 
 /* ================= BASE ================= */
 html {
-  /* Prevent layout shift from scrollbar appearing/disappearing */
   scrollbar-gutter: stable;
 }
 
@@ -94,7 +150,6 @@ body {
   line-height: 1.6;
   transition: background var(--transition), color var(--transition);
   -webkit-tap-highlight-color: transparent;
-  /* REMOVED: overflow-x: hidden — masks real layout bugs, breaks sticky */
 }
 
 /* ================= REDUCED MOTION ================= */
@@ -110,17 +165,15 @@ body {
 /* ================= PHOENIX WATERMARK ================= */
 .phoenix-watermark {
   position: fixed;
-  inset: 0; /* replaces top/left/transform centering — more reliable */
+  inset: 0;
   background-image: url('/phoenix.png');
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
   opacity: 0.03;
   pointer-events: none;
-  /* FIXED: use a high z-index on a portal-level wrapper instead of -1 */
   z-index: 0;
   filter: grayscale(100%) brightness(1.2);
-  /* Watermark must be a sibling of #root, not inside it */
 }
 
 /* ================= SCROLLBAR ================= */
@@ -143,10 +196,8 @@ body {
   transition:
     background var(--transition-fast),
     border-color var(--transition-fast);
-  /* REMOVED: :active scale — use .glass-panel--interactive for clickable panels */
 }
 
-/* Only interactive panels get press feedback */
 .glass-panel--interactive {
   cursor: pointer;
   transition:
@@ -179,7 +230,6 @@ body[data-theme="light"] .glass-panel {
     background var(--transition),
     box-shadow var(--transition),
     border-color var(--transition);
-  /* REMOVED: transform on hover — causes jank with realtime Firestore updates */
 }
 
 .card:hover {
@@ -188,7 +238,6 @@ body[data-theme="light"] .glass-panel {
   border-color: rgba(255, 255, 255, 0.12);
 }
 
-/* Elevated variant for important cards */
 .card--elevated {
   will-change: transform;
 }
@@ -243,7 +292,6 @@ body[data-theme="light"] .glass-panel {
     opacity var(--transition),
     transform var(--transition-fast),
     box-shadow var(--transition);
-  /* Prevent text selection on rapid clicks */
   user-select: none;
   -webkit-user-select: none;
 }
@@ -251,7 +299,6 @@ body[data-theme="light"] .glass-panel {
 .btn:hover   { opacity: 0.88; }
 .btn:active  { transform: scale(0.96); }
 
-/* ADDED: visible keyboard focus — critical for accessibility */
 .btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
@@ -264,14 +311,13 @@ body[data-theme="light"] .glass-panel {
   pointer-events: none;
 }
 
-/* Phoenix primary button — gradient variant */
 .phoenix-btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   background: linear-gradient(135deg, var(--accent), var(--accent-orange));
-  color: #000; /* explicit black — more reliable than var(--bg) across themes */
+  color: #000;
   border: none;
   padding: 12px 24px;
   border-radius: var(--radius-sm);
@@ -329,7 +375,6 @@ body[data-theme="light"] .glass-panel {
   background: var(--card-hover);
 }
 
-/* Error state — used by form validation */
 .input--error {
   border-color: var(--danger);
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
@@ -348,7 +393,6 @@ body[data-theme="light"] .glass-panel {
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  /* Fallback for browsers that don't support -webkit-text-fill-color */
   color: var(--accent);
 }
 
@@ -390,7 +434,6 @@ body[data-theme="light"] .glass-panel {
   background: linear-gradient(90deg, var(--accent), var(--accent-orange));
   border-radius: 10px;
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  /* Performance: composited animation */
   will-change: width;
 }
 
@@ -423,7 +466,6 @@ body[data-theme="light"] .glass-panel {
 }
 
 /* ================= SKELETON LOADER ================= */
-/* Used during Firestore realtime load states */
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
@@ -450,50 +492,9 @@ body[data-theme="light"] .glass-panel {
 
 /* ================= DEPRECATED ================= */
 /**
- * @deprecated Use .glass-panel instead.
- * Will be removed in v2. Search codebase for `.glass` and migrate.
+ * @deprecated Use .glass-panel instead. Will be removed in v2.
  */
 .glass {
   backdrop-filter: blur(10px);
   background: rgba(255, 255, 255, 0.05);
-}
-
-/* ================= LAYOUT VARIABLE ALIASES ================= */
-/* Layout.jsx uses --color-* naming — map to Phoenix design tokens */
-:root {
-  --color-background-primary:   #020617;
-  --color-background-secondary: rgba(15, 23, 42, 0.95);
-  --color-background-tertiary:  #020617;
-  --color-background-info:      rgba(250, 204, 21, 0.15);
-
-  --color-text-primary:   #f8fafc;
-  --color-text-secondary: #94a3b8;
-  --color-text-tertiary:  #475569;
-  --color-text-muted:     #64748b;
-  --color-text-success:   #22c55e;
-  --color-text-danger:    #ef4444;
-  --color-text-info:      #facc15;
-
-  --color-border-secondary: rgba(255, 255, 255, 0.08);
-  --color-border-tertiary:  rgba(255, 255, 255, 0.06);
-  --color-border-danger:    rgba(239, 68, 68, 0.4);
-}
-
-body[data-theme="light"] {
-  --color-background-primary:   #ffffff;
-  --color-background-secondary: #f8fafc;
-  --color-background-tertiary:  #f1f5f9;
-  --color-background-info:      rgba(180, 83, 9, 0.1);
-
-  --color-text-primary:   #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-tertiary:  #94a3b8;
-  --color-text-muted:     #64748b;
-  --color-text-success:   #15803d;
-  --color-text-danger:    #dc2626;
-  --color-text-info:      #b45309;
-
-  --color-border-secondary: #e2e8f0;
-  --color-border-tertiary:  #f1f5f9;
-  --color-border-danger:    rgba(220, 38, 38, 0.3);
 }

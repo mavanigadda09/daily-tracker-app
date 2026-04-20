@@ -1,18 +1,14 @@
 import React, { lazy, Suspense } from "react";
-
-// ─── Eager ────────────────────────────────────────────────────
 import Dashboard from "./Dashboard";
 
-// ─── Lazy Imports (FINAL CORRECT PATHS) ───────────────────────
 const Productivity = lazy(() => import("../../productivity/Productivity.jsx"));
-const Habits       = lazy(() => import("../../habits/Habits.jsx")); // ✅ FIXED
+const Habits       = lazy(() => import("../../habits/Habits.jsx"));
 const Analytics    = lazy(() => import("../../pages/Analytics.jsx"));
 const Finance      = lazy(() => import("../finance/Finance.jsx"));
 const Chat         = lazy(() => import("../../chat/Chat.jsx"));
 const Goals        = lazy(() => import("../goals/Goals.jsx"));
 const Profile      = lazy(() => import("../../profile/Profile.jsx"));
 
-// ─── Loader ───────────────────────────────────────────────────
 const PageLoader = () => (
   <div style={{
     display: "flex",
@@ -30,7 +26,6 @@ const wrap = (element) => (
   <Suspense fallback={<PageLoader />}>{element}</Suspense>
 );
 
-// ─── Routes ───────────────────────────────────────────────────
 export const PROTECTED_ROUTES = [
   {
     path: "productivity",
@@ -51,6 +46,10 @@ export const PROTECTED_ROUTES = [
         items={appData.items}
         setItems={appData.setItems}
         weightLogs={appData.weightLogs}
+        setWeightLogs={appData.setWeightLogs}
+        addWeight={appData.addWeight}
+        weightGoal={appData.weightGoal}
+        setWeightGoal={appData.setWeightGoal}
       />
     ),
   },
@@ -96,11 +95,10 @@ export const PROTECTED_ROUTES = [
 
   {
     path: "profile",
-    element: (_appData, user) => wrap(<Profile user={user} />),
+    element: () => wrap(<Profile />),
   },
 ];
 
-// ─── Dashboard ────────────────────────────────────────────────
 export function dashboardElement(dashboardData, user) {
   return (
     <Dashboard

@@ -1,7 +1,7 @@
 {
-  "name": "Daily Tracker App",
-  "short_name": "Tracker",
-  "description": "Track habits, tasks, and goals daily",
+  "name": "Phoenix Tracker",
+  "short_name": "Phoenix",
+  "description": "Track habits, tasks, goals, and finances — rise every day.",
 
   "start_url": "/?source=pwa",
   "scope": "/",
@@ -9,8 +9,8 @@
   "display": "standalone",
   "orientation": "portrait",
 
-  "background_color": "#ffffff",
-  "theme_color": "#0f172a",
+  "background_color": "#040710",
+  "theme_color": "#040710",
 
   "icons": [
     {
@@ -33,13 +33,5 @@
     }
   ],
 
-  "categories": ["productivity", "health", "lifestyle"],
-
-  "screenshots": [
-    {
-      "src": "/screenshot1.png",
-      "sizes": "1280x720",
-      "type": "image/png"
-    }
-  ]
+  "categories": ["productivity", "health", "lifestyle"]
 }

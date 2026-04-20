@@ -4,16 +4,9 @@
     <meta charset="UTF-8" />
 
     <!--
-      ✅ CHANGE 1 — FOUC PREVENTION (added, was missing)
-      ─────────────────────────────────────────────────────────
-      Must be the FIRST script in <head>, before any <link> or <style>.
-      Runs synchronously before the browser paints a single pixel.
-      This is the only reliable way to prevent theme flash in a
-      client-side React app — doing it in main.jsx or useEffect is
-      always too late.
-
-      Logic mirrors utils/theme.js. If you add a new valid theme,
-      update the VALID array here too.
+      FOUC PREVENTION — must be first script in <head>.
+      Runs synchronously before first paint.
+      Mirrors logic in utils/theme.js — keep in sync if themes change.
     -->
     <script>
       (function () {
@@ -30,38 +23,21 @@
       })();
     </script>
 
-    <!-- Favicon — unchanged -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-
-    <!-- Viewport — unchanged -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- PWA Manifest — unchanged -->
-    <link rel="manifest" href="/manifest.json" />
+    <!-- FIX: was /manifest.json — file is named manifest.webmanifest -->
+    <link rel="manifest" href="/manifest.webmanifest" />
 
-    <!--
-      ✅ CHANGE 2 — theme-color now dual: dark + light (was single value)
-      ─────────────────────────────────────────────────────────
-      The `media` attribute lets browsers pick the right colour
-      automatically, syncing the browser chrome with the active theme.
-      Update the content values to match your CSS variables.
-
-      REMOVED: <meta name="theme-color" content="#0f172a" />
-      REPLACED WITH:
-    -->
     <meta name="theme-color" content="#040710" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#ffffff"  media="(prefers-color-scheme: light)" />
 
-    <!-- iOS PWA Support — unchanged -->
     <link rel="apple-touch-icon" href="/pwa-192.png" />
     <meta name="apple-mobile-web-app-capable"          content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-    <!-- SEO + Install — unchanged -->
-    <meta name="description"       content="Track habits, tasks, and goals daily" />
-    <meta name="application-name"  content="Tracker App" />
-
-    <!-- Mobile zoom prevention — unchanged -->
+    <meta name="description"      content="Track habits, tasks, goals, and finances — rise every day." />
+    <meta name="application-name" content="Phoenix Tracker" />
     <meta name="mobile-web-app-capable" content="yes" />
 
     <title>Phoenix Tracker</title>
@@ -69,19 +45,6 @@
 
   <body>
     <div id="root"></div>
-
-    <!-- Main app — unchanged -->
     <script type="module" src="/src/main.jsx"></script>
-
-    <!--
-      ✅ CHANGE 3 — SW registration removed from here (was in <body>)
-      ─────────────────────────────────────────────────────────
-      The full SW lifecycle (register, update detection, user prompt,
-      skipWaiting, reload) now lives in src/utils/serviceWorker.js
-      and is called from main.jsx via registerServiceWorker().
-
-      Keeping SW registration here AND in main.jsx would double-register
-      on every load. One registration point only.
-    -->
   </body>
 </html>

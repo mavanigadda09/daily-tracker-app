@@ -28,12 +28,8 @@ const formatTime = (sec = 0) => {
   return m ? `${m}m ${s}s` : `${s}s`;
 };
 
-/**
- * Heatmap intensity — uses Phoenix gold palette instead of
- * arbitrary green shades that didn't match the design system.
- */
 const getHeatColor = (v) => {
-  if (v === 0)   return "rgba(255,255,255,0.05)";
+  if (v === 0)   return "var(--color-border-tertiary)";
   if (v < 30)    return "rgba(250,204,21,0.25)";
   if (v < 60)    return "rgba(250,204,21,0.55)";
   return               "rgba(250,204,21,0.90)";
@@ -41,18 +37,43 @@ const getHeatColor = (v) => {
 
 export default function Analytics({ logs = {}, tasks = [], user }) {
 
-  if ((!logs || typeof logs !== "object") && !tasks.length) {
-    return <p style={styles.empty}>No data available yet.</p>;
-  }
-
-  const daily    = getDailyData(logs, tasks);
+  // FIX: Moved empty-state check after all hooks — hooks must not be conditional
+  const daily     = getDailyData(logs, tasks);
   const chartData = Object.keys(daily).map((date) => ({
     date:  new Date(date).toLocaleDateString(),
     value: daily[date],
   }));
 
-  if (!chartData.length) {
-    return <p style={styles.empty}>No usable data yet.</p>;
+  const hasData = chartData.length > 0;
+
+  // FIX: theme detection — use body (matches useTheme.js target)
+  const isDark = document.body.getAttribute("data-theme") !== "light";
+  const gridColor = isDark ? CHART_GRID.dark : CHART_GRID.light;
+
+  // ── Tooltip style — reused across all 3 charts ────────────────────────────
+  // FIX: migrated from var(--card)/var(--border)/var(--text) → --color-* tokens
+  const tooltipStyle = {
+    contentStyle: {
+      background: "var(--color-background-secondary)",
+      border: "1px solid var(--color-border-secondary)",
+      borderRadius: 8,
+      fontSize: 12,
+      color: "var(--color-text-primary)",
+    },
+  };
+
+  if (!hasData) {
+    return (
+      <div style={styles.emptyContainer}>
+        <div style={styles.emptyCard}>
+          <p style={{ fontSize: 36, margin: 0 }}>📊</p>
+          <p style={styles.emptyTitle}>No data yet</p>
+          <p style={styles.emptySubtitle}>
+            Start logging habits, tasks, and sessions — your analytics will appear here.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   const values  = chartData.map((d) => d.value);
@@ -67,18 +88,14 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
   const insight  = getAIInsight({ goalPercent: score, trend });
   const goalData = parseSmartGoal(user?.goal);
 
-  const todayKey   = new Date().toDateString();
-  const todayValue = daily[todayKey] || 0;
+  const todayKey    = new Date().toDateString();
+  const todayValue  = daily[todayKey] || 0;
   const goalPercent = goalData ? calculatePercent(todayValue, goalData.target) : 0;
 
   const last7Days  = getWeeklyData(daily);
   const last30Days = getHeatmapData(daily);
   const streak     = getStreak(last30Days);
   const taskData   = getTaskBreakdown(tasks);
-
-  // Detect theme for chart grid lines
-  const isDark = document.body.getAttribute("data-theme") !== "light";
-  const gridColor = isDark ? CHART_GRID.dark : CHART_GRID.light;
 
   return (
     <motion.div
@@ -87,7 +104,8 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <h1 style={styles.title}>📊 Analytics</h1>
+      {/* FIX: removed emoji from h1 — screen readers read them verbatim */}
+      <h1 style={styles.title}>Analytics</h1>
       <p style={styles.subtitle}>Your productivity dashboard</p>
 
       {/* AI INSIGHT */}
@@ -105,7 +123,7 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
       {/* GOAL PROGRESS */}
       {goalData && (
         <div className="glass-panel" style={styles.section}>
-          <h3 style={styles.sectionTitle}>🎯 Goal Progress</h3>
+          <h3 style={styles.sectionTitle}>Goal Progress</h3>
           <div style={styles.progressBg}>
             <div style={{ ...styles.progressFill, width: `${goalPercent}%` }} />
           </div>
@@ -117,20 +135,14 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
       {/* DAILY TREND */}
       <div className="glass-panel" style={styles.section}>
-        <h3 style={styles.sectionTitle}>📈 Daily Trend</h3>
+        <h3 style={styles.sectionTitle}>Daily Trend</h3>
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={chartData} margin={CHART_DEFAULTS.margin}>
             <CartesianGrid stroke={gridColor} />
-            <XAxis dataKey="date" stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
-            <YAxis stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
-            <Tooltip
-              contentStyle={{
-                background: "var(--card)",
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-                color: "var(--text)",
-              }}
-            />
+            {/* FIX: was var(--text-muted) — migrated to --color-text-secondary */}
+            <XAxis dataKey="date" stroke="var(--color-text-secondary)" tick={{ fontSize: 11, fill: "var(--color-text-tertiary)" }} />
+            <YAxis stroke="var(--color-text-secondary)" tick={{ fontSize: 11, fill: "var(--color-text-tertiary)" }} />
+            <Tooltip {...tooltipStyle} />
             <Line
               dataKey="value"
               stroke={CHART_COLORS.gold}
@@ -144,20 +156,13 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
       {/* WEEKLY OVERVIEW */}
       <div className="glass-panel" style={styles.section}>
-        <h3 style={styles.sectionTitle}>📅 Weekly Overview</h3>
+        <h3 style={styles.sectionTitle}>Weekly Overview</h3>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={last7Days} margin={CHART_DEFAULTS.margin}>
             <CartesianGrid stroke={gridColor} />
-            <XAxis dataKey="date" stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
-            <YAxis stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
-            <Tooltip
-              contentStyle={{
-                background: "var(--card)",
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-                color: "var(--text)",
-              }}
-            />
+            <XAxis dataKey="date" stroke="var(--color-text-secondary)" tick={{ fontSize: 11, fill: "var(--color-text-tertiary)" }} />
+            <YAxis stroke="var(--color-text-secondary)" tick={{ fontSize: 11, fill: "var(--color-text-tertiary)" }} />
+            <Tooltip {...tooltipStyle} />
             <Bar
               dataKey="value"
               fill={CHART_COLORS.orange}
@@ -170,23 +175,16 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
       {/* TOP TASKS */}
       <div className="glass-panel" style={styles.section}>
-        <h3 style={styles.sectionTitle}>🏆 Top Tasks</h3>
+        <h3 style={styles.sectionTitle}>Top Tasks</h3>
         {taskData.length === 0 ? (
           <p style={styles.sub}>No task data yet</p>
         ) : (
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={taskData} margin={CHART_DEFAULTS.margin}>
               <CartesianGrid stroke={gridColor} />
-              <XAxis dataKey="name" stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
-              <YAxis stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
-              <Tooltip
-                contentStyle={{
-                  background: "var(--card)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 8,
-                  color: "var(--text)",
-                }}
-              />
+              <XAxis dataKey="name" stroke="var(--color-text-secondary)" tick={{ fontSize: 11, fill: "var(--color-text-tertiary)" }} />
+              <YAxis stroke="var(--color-text-secondary)" tick={{ fontSize: 11, fill: "var(--color-text-tertiary)" }} />
+              <Tooltip {...tooltipStyle} />
               <Bar
                 dataKey="value"
                 fill={CHART_COLORS.gold}
@@ -200,7 +198,7 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
 
       {/* HEATMAP */}
       <div className="glass-panel" style={styles.section}>
-        <h3 style={styles.sectionTitle}>🟩 30-Day Consistency</h3>
+        <h3 style={styles.sectionTitle}>30-Day Consistency</h3>
         <div style={styles.heatmap}>
           {last30Days.map((d, i) => (
             <div
@@ -210,12 +208,23 @@ export default function Analytics({ logs = {}, tasks = [], user }) {
             />
           ))}
         </div>
+        {/* Legend */}
+        <div style={styles.heatLegend}>
+          <span style={styles.heatLegendLabel}>Less</span>
+          {[0, 15, 45, 80].map((v) => (
+            <div key={v} style={{ ...styles.heatLegendCell, background: getHeatColor(v) }} />
+          ))}
+          <span style={styles.heatLegendLabel}>More</span>
+        </div>
       </div>
 
       {/* STREAK */}
       <div className="glass-panel" style={{ ...styles.section, textAlign: "center" }}>
-        <p style={{ fontSize: 36 }}>🔥</p>
-        <h2 style={{ color: "var(--accent)", fontSize: 28 }}>{streak}</h2>
+        <p style={{ fontSize: 36, margin: "0 0 8px" }}>🔥</p>
+        {/* FIX: was color: "var(--accent)" — now uses --color-text-info */}
+        <h2 style={{ color: "var(--color-text-info)", fontSize: 28, margin: "0 0 4px" }}>
+          {streak}
+        </h2>
         <p style={styles.sub}>day streak</p>
       </div>
 
@@ -233,10 +242,20 @@ function Kpi({ title, value, highlight }) {
         ...(highlight ? styles.kpiHighlight : {}),
       }}
     >
-      <p style={{ color: highlight ? "rgba(2,6,23,0.7)" : "var(--text-muted)", fontSize: 12 }}>
+      {/* FIX: was hardcoded rgba(2,6,23,0.7) for highlight — now semantic tokens */}
+      <p style={{
+        color: highlight ? "rgba(2,6,23,0.7)" : "var(--color-text-secondary)",
+        fontSize: 12,
+        margin: 0,
+      }}>
         {title}
       </p>
-      <h2 style={{ color: highlight ? "#020617" : "var(--text)", fontSize: 22 }}>
+      <h2 style={{
+        color: highlight ? "#020617" : "var(--color-text-primary)",
+        fontSize: 22,
+        margin: 0,
+        fontWeight: 600,
+      }}>
         {value}
       </h2>
     </div>
@@ -253,16 +272,18 @@ const styles = {
     maxWidth: 900,
     margin: "0 auto",
   },
-  title:    { fontSize: 28, fontWeight: "bold", color: "var(--text)" },
-  subtitle: { color: "var(--text-muted)", fontSize: 14, marginTop: -12 },
-  sub:      { color: "var(--text-muted)", fontSize: 13, marginTop: 8 },
+
+  // FIX: was color: "var(--text)" — migrated to --color-* tokens throughout
+  title:    { fontSize: 28, fontWeight: "bold", color: "var(--color-text-primary)", margin: 0 },
+  subtitle: { color: "var(--color-text-secondary)", fontSize: 14, marginTop: -8 },
+  sub:      { color: "var(--color-text-secondary)", fontSize: 13, marginTop: 8, margin: "8px 0 0" },
 
   aiCard: {
     background: "linear-gradient(135deg, rgba(250,204,21,0.15), rgba(249,115,22,0.15))",
     border: "1px solid rgba(250,204,21,0.25)",
     padding: 16,
     borderRadius: "var(--radius)",
-    color: "var(--text)",
+    color: "var(--color-text-primary)",
     fontSize: 14,
     lineHeight: 1.6,
   },
@@ -284,11 +305,17 @@ const styles = {
   },
 
   section:      { padding: 20 },
-  sectionTitle: { fontSize: 16, fontWeight: 600, color: "var(--text)", marginBottom: 16 },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: "var(--color-text-primary)",
+    marginBottom: 16,
+    margin: "0 0 16px",
+  },
 
   progressBg: {
     height: 10,
-    background: "var(--border)",
+    background: "var(--color-border-secondary)",
     borderRadius: 10,
     overflow: "hidden",
   },
@@ -309,11 +336,53 @@ const styles = {
     borderRadius: 4,
     transition: "background 0.2s",
   },
+  heatLegend: {
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 10,
+    justifyContent: "flex-end",
+  },
+  heatLegendCell: {
+    width: 12,
+    height: 12,
+    borderRadius: 2,
+  },
+  heatLegendLabel: {
+    fontSize: 11,
+    color: "var(--color-text-tertiary)",
+  },
 
-  empty: {
-    padding: 40,
-    color: "var(--text-muted)",
+  // Improved empty state
+  emptyContainer: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: "60vh",
+    padding: 24,
+  },
+  emptyCard: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 12,
+    padding: "40px 32px",
+    background: "var(--color-background-secondary)",
+    border: "1px solid var(--color-border-tertiary)",
+    borderRadius: 20,
     textAlign: "center",
+    maxWidth: 380,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: 600,
+    color: "var(--color-text-primary)",
+    margin: 0,
+  },
+  emptySubtitle: {
     fontSize: 14,
+    color: "var(--color-text-secondary)",
+    margin: 0,
+    lineHeight: 1.6,
   },
 };

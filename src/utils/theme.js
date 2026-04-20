@@ -7,10 +7,6 @@
  * ⚠️  Do NOT use this for regular component styles.
  *     Use CSS variables (var(--*)) directly in inline styles
  *     or className-based styles instead.
- *
- * These values must be kept in sync with index.css manually.
- * If that drift becomes a problem, replace with a CSS-var reader:
- *   getComputedStyle(document.documentElement).getPropertyValue('--accent')
  */
 
 /**
@@ -28,10 +24,11 @@ export function cssVar(variable) {
 
 /**
  * Static chart palette — used by Recharts which cannot read CSS vars.
- * Distinct colors, ordered by visual weight.
- * Keep in sync with --chart-* in index.css.
+ * FIX: Added gold/orange to match Phoenix design tokens used in Analytics.jsx
  */
 export const CHART_COLORS = {
+  gold:   "#facc15",   // --accent
+  orange: "#f97316",   // --accent-orange
   green:  "#22c55e",
   blue:   "#3b82f6",
   amber:  "#f59e0b",
@@ -41,8 +38,7 @@ export const CHART_COLORS = {
 };
 
 /**
- * Chart grid/axis colors — separate from data colors.
- * These are intentionally subtle.
+ * Chart grid/axis colors — intentionally subtle.
  */
 export const CHART_GRID = {
   dark:  "rgba(255,255,255,0.08)",
@@ -50,8 +46,7 @@ export const CHART_GRID = {
 };
 
 /**
- * Status colors — for use in JS logic (e.g. computing a dot color
- * based on a status string). For CSS, use var(--success) etc.
+ * Status colors — for JS logic only. For CSS, use var(--success) etc.
  */
 export const STATUS_COLORS = {
   success: "#22c55e",
@@ -62,15 +57,20 @@ export const STATUS_COLORS = {
 
 /**
  * Recharts-specific config presets.
- * Centralizes repetitive chart props.
  */
 export const CHART_DEFAULTS = {
   margin: { top: 10, right: 10, left: -10, bottom: 0 },
   animationDuration: 400,
 };
-// ─── Pre-paint theme init ─────────────────────────────────────
-// Called in main.jsx before React renders to avoid theme flash.
+
+/**
+ * Pre-paint theme init — call in main.jsx BEFORE React renders.
+ *
+ * FIX: Was setting data-theme on document.documentElement (<html>),
+ * but index.css uses body[data-theme="light"] selectors.
+ * Now correctly targets document.body to match.
+ */
 export function initTheme() {
   const theme = localStorage.getItem("theme") ?? "dark";
-  document.documentElement.setAttribute("data-theme", theme);
+  document.body.setAttribute("data-theme", theme);
 }

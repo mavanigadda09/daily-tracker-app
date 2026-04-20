@@ -20,9 +20,29 @@ import Onboarding from "./pages/Onboarding";
 import mapToDashboardData from "./features/dashboard/dashboardAdapter";
 import { PROTECTED_ROUTES, dashboardElement } from "./features/dashboard/routes";
 
+function PhoenixWatermark() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position:           "fixed",
+        inset:              0,
+        backgroundImage:    "url('/phoenix.png')",
+        backgroundRepeat:   "no-repeat",
+        backgroundPosition: "center",
+        backgroundSize:     "contain",
+        opacity:            0.03,
+        pointerEvents:      "none",
+        zIndex:             0,
+        filter:             "grayscale(100%) brightness(1.2)",
+      }}
+    />
+  );
+}
+
 function AppInner() {
-  const [theme, setTheme] = useTheme();
-  const { firebaseUser, isResolvingAuth, user, login, logout } = useAuth();
+  const [theme, toggleTheme] = useTheme();
+  const { firebaseUser, isResolvingAuth, user, login, logout, updateUser } = useAuth();
   const appData = useAppData(firebaseUser);
 
   useReminderSystems({
@@ -40,12 +60,22 @@ function AppInner() {
     [appData.tasks, appData.items, appData.weightLogs]
   );
 
+  // ── CRITICAL: useMemo must be called before any early return ──
+  // Putting this after `if (isResolvingAuth || appData.loading) return`
+  // violates rules of hooks — hook count changes between renders.
+  const contextValue = useMemo(() => ({
+    ...appData,
+    user,
+    updateUser,
+  }), [appData, user, updateUser]);
+
+  // Early return AFTER all hooks
   if (isResolvingAuth || appData.loading) {
     return <AppLoader />;
   }
 
   return (
-    <DataProvider value={appData}>
+    <DataProvider value={contextValue}>
       <Routes>
         <Route path="/login"      element={<Login onLogin={login} />} />
         <Route path="/onboarding" element={<Onboarding />} />
@@ -58,7 +88,7 @@ function AppInner() {
                 user={user}
                 onLogout={logout}
                 theme={theme}
-                setTheme={setTheme}
+                onThemeToggle={toggleTheme}
               />
             </ProtectedRoute>
           }
@@ -82,6 +112,7 @@ export default function App() {
   return (
     <NotificationProvider>
       <BrowserRouter>
+        <PhoenixWatermark />
         <ErrorBoundary>
           <AppInner />
         </ErrorBoundary>
