@@ -1,4 +1,4 @@
-const CACHE_NAME = "tracker-cache-v2";
+const CACHE_NAME = "tracker-cache-v3";
 const STATIC_CACHE = [
   "/",
   "/index.html",
