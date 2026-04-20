@@ -45,7 +45,7 @@ function hydrateSnapshot(data) {
 
 // ─── Hook ─────────────────────────────────────────────────────
 export function useAppData(firebaseUser) {
-  const [data, setData]     = useState(EMPTY_STATE);
+  const [data, setData]       = useState(EMPTY_STATE);
   const [loading, setLoading] = useState(true);
 
   // Refs — never trigger re-renders
@@ -54,7 +54,7 @@ export function useAppData(firebaseUser) {
   const initialLoad    = useRef(true);
   const unsubscribeRef = useRef(null);
 
-  // ── Merge helper (keeps referential stability for unchanged keys) ──
+  // ── Merge helper ──────────────────────────────────────────
   const applySnapshot = useCallback((raw) => {
     setData(hydrateSnapshot(raw));
     serverVersion.current = raw.updatedAt ?? Date.now();
@@ -73,7 +73,8 @@ export function useAppData(firebaseUser) {
     const bootstrap = async () => {
       setLoading(true);
       try {
-        const snapshot = await loadData();
+        // FIX 1: pass uid explicitly to avoid auth race condition
+        const snapshot = await loadData(firebaseUser.uid);
         if (cancelled) return;
 
         if (snapshot) {
@@ -87,9 +88,10 @@ export function useAppData(firebaseUser) {
           setLoading(false);
 
           // Register real-time listener only after initial data is settled.
-          // This eliminates the race where the listener fires before loadData
-          // resolves and overwrites the fresher response.
-          unsubscribeRef.current = subscribeToData((incoming) => {
+          // FIX 2: pass uid as first arg — subscribeToData(uid, callback)
+          // Previously the callback was passed as uid, causing Firestore's
+          // internal string method to throw: n.indexOf is not a function
+          unsubscribeRef.current = subscribeToData(firebaseUser.uid, (incoming) => {
             if (!incoming) return;
             if (isLocalUpdate.current) return;
             if (incoming.updatedAt && incoming.updatedAt < serverVersion.current) return;
@@ -126,14 +128,14 @@ export function useAppData(firebaseUser) {
   }, [firebaseUser, data]);
 
   // ── Per-key setters (stable references via useCallback) ───
-  const setItems      = useCallback((v) => setData((d) => ({ ...d, items:       typeof v === "function" ? v(d.items)       : v })), []);
-  const setTasks      = useCallback((v) => setData((d) => ({ ...d, tasks:       typeof v === "function" ? v(d.tasks)       : v })), []);
-  const setWeightLogs = useCallback((v) => setData((d) => ({ ...d, weightLogs:  typeof v === "function" ? v(d.weightLogs)  : v })), []);
-  const setWeightGoal = useCallback((v) => setData((d) => ({ ...d, weightGoal:  typeof v === "function" ? v(d.weightGoal)  : v })), []);
-  const setLogs       = useCallback((v) => setData((d) => ({ ...d, logs:        typeof v === "function" ? v(d.logs)        : v })), []);
-  const setGoal       = useCallback((v) => setData((d) => ({ ...d, goal:        typeof v === "function" ? v(d.goal)        : v })), []);
-  const setFinanceData= useCallback((v) => setData((d) => ({ ...d, financeData: typeof v === "function" ? v(d.financeData) : v })), []);
-  const setChatHistory= useCallback((v) => setData((d) => ({ ...d, chatHistory: typeof v === "function" ? v(d.chatHistory) : v })), []);
+  const setItems       = useCallback((v) => setData((d) => ({ ...d, items:       typeof v === "function" ? v(d.items)       : v })), []);
+  const setTasks       = useCallback((v) => setData((d) => ({ ...d, tasks:       typeof v === "function" ? v(d.tasks)       : v })), []);
+  const setWeightLogs  = useCallback((v) => setData((d) => ({ ...d, weightLogs:  typeof v === "function" ? v(d.weightLogs)  : v })), []);
+  const setWeightGoal  = useCallback((v) => setData((d) => ({ ...d, weightGoal:  typeof v === "function" ? v(d.weightGoal)  : v })), []);
+  const setLogs        = useCallback((v) => setData((d) => ({ ...d, logs:        typeof v === "function" ? v(d.logs)        : v })), []);
+  const setGoal        = useCallback((v) => setData((d) => ({ ...d, goal:        typeof v === "function" ? v(d.goal)        : v })), []);
+  const setFinanceData = useCallback((v) => setData((d) => ({ ...d, financeData: typeof v === "function" ? v(d.financeData) : v })), []);
+  const setChatHistory = useCallback((v) => setData((d) => ({ ...d, chatHistory: typeof v === "function" ? v(d.chatHistory) : v })), []);
 
   const addWeight = useCallback((weight) => {
     setWeightLogs((prev) => [...prev, { weight, date: new Date().toISOString() }]);
