@@ -1,92 +1,75 @@
-/**
- * Copyright 2018 Google Inc. All Rights Reserved.
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *     http://www.apache.org/licenses/LICENSE-2.0
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+const CACHE_NAME = "tracker-cache-v2";
+const STATIC_CACHE = [
+  "/",
+  "/index.html",
+  "/manifest.json",
+  "/pwa-192.png",
+  "/pwa-512.png"
+];
 
-// If the loader is already loaded, just stop.
-if (!self.define) {
-  let registry = {};
+/* ================= INSTALL ================= */
+self.addEventListener("install", (event) => {
+  console.log("✅ Service Worker Installing...");
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(STATIC_CACHE);
+    })
+  );
+  self.skipWaiting();
+});
 
-  // Used for `eval` and `importScripts` where we can't get script URL by other means.
-  // In both cases, it's safe to use a global var because those functions are synchronous.
-  let nextDefineUri;
-
-  const singleRequire = (uri, parentUri) => {
-    uri = new URL(uri + ".js", parentUri).href;
-    return registry[uri] || (
-      
-        new Promise(resolve => {
-          if ("document" in self) {
-            const script = document.createElement("script");
-            script.src = uri;
-            script.onload = resolve;
-            document.head.appendChild(script);
-          } else {
-            nextDefineUri = uri;
-            importScripts(uri);
-            resolve();
+/* ================= ACTIVATE ================= */
+self.addEventListener("activate", (event) => {
+  console.log("✅ Service Worker Activated");
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            console.log("🧹 Removing old cache:", key);
+            return caches.delete(key);
           }
         })
-      
-      .then(() => {
-        let promise = registry[uri];
-        if (!promise) {
-          throw new Error(`Module ${uri} didn’t register its module`);
+      )
+    )
+  );
+  self.clients.claim();
+});
+
+/* ================= FETCH ================= */
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+
+  // ✅ Fix 1: Skip non-GET requests (POST, PUT, DELETE etc.)
+  // Cache API only supports GET — this was causing the TypeError
+  if (req.method !== "GET") return;
+
+  // ✅ Fix 2: Skip chrome-extension:// and non-http(s) URLs
+  // These cannot be cached and were causing the Request scheme error
+  if (!req.url.startsWith("http")) return;
+
+  // ✅ Fix 3: Skip cross-origin requests (e.g. Firebase, Google APIs)
+  // Caching these can cause stale cloud / COOP issues
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+
+  // 🔥 Strategy: Network First (for dynamic content)
+  event.respondWith(
+    fetch(req)
+      .then((res) => {
+        // Only cache valid responses
+        if (!res || res.status !== 200 || res.type !== "basic") {
+          return res;
         }
-        return promise;
+        const clone = res.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(req, clone);
+        });
+        return res;
       })
-    );
-  };
-
-  self.define = (depsNames, factory) => {
-    const uri = nextDefineUri || ("document" in self ? document.currentScript.src : "") || location.href;
-    if (registry[uri]) {
-      // Module is already loading or loaded.
-      return;
-    }
-    let exports = {};
-    const require = depUri => singleRequire(depUri, uri);
-    const specialDeps = {
-      module: { uri },
-      exports,
-      require
-    };
-    registry[uri] = Promise.all(depsNames.map(
-      depName => specialDeps[depName] || require(depName)
-    )).then(deps => {
-      factory(...deps);
-      return exports;
-    });
-  };
-}
-define(['./workbox-46f6dd99'], (function (workbox) { 'use strict';
-
-  self.skipWaiting();
-  workbox.clientsClaim();
-
-  /**
-   * The precacheAndRoute() method efficiently caches and responds to
-   * requests for URLs in the manifest.
-   * See https://goo.gl/S9QRab
-   */
-  workbox.precacheAndRoute([{
-    "url": "registerSW.js",
-    "revision": "3ca0b8505b4bec776b69afdba2768812"
-  }, {
-    "url": "index.html",
-    "revision": "0.9gs937mr3rc"
-  }], {});
-  workbox.cleanupOutdatedCaches();
-  workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
-    allowlist: [/^\/$/]
-  }));
-
-}));
+      .catch(() => {
+        // Fallback to cache
+        return caches.match(req);
+      })
+  );
+});
