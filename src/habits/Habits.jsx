@@ -1,4 +1,3 @@
-console.log("🔥🔥🔥 NEW HABITS COMPONENT LOADED");
 /**
  * Habits.jsx — Premium Health & Habits Dashboard
  *

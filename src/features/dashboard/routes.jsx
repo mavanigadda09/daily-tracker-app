@@ -1,21 +1,18 @@
-/**
- * routes.jsx — lazy-loaded routes for code splitting (FIXED)
- */
 import React, { lazy, Suspense } from "react";
 
-// ─── Eager (above the fold — always needed) ───────────────────
+// ─── Eager ────────────────────────────────────────────────────
 import Dashboard from "./Dashboard";
 
-// ─── Lazy (loaded only when user navigates there) ─────────────
-const Productivity = lazy(() => import("../../productivity/Productivity"));
-const Habits       = lazy(() => import("../../habits/Habits"));
-const Analytics    = lazy(() => import("../../pages/Analytics"));
-const Finance      = lazy(() => import("../finance/Finance"));
-const Chat         = lazy(() => import("../../chat/Chat"));
-const Goals        = lazy(() => import("../goals/Goals"));
-const Profile      = lazy(() => import("../../profile/Profile"));
+// ─── Lazy Imports (FINAL CORRECT PATHS) ───────────────────────
+const Productivity = lazy(() => import("../../productivity/Productivity.jsx"));
+const Habits       = lazy(() => import("../../habits/Habits.jsx")); // ✅ FIXED
+const Analytics    = lazy(() => import("../../pages/Analytics.jsx"));
+const Finance      = lazy(() => import("../finance/Finance.jsx"));
+const Chat         = lazy(() => import("../../chat/Chat.jsx"));
+const Goals        = lazy(() => import("../goals/Goals.jsx"));
+const Profile      = lazy(() => import("../../profile/Profile.jsx"));
 
-// ─── Fallback ─────────────────────────────────────────────────
+// ─── Loader ───────────────────────────────────────────────────
 const PageLoader = () => (
   <div style={{
     display: "flex",
@@ -47,10 +44,9 @@ export const PROTECTED_ROUTES = [
     ),
   },
 
-  // ✅ FIXED HABITS ROUTE
   {
-    path: "habits", // 🚨 IMPORTANT: no leading slash
-    element: (appData, user) => wrap(
+    path: "habits",
+    element: (appData) => wrap(
       <Habits
         items={appData.items}
         setItems={appData.setItems}
@@ -69,6 +65,7 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
+
   {
     path: "finance",
     element: (appData) => wrap(
@@ -78,6 +75,7 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
+
   {
     path: "chat",
     element: (appData) => wrap(
@@ -90,10 +88,12 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
+
   {
     path: "goals",
     element: () => wrap(<Goals />),
   },
+
   {
     path: "profile",
     element: (_appData, user) => wrap(<Profile user={user} />),
