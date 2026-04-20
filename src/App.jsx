@@ -1,16 +1,36 @@
+import { useMemo } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
+import { DataProvider }         from "./context/DataContext";
+import { NotificationProvider } from "./context/NotificationContext";
+
+import { useTheme }           from "./hooks/useTheme";
+import { useAuth }            from "./hooks/useAuth";
+import { useAppData }         from "./hooks/useAppData";
+import { useReminderSystems } from "./hooks/useReminderSystems";
+
+import ErrorBoundary  from "./components/ErrorBoundary";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Layout         from "./components/Layout";
+import AppLoader      from "./features/dashboard/AppLoader";
+
+import Login      from "./pages/Login";
+import Onboarding from "./pages/Onboarding";
+
+import mapToDashboardData from "./features/dashboard/dashboardAdapter";
+import { PROTECTED_ROUTES, dashboardElement } from "./features/dashboard/routes";
+
 function AppInner() {
   const [theme, setTheme] = useTheme();
   const { firebaseUser, isResolvingAuth, user, login, logout } = useAuth();
   const appData = useAppData(firebaseUser);
 
-  // ✅ Always call hooks unconditionally
   useReminderSystems({
     items: appData.items,
     tasks: appData.tasks,
     logs:  appData.logs,
   });
 
-  // ✅ Stable dependencies — not the whole appData object
   const dashboardData = useMemo(
     () => mapToDashboardData({
       tasks:      appData.tasks,
@@ -57,7 +77,7 @@ function AppInner() {
     </DataProvider>
   );
 }
-// ─── Root ─────────────────────────────────────────────────────
+
 export default function App() {
   return (
     <NotificationProvider>

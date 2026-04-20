@@ -289,4 +289,4 @@ const styles = {
     cursor: "pointer",
     transition: "opacity var(--transition)",
   },
-}``
+};
