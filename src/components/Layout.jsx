@@ -4,39 +4,38 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, CheckSquare, BarChart3,
   User, Menu, MessageCircle, Wallet, Activity,
-  LogOut, Sun, Moon,
+  LogOut, Sun, Moon, CalendarDays, Target,
 } from "lucide-react";
 
-// ─── Nav config ───────────────────────────────────────────────────────────────
-// Separated from component — easy to reorder or gate behind feature flags
+// ─── Nav config ───────────────────────────────────────────────
 
 const NAV_ITEMS = [
-  { path: "/",            label: "Dashboard",  Icon: LayoutDashboard },
-  { path: "/habits",      label: "Health",     Icon: CheckSquare     },
-  { path: "/productivity",label: "Productivity",Icon: Activity       },
-  { path: "/finance",     label: "Finance",    Icon: Wallet          },
-  { path: "/chat",        label: "AI Chat",    Icon: MessageCircle   },
-  { path: "/analytics",   label: "Analytics",  Icon: BarChart3       },
-  { path: "/profile",     label: "Profile",    Icon: User            },
+  { path: "/",             label: "Dashboard",    Icon: LayoutDashboard },
+  { path: "/habits",       label: "Health",       Icon: CheckSquare     },
+  { path: "/productivity", label: "Productivity", Icon: Activity        },
+  { path: "/goals",        label: "Goals",        Icon: Target          },
+  { path: "/routines",     label: "Routines",     Icon: CalendarDays    },
+  { path: "/finance",      label: "Finance",      Icon: Wallet          },
+  { path: "/chat",         label: "AI Chat",      Icon: MessageCircle   },
+  { path: "/analytics",    label: "Analytics",    Icon: BarChart3       },
+  { path: "/profile",      label: "Profile",      Icon: User            },
 ];
 
-// Precise active check — avoids false matches like /habits matching /habits-v2
 const isActive = (itemPath, pathname) => {
   if (itemPath === "/") return pathname === "/";
   return pathname === itemPath || pathname.startsWith(itemPath + "/");
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────
 
 export default function Layout({
   user = {},
   onLogout,
   theme = "dark",
-  onThemeToggle,      // Renamed from setTheme — caller owns the cycle logic
+  onThemeToggle,
 }) {
   const location = useLocation();
 
-  // Persist collapse state across refreshes
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem("sidebar_collapsed") === "true"; }
     catch { return false; }
@@ -47,7 +46,6 @@ export default function Layout({
     catch {}
   }, [collapsed]);
 
-  // Mobile: hide sidebar, show bottom nav instead
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
   useEffect(() => {
@@ -56,10 +54,9 @@ export default function Layout({
     return () => window.removeEventListener("resize", handler);
   }, []);
 
-  // Avatar: real photo > initial > fallback icon
-  const avatarUrl = user?.photoURL || null;
+  const avatarUrl   = user?.photoURL || null;
   const displayName = user?.displayName || user?.name || "User";
-  const initial = displayName.charAt(0).toUpperCase();
+  const initial     = displayName.charAt(0).toUpperCase();
 
   return (
     <div style={s.container}>
@@ -71,7 +68,6 @@ export default function Layout({
           transition={{ duration: 0.2, ease: "easeInOut" }}
           style={s.sidebar}
           aria-label="Main navigation"
-          // overflow hidden prevents label text squashing during animation
           overflow="hidden"
         >
           {/* TOP */}
@@ -104,9 +100,7 @@ export default function Layout({
                   onClick={() => onThemeToggle?.()}
                   aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
                 >
-                  {theme === "dark"
-                    ? <Sun size={15} />
-                    : <Moon size={15} />}
+                  {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
                 </motion.button>
 
                 <motion.button
@@ -204,7 +198,6 @@ export default function Layout({
 
       {/* ── MAIN CONTENT ── */}
       <div style={s.contentWrapper}>
-        {/* Route transition keyed to pathname — not Layout renders */}
         <AnimatePresence mode="wait">
           <motion.main
             key={location.pathname}
@@ -249,8 +242,7 @@ export default function Layout({
   );
 }
 
-// ─── Avatar sub-component ─────────────────────────────────────────────────────
-// Shows photoURL if available, falls back to initial letter
+// ─── Avatar ───────────────────────────────────────────────────
 
 function Avatar({ url, initial, size = 32 }) {
   const [imgFailed, setImgFailed] = useState(false);
@@ -276,7 +268,7 @@ function Avatar({ url, initial, size = 32 }) {
           height={size}
           style={{ borderRadius: "50%", objectFit: "cover" }}
           onError={() => setImgFailed(true)}
-          referrerPolicy="no-referrer"  // Required for Google avatar URLs
+          referrerPolicy="no-referrer"
         />
       </div>
     );
@@ -295,7 +287,7 @@ function Avatar({ url, initial, size = 32 }) {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────
 
 const s = {
   container: {
@@ -312,7 +304,7 @@ const s = {
     justifyContent: "space-between",
     borderRight: "1px solid var(--color-border-tertiary)",
     background: "var(--color-background-secondary)",
-    overflow: "hidden",   // Clips label text during collapse animation
+    overflow: "hidden",
     flexShrink: 0,
   },
 
@@ -445,7 +437,7 @@ const s = {
 
   contentWrapper: {
     flex: 1,
-    minWidth: 0,   // Prevents flex children from overflowing
+    minWidth: 0,
     display: "flex",
     flexDirection: "column",
   },
@@ -455,8 +447,6 @@ const s = {
     padding: 24,
     overflowY: "auto",
   },
-
-  // ── Mobile bottom nav ──────────────────────────────────────────────────────
 
   bottomNav: {
     position: "fixed",
@@ -468,7 +458,6 @@ const s = {
     background: "var(--color-background-secondary)",
     borderTop: "1px solid var(--color-border-tertiary)",
     zIndex: 100,
-    // Safe area inset for notched phones
     paddingBottom: "env(safe-area-inset-bottom)",
   },
 

@@ -7,6 +7,7 @@ const Analytics    = lazy(() => import("../../pages/Analytics.jsx"));
 const Finance      = lazy(() => import("../finance/Finance.jsx"));
 const Chat         = lazy(() => import("../../chat/Chat.jsx"));
 const Goals        = lazy(() => import("../goals/Goals.jsx"));
+const Routines     = lazy(() => import("../../routines/Routines.jsx"));
 const Profile      = lazy(() => import("../../profile/Profile.jsx"));
 
 const PageLoader = () => (
@@ -38,7 +39,6 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
-
   {
     path: "habits",
     element: (appData) => wrap(
@@ -53,7 +53,6 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
-
   {
     path: "analytics",
     element: (appData, user) => wrap(
@@ -64,7 +63,6 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
-
   {
     path: "finance",
     element: (appData) => wrap(
@@ -74,7 +72,6 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
-
   {
     path: "chat",
     element: (appData) => wrap(
@@ -87,12 +84,26 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
-
   {
     path: "goals",
-    element: () => wrap(<Goals />),
+    element: (appData) => wrap(
+      <Goals
+        weightLogs={appData.weightLogs}
+        setWeightLogs={appData.setWeightLogs}
+        weightGoal={appData.weightGoal}
+        setWeightGoal={appData.setWeightGoal}
+      />
+    ),
   },
-
+  {
+    path: "routines",
+    element: (appData) => wrap(
+      <Routines
+        items={appData.items}
+        setItems={appData.setItems}
+      />
+    ),
+  },
   {
     path: "profile",
     element: () => wrap(<Profile />),
