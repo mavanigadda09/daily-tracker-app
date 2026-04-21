@@ -7,11 +7,17 @@ import {
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
+// ─── Detect Capacitor (native Android/iOS) ────────────────────
+const isNative = typeof window !== "undefined" &&
+  window.Capacitor?.isNativePlatform?.();
+
 // ─── Config ───────────────────────────────────────────────────
-// Values come from .env — never hardcode secrets in source.
-// All VITE_ prefixed vars are injected at build time by Vite.
+// On native (Android/iOS), use the key from google-services.json.
+// On web, use the key from .env (injected by Vite at build time).
 const firebaseConfig = {
-  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
+  apiKey: isNative
+    ? "AIzaSyBLmJ9tphCkpp_0oJhwBftWPMZ4YMi1bo4"
+    : import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,

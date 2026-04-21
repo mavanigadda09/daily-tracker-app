@@ -16,14 +16,16 @@ export default defineConfig(({ mode }) => {
 
   const missing = REQUIRED_ENV_VARS.filter((key) => !env[key]);
   if (missing.length > 0) {
-    throw new Error(
-      "\n[Phoenix Tracker] Missing required environment variables:\n" +
+    console.warn(
+      "\n[Phoenix Tracker] Warning: Missing environment variables:\n" +
       missing.map((k) => "  x " + k).join("\n") +
-      "\n\nCopy .env.example to .env and fill in your Firebase credentials.\n"
+      "\n"
     );
   }
 
   return {
+    base: "./",
+
     plugins: [react({ fastRefresh: true })],
 
     resolve: {

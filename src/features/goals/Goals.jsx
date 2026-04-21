@@ -1,398 +1,286 @@
-import { useMemo, useCallback } from "react";
-import { useGoalForm } from "../../hooks/useGoalForm";
-import { GoalProgressRing } from "./GoalProgressRing";
+import { useRoutines } from "../../hooks/useRoutines";
 
-// ─── Utilities ────────────────────────────────────────────────────────────────
+export default function Routines() {
+  const {
+    week, todayKey, routineStats,
+    newRoutine, setNewRoutine,
+    toggle, addRoutine, deleteRoutine,
+  } = useRoutines();
 
-const fmt = (n) => (typeof n === "number" && !isNaN(n) ? `${n} kg` : "--");
-
-const fmtDate = (ts) =>
-  new Date(ts).toLocaleDateString("en-IN", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
-
-/**
- * Core progress calculation.
- * Handles both loss (start > target) and gain (target > start) goals.
- * Returns safe defaults — never NaN or Infinity.
- */
-function calcProgress(goal, logs) {
-  const start = Number(goal.startWeight);
-  const target = Number(goal.targetWeight);
-
-  if (!start || !target || start === target) {
-    return { currentWeight: null, percent: 0, daysLeft: null, isGain: false, isOverdue: false };
-  }
-
-  const currentWeight = logs.length > 0
-    ? logs[logs.length - 1].weight  // logs sorted ascending — last = latest
-    : start;
-
-  const isGain = target > start;
-  const totalDelta = Math.abs(target - start);
-  const currentDelta = isGain
-    ? currentWeight - start      // gaining: higher is more progress
-    : start - currentWeight;     // losing: lower is more progress
-
-  const percent = Math.min(Math.max(Math.round((currentDelta / totalDelta) * 100), 0), 100);
-
-  let daysLeft = null;
-  let isOverdue = false;
-
-  if (goal.endDate) {
-    const msLeft = new Date(goal.endDate).getTime() - Date.now();
-    const days = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
-    isOverdue = days < 0;
-    daysLeft = Math.abs(days);
-  }
-
-  return { currentWeight, percent, daysLeft, isGain, isOverdue };
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
-
-export default function Goals({
-  weightLogs = [],
-  setWeightLogs,
-  weightGoal,
-  setWeightGoal,
-}) {
-  const { draft, setField, save, reset, isDirty, errors } = useGoalForm(
-    weightGoal,
-    setWeightGoal
-  );
-
-  // ── Log management ─────────────────────────────────────────────────────────
-
-  // Local input state — stays local, not synced to Firebase until Add
-  const [weightInput, setWeightInput] = useSafeState("");
-
-  const addLog = useCallback(() => {
-    const num = Number(weightInput);
-    if (!num || num <= 0 || num > 500) return; // 500kg upper bound sanity check
-
-    setWeightLogs((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), date: Date.now(), weight: num },
-    ]);
-    setWeightInput("");
-  }, [weightInput, setWeightLogs]);
-
-  const deleteLog = useCallback((id) => {
-    setWeightLogs((prev) => prev.filter((l) => l.id !== id));
-  }, [setWeightLogs]);
-
-  // ── Derived data ───────────────────────────────────────────────────────────
-
-  // Ascending for calculations (latest = last element)
-  const logsAsc = useMemo(
-    () => [...weightLogs].sort((a, b) => a.date - b.date),
-    [weightLogs]
-  );
-
-  // Descending for display (today at top)
-  const logsDesc = useMemo(
-    () => [...logsAsc].reverse(),
-    [logsAsc]
-  );
-
-  const { currentWeight, percent, daysLeft, isGain, isOverdue } = useMemo(
-    () => calcProgress(weightGoal || {}, logsAsc),
-    [weightGoal, logsAsc]
-  );
-
-  const goalIsSet = !!(weightGoal?.startWeight && weightGoal?.targetWeight);
-
-  // ─── Render ─────────────────────────────────────────────────────────────────
+  const handleKeyDown = (e) => { if (e.key === "Enter") addRoutine(); };
 
   return (
     <div style={s.container}>
-      <h2 style={s.title}>Goal Tracker</h2>
-
-      {/* GOAL FORM */}
-      <div style={s.card}>
-        <h3 style={s.cardTitle}>Set goal</h3>
-
-        <div style={s.formGrid}>
-          <LabeledInput
-            label="Start weight (kg)"
-            type="number"
-            value={draft.startWeight}
-            onChange={(v) => setField("startWeight", v)}
-            error={errors.startWeight}
-            min="0"
-          />
-          <LabeledInput
-            label="Target weight (kg)"
-            type="number"
-            value={draft.targetWeight}
-            onChange={(v) => setField("targetWeight", v)}
-            error={errors.targetWeight}
-            min="0"
-          />
-          <LabeledInput
-            label="Start date"
-            type="date"
-            value={draft.startDate}
-            onChange={(v) => setField("startDate", v)}
-          />
-          <LabeledInput
-            label="End date"
-            type="date"
-            value={draft.endDate}
-            onChange={(v) => setField("endDate", v)}
-            error={errors.endDate}
-          />
-        </div>
-
-        {/* Save/Cancel — explicit commit, not live-syncing */}
-        {isDirty && (
-          <div style={s.formActions}>
-            <button style={s.saveBtn} onClick={save}>Save goal</button>
-            <button style={s.cancelBtn} onClick={reset}>Cancel</button>
-          </div>
-        )}
+      <div style={s.pageHeader}>
+        <h1 style={s.title}>Weekly Routines</h1>
+        <p style={s.subtitle}>
+          {routineStats.length} routine{routineStats.length !== 1 ? "s" : ""} tracked
+        </p>
       </div>
 
-      {/* PROGRESS — only render when goal is configured */}
-      {goalIsSet && (
-        <div style={s.grid}>
-          <div style={s.card}>
-            <h3 style={s.cardTitle}>Progress</h3>
-            <GoalProgressRing percent={percent} isGain={isGain} />
-            <p style={s.subtext}>{fmt(currentWeight)} current</p>
-            <p style={s.subtext}>
-              Target: {fmt(Number(weightGoal.targetWeight))}
-            </p>
-          </div>
+      {/* ADD */}
+      <div style={s.addBox}>
+        <input
+          value={newRoutine}
+          onChange={(e) => setNewRoutine(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Add new routine…"
+          style={s.input}
+        />
+        <button onClick={addRoutine} style={s.addBtn}>Add routine</button>
+      </div>
 
-          <div style={s.card}>
-            <h3 style={s.cardTitle}>
-              {isOverdue ? "Overdue by" : "Days left"}
-            </h3>
-            <div style={{
-              ...s.bigNumber,
-              color: isOverdue
-                ? "var(--color-text-danger)"
-                : "var(--color-text-success)",
-            }}>
-              {daysLeft !== null ? daysLeft : "--"}
-            </div>
-            {isOverdue && (
-              <p style={{ ...s.subtext, color: "var(--color-text-danger)" }}>
-                days past end date
-              </p>
-            )}
-          </div>
+      {/* EMPTY STATE */}
+      {routineStats.length === 0 && (
+        <div style={s.emptyState}>
+          <span style={s.emptyIcon}>📅</span>
+          <p style={s.emptyTitle}>No routines yet</p>
+          <p style={s.emptySubtitle}>Add a routine above and track it across the week</p>
         </div>
       )}
 
-      {/* ADD LOG */}
-      <div style={s.card}>
-        <h3 style={s.cardTitle}>Log today's weight</h3>
-        <div style={s.row}>
-          <input
-            style={s.input}
-            type="number"
-            placeholder="Weight in kg"
-            value={weightInput}
-            onChange={(e) => setWeightInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addLog()}
-            min="0"
-            max="500"
-          />
-          <button style={s.addBtn} onClick={addLog}>
-            Add
-          </button>
+      {/* TABLE */}
+      {routineStats.length > 0 && (
+        <div style={{ overflowX: "auto", width: "100%" }}>
+          <table style={s.table}>
+            <thead>
+              <tr>
+                <th style={s.th}>#</th>
+                <th style={{ ...s.th, textAlign: "left" }}>Routine</th>
+                {week.map((d) => (
+                  <th key={d.key} style={{
+                    ...s.th,
+                    color: d.key === todayKey
+                      ? "var(--color-text-info)"
+                      : "var(--color-text-tertiary)",
+                  }}>
+                    {d.label}
+                    <br />
+                    <small style={{ fontWeight: 400, opacity: 0.6 }}>{d.date}</small>
+                  </th>
+                ))}
+                <th style={s.th}>%</th>
+                <th style={s.th}>Progress</th>
+                <th style={s.th} />
+              </tr>
+            </thead>
+            <tbody>
+              {routineStats.map((r, i) => (
+                <tr key={r.id} style={s.row}>
+                  <td style={s.td}>{i + 1}</td>
+                  <td style={{ ...s.td, ...s.name }}>{r.name}</td>
+
+                  {week.map((d) => {
+                    const checked = !!r.completed?.[d.key];
+                    const isToday = d.key === todayKey;
+                    return (
+                      <td key={d.key} style={s.td}>
+                        <button
+                          onClick={() => toggle(r.id, d.key)}
+                          title={`${r.name} — ${d.label} ${d.date}`}
+                          style={{
+                            ...s.cell,
+                            background: checked
+                              ? "var(--color-text-info)"
+                              : "var(--color-background-tertiary)",
+                            color: checked
+                              ? "var(--color-background-primary)"
+                              : "var(--color-text-tertiary)",
+                            outline: isToday
+                              ? "2px solid var(--color-border-info)"
+                              : "none",
+                            outlineOffset: 2,
+                          }}
+                        >
+                          {checked ? "✔" : ""}
+                        </button>
+                      </td>
+                    );
+                  })}
+
+                  <td style={{ ...s.td, fontWeight: 600, color: "var(--color-text-primary)" }}>
+                    {r.percent}%
+                  </td>
+
+                  <td style={s.td}>
+                    <div style={s.progressBar}>
+                      <div style={{
+                        ...s.progressFill,
+                        width: `${r.percent}%`,
+                        background: r.percent === 100
+                          ? "var(--color-text-success)"
+                          : "var(--color-text-info)",
+                      }} />
+                    </div>
+                  </td>
+
+                  <td style={s.td}>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Delete "${r.name}"?`)) deleteRoutine(r.id);
+                      }}
+                      style={s.deleteBtn}
+                      title="Delete routine"
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </div>
-
-      {/* HISTORY */}
-      <div style={s.card}>
-        <h3 style={s.cardTitle}>History</h3>
-
-        {logsDesc.length === 0 ? (
-          <p style={s.subtext}>No weight logs yet</p>
-        ) : (
-          logsDesc.map((l) => (
-            <div key={l.id} style={s.historyRow}>
-              <span style={s.dateText}>{fmtDate(l.date)}</span>
-              <span style={s.weightText}>{l.weight} kg</span>
-              <button
-                style={s.deleteBtn}
-                onClick={() => deleteLog(l.id)}
-                aria-label={`Delete log for ${fmtDate(l.date)}`}
-              >
-                ✕
-              </button>
-            </div>
-          ))
-        )}
-      </div>
+      )}
     </div>
   );
 }
 
-// ─── Sub-components ────────────────────────────────────────────────────────────
-
-function LabeledInput({ label, type = "text", value, onChange, error, ...rest }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <label style={s.label}>{label}</label>
-      <input
-        style={{
-          ...s.input,
-          borderColor: error ? "var(--color-border-danger)" : undefined,
-        }}
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        {...rest}
-      />
-      {error && <span style={s.errorText}>{error}</span>}
-    </div>
-  );
-}
-
-// Minimal safe useState wrapper — avoids the useState import being forgotten
-function useSafeState(initial) {
-  const { useState } = require("react");
-  return useState(initial);
-}
-
-// ─── Styles ────────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────
 
 const s = {
   container: {
-    padding: 24,
+    padding: "20px 20px 40px",
+    maxWidth: 900,
+    margin: "0 auto",
+    display: "flex",
+    flexDirection: "column",
+    gap: 20,
     color: "var(--color-text-primary)",
   },
+  pageHeader: { display: "flex", flexDirection: "column", gap: 4 },
   title: {
-    fontSize: 22,
-    fontWeight: 600,
-    marginBottom: 16,
+    fontSize: 24,
+    fontWeight: 700,
+    margin: 0,
+    letterSpacing: "-0.3px",
   },
-  card: {
+  subtitle: {
+    fontSize: 13,
+    color: "var(--color-text-tertiary)",
+    margin: 0,
+  },
+  addBox: {
+    display: "flex",
+    gap: 10,
     background: "var(--color-background-secondary)",
     border: "1px solid var(--color-border-tertiary)",
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: 600,
-    margin: 0,
-  },
-  formGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 12,
-  },
-  label: {
-    fontSize: 12,
-    color: "var(--color-text-secondary)",
-    fontWeight: 500,
+    padding: 12,
   },
   input: {
-    padding: "8px 10px",
-    borderRadius: 6,
+    flex: 1,
+    padding: "9px 12px",
+    borderRadius: 8,
     border: "1px solid var(--color-border-secondary)",
     background: "var(--color-background-primary)",
     color: "var(--color-text-primary)",
     fontSize: 14,
-    width: "100%",
-    boxSizing: "border-box",
-  },
-  errorText: {
-    fontSize: 11,
-    color: "var(--color-text-danger)",
-  },
-  formActions: {
-    display: "flex",
-    gap: 8,
-    paddingTop: 4,
-  },
-  saveBtn: {
-    background: "var(--color-background-success)",
-    color: "var(--color-text-success)",
-    border: "none",
-    padding: "8px 16px",
-    borderRadius: 6,
-    cursor: "pointer",
-    fontWeight: 600,
-    fontSize: 13,
-  },
-  cancelBtn: {
-    background: "transparent",
-    color: "var(--color-text-secondary)",
-    border: "1px solid var(--color-border-secondary)",
-    padding: "8px 16px",
-    borderRadius: 6,
-    cursor: "pointer",
-    fontSize: 13,
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 16,
-    marginBottom: 16,
-  },
-  subtext: {
-    fontSize: 13,
-    color: "var(--color-text-secondary)",
-    textAlign: "center",
-    margin: 0,
-  },
-  bigNumber: {
-    fontSize: 42,
-    fontWeight: 700,
-    textAlign: "center",
-    lineHeight: 1,
-    padding: "16px 0",
-  },
-  row: {
-    display: "flex",
-    gap: 10,
+    outline: "none",
   },
   addBtn: {
+    padding: "9px 18px",
+    borderRadius: 8,
+    border: "none",
     background: "var(--color-background-success)",
     color: "var(--color-text-success)",
-    border: "none",
-    padding: "8px 16px",
-    borderRadius: 6,
-    cursor: "pointer",
     fontWeight: 600,
     fontSize: 14,
+    cursor: "pointer",
     whiteSpace: "nowrap",
   },
-  historyRow: {
+  emptyState: {
     display: "flex",
-    justifyContent: "space-between",
+    flexDirection: "column",
     alignItems: "center",
-    padding: "6px 0",
-    borderBottom: "1px solid var(--color-border-tertiary)",
+    gap: 8,
+    padding: "48px 20px",
+    background: "var(--color-background-secondary)",
+    border: "1px dashed var(--color-border-secondary)",
+    borderRadius: 16,
+    textAlign: "center",
   },
-  dateText: {
-    fontSize: 13,
+  emptyIcon: { fontSize: 32, opacity: 0.5 },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: 600,
+    margin: 0,
     color: "var(--color-text-secondary)",
-    flex: 1,
   },
-  weightText: {
+  emptySubtitle: {
+    fontSize: 13,
+    margin: 0,
+    color: "var(--color-text-tertiary)",
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
     fontSize: 14,
+    background: "var(--color-background-secondary)",
+    borderRadius: 16,
+    overflow: "hidden",
+    border: "1px solid var(--color-border-tertiary)",
+  },
+  th: {
+    padding: "10px 12px",
+    textAlign: "center",
+    color: "var(--color-text-tertiary)",
+    fontWeight: 600,
+    fontSize: 12,
+    borderBottom: "1px solid var(--color-border-tertiary)",
+    whiteSpace: "nowrap",
+    background: "var(--color-background-secondary)",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
+  },
+  td: {
+    padding: "10px 12px",
+    textAlign: "center",
+    borderBottom: "1px solid var(--color-border-tertiary)",
+    color: "var(--color-text-primary)",
+    verticalAlign: "middle",
+  },
+  row: {
+    transition: "background 0.15s",
+  },
+  name: {
+    textAlign: "left",
     fontWeight: 500,
-    marginRight: 12,
+    whiteSpace: "nowrap",
+    color: "var(--color-text-primary)",
+  },
+  cell: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    border: "none",
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: "bold",
+    transition: "background 0.2s, transform 0.1s",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  progressBar: {
+    width: 80,
+    height: 6,
+    background: "var(--color-background-tertiary)",
+    borderRadius: 10,
+    overflow: "hidden",
+    margin: "0 auto",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 10,
+    transition: "width 0.3s ease",
   },
   deleteBtn: {
-    background: "none",
+    background: "transparent",
     border: "none",
     color: "var(--color-text-tertiary)",
     cursor: "pointer",
-    fontSize: 13,
-    padding: "2px 6px",
+    fontSize: 14,
+    padding: 4,
     borderRadius: 4,
   },
 };
