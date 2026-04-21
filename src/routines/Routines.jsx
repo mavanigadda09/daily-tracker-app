@@ -1,5 +1,5 @@
 // src/features/routines/Routines.jsx
-import { useRoutines } from "../../hooks/useRoutines";
+import { useRoutines } from "../hooks/useRoutines";
 
 export default function Routines() {
   const {
