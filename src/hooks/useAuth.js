@@ -10,6 +10,8 @@
  *     atomically so Profile saves actually persist across sessions.
  *   • firebaseUser listener now bootstraps the Firestore user doc
  *     on first login if it doesn't exist yet.
+ *   • [FIX] deriveName() resolves name from email if displayName absent.
+ *   • [FIX] existing docs with name: "" are patched on login silently.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -28,6 +30,23 @@ function getCachedUser() {
 function cacheUser(userData) {
   try { localStorage.setItem(USER_CACHE_KEY, JSON.stringify(userData)); }
   catch { /* storage full — non-fatal */ }
+}
+
+/**
+ * [NEW] Best-effort name derivation.
+ * Priority: Firebase displayName → email local-part → empty string.
+ * email/password users never have displayName set, so we fall back
+ * to the part before the @ which is always available and readable.
+ *
+ * Examples:
+ *   displayName="Arjun" email="..."         → "Arjun"
+ *   displayName=""      email="arjun@..."   → "arjun"
+ *   displayName=null    email=null          → ""
+ */
+function deriveName(fbUser) {
+  if (fbUser.displayName?.trim()) return fbUser.displayName.trim();
+  if (fbUser.email) return fbUser.email.split("@")[0];
+  return "";
 }
 
 export function useAuth() {
@@ -50,16 +69,26 @@ export function useAuth() {
           const snap = await getDoc(ref);
 
           if (snap.exists()) {
-            // Merge Firestore data with firebase auth fields
-            const firestoreProfile = { uid: fbUser.uid, email: fbUser.email, ...snap.data() };
+            const data = snap.data();
+
+            // [FIX] Silently patch existing docs where name was saved as "".
+            // This runs once for affected users, then never again because
+            // name will be non-empty on the next read.
+            if (!data.name?.trim()) {
+              const patchedName = deriveName(fbUser);
+              await updateDoc(ref, { name: patchedName, updatedAt: serverTimestamp() });
+              data.name = patchedName; // mutate local copy so state is consistent
+            }
+
+            const firestoreProfile = { uid: fbUser.uid, email: fbUser.email, ...data };
             setUser(firestoreProfile);
             cacheUser(firestoreProfile);
           } else {
-            // First login — create the user doc
+            // [FIX] First login — use deriveName() instead of displayName || ""
             const newProfile = {
               uid:       fbUser.uid,
               email:     fbUser.email,
-              name:      fbUser.displayName || "",
+              name:      deriveName(fbUser),   // ← was: fbUser.displayName || ""
               goal:      "",
               focus:     "productivity",
               createdAt: serverTimestamp(),
@@ -70,7 +99,6 @@ export function useAuth() {
           }
         } catch (err) {
           console.error("[useAuth] Firestore user fetch failed:", err);
-          // Fall back to cache — app remains usable offline
           const cached = getCachedUser();
           if (cached) setUser(cached);
         }
@@ -84,14 +112,8 @@ export function useAuth() {
     return () => unsub();
   }, []);
 
-  // ── login: called from Login.jsx after signInWithEmailAndPassword ──
-  // Firebase auth listener above handles the actual profile load.
-  // This is kept for API compatibility — callers pass userData
-  // but we ignore it now; the listener is the source of truth.
-  const login = useCallback((_userData) => {
-    // No-op: onAuthStateChanged fires immediately after sign-in
-    // and bootstraps the profile from Firestore.
-  }, []);
+  // ── login: no-op — onAuthStateChanged is the source of truth ──
+  const login = useCallback((_userData) => {}, []);
 
   // ── updateUser: patch Firestore + local state atomically ───
   const updateUser = useCallback(async (patch) => {
@@ -100,7 +122,6 @@ export function useAuth() {
     const ref = doc(db, "users", auth.currentUser.uid);
     const sanitized = { ...patch, updatedAt: serverTimestamp() };
 
-    // Optimistic local update first so UI feels instant
     setUser((prev) => {
       const next = { ...prev, ...patch };
       cacheUser(next);
@@ -110,16 +131,15 @@ export function useAuth() {
     try {
       await updateDoc(ref, sanitized);
     } catch (err) {
-      // Roll back local state if Firestore write fails
       console.error("[useAuth] updateUser failed:", err);
-      const ref2   = doc(db, "users", auth.currentUser.uid);
-      const snap   = await getDoc(ref2);
+      const ref2 = doc(db, "users", auth.currentUser.uid);
+      const snap = await getDoc(ref2);
       if (snap.exists()) {
         const rolled = { uid: auth.currentUser.uid, email: auth.currentUser.email, ...snap.data() };
         setUser(rolled);
         cacheUser(rolled);
       }
-      throw err; // re-throw so useProfileEditor can show saveError
+      throw err;
     }
   }, []);
 
@@ -140,7 +160,7 @@ export function useAuth() {
   return {
     firebaseUser,
     isResolvingAuth,
-    loadingAuth: isResolvingAuth, // alias — keeps existing consumers working
+    loadingAuth: isResolvingAuth,
     user,
     setUser,
     login,

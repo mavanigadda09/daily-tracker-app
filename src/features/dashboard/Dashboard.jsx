@@ -2,16 +2,12 @@
  * Dashboard.jsx — UI Layer
  * ─────────────────────────────────────────────────────────────
  * Purely presentational. All logic lives in useDashboardIntelligence.
- *
- * Design language: dark brutalist-precision — sharp data, ink-like
- * typography, surgical accent colours, zero decoration for its own sake.
  */
 
 import React, { useEffect, useRef } from "react";
 import { useNotification } from "../../context/NotificationContext";
-import { useDashboardIntelligence } from "../../hooks/useDashboardIntelligence";
+import { useDashboardIntelligence } from "./useDashboardIntelligence";
 
-// ─── Severity → accent mapping ───────────────────────────────
 const SEVERITY_COLOR = {
   critical : "var(--accent-red,   #ef4444)",
   warning  : "var(--accent-orange,#f97316)",
@@ -31,9 +27,6 @@ const CATEGORY_ICON = {
   log     : "◫",
 };
 
-// ─── Sub-components ───────────────────────────────────────────
-
-/** Radial progress ring */
 function ProgressRing({ percent, size = 120, stroke = 8, color = "var(--accent)" }) {
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
@@ -53,7 +46,6 @@ function ProgressRing({ percent, size = 120, stroke = 8, color = "var(--accent)"
   );
 }
 
-/** Sparkline for weight trend */
 function Sparkline({ points }) {
   if (!points) return (
     <p style={s.hint}>Log weight twice to see trend</p>
@@ -70,7 +62,6 @@ function Sparkline({ points }) {
       </defs>
       <polyline fill="none" stroke="url(#spk)" strokeWidth="2.5"
         strokeLinecap="round" strokeLinejoin="round" points={ptStr} />
-      {/* terminal dot */}
       {points.at(-1) && (
         <circle cx={points.at(-1).x} cy={points.at(-1).y} r="4"
           fill="var(--accent-orange,#f97316)" />
@@ -79,7 +70,6 @@ function Sparkline({ points }) {
   );
 }
 
-/** Single issue badge */
 function IssueBadge({ issue }) {
   const color = SEVERITY_COLOR[issue.severity];
   return (
@@ -93,7 +83,6 @@ function IssueBadge({ issue }) {
   );
 }
 
-/** Daily focus card */
 function FocusCard({ focus }) {
   const icon = CATEGORY_ICON[focus.category] ?? "◆";
   const isHigh = focus.priority === "high";
@@ -110,15 +99,12 @@ function FocusCard({ focus }) {
   );
 }
 
-/** Enriched metric card */
 function MetricCard({ metric }) {
   const color = STATUS_COLOR[metric.status] ?? "var(--text)";
 
   return (
     <div style={s.metricCard} className="glass-panel">
       <p style={s.metricLabel}>{metric.label}</p>
-
-      {/* Value row */}
       <div style={s.metricValueRow}>
         {metric.progress !== undefined
           ? (
@@ -139,8 +125,6 @@ function MetricCard({ metric }) {
           )
         }
       </div>
-
-      {/* Action hint */}
       {metric.actionHint && (
         <p style={s.metricHint}>{metric.actionHint}</p>
       )}
@@ -148,7 +132,6 @@ function MetricCard({ metric }) {
   );
 }
 
-// ─── Dashboard ────────────────────────────────────────────────
 export default function Dashboard({ user, tasks = [], items = [], weightLogs = [] }) {
   const { showNotification } = useNotification();
   const welcomeShown = useRef(false);
@@ -159,18 +142,20 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
     weightLogs,
   });
 
-  // Weight metric for sparkline (find by key)
   const weightMetric = metrics.find((m) => m.key === "weight");
-  const stepsMetric  = metrics.find((m) => m.key === "steps");
+
+  // Derive the first name with the same trim guard used everywhere else
+  const firstName = user?.name?.trim()?.split(" ")[0]
+    || user?.displayName?.trim()?.split(" ")[0]
+    || null;
 
   useEffect(() => {
-    if (user?.name && !welcomeShown.current) {
-      showNotification(`Welcome back, ${user.name} 🔥`, "success");
+    if (firstName && !welcomeShown.current) {
+      showNotification(`Welcome back, ${firstName} 🔥`, "success");
       welcomeShown.current = true;
     }
-  }, [user, showNotification]);
+  }, [firstName, showNotification]);
 
-  // Surface critical issues as notifications once per session
   const notifiedIssues = useRef(new Set());
   useEffect(() => {
     issues
@@ -186,18 +171,16 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
       <div className="phoenix-watermark" />
 
       <div style={s.inner}>
-        {/* ── Header ── */}
         <header style={s.header}>
           <h1 style={s.greeting}>
             Rise,{" "}
             <span className="text-phoenix-gradient">
-              {user?.name?.split(" ")[0] ?? "User"}
+              {firstName ?? "Phoenix"}
             </span>
           </h1>
           <p style={s.subtitle}>Your daily vitals, prioritised.</p>
         </header>
 
-        {/* ── Issues strip (only when present) ── */}
         {issues.length > 0 && (
           <section style={s.issueStrip} aria-label="Active issues">
             {issues.map((issue) => (
@@ -206,13 +189,11 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
           </section>
         )}
 
-        {/* ── Daily Focus ── */}
         <section style={s.section}>
           <SectionLabel>Daily Focus</SectionLabel>
           <FocusCard focus={focus} />
         </section>
 
-        {/* ── Metrics grid ── */}
         <section style={s.section}>
           <SectionLabel>Vitals</SectionLabel>
           <div style={s.metricsGrid} className="bento-grid-mobile">
@@ -222,7 +203,6 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
           </div>
         </section>
 
-        {/* ── Weight trend (expanded card) ── */}
         <section style={s.section}>
           <SectionLabel>Weight Trend</SectionLabel>
           <div style={s.trendCard} className="glass-panel">
@@ -246,21 +226,16 @@ export default function Dashboard({ user, tasks = [], items = [], weightLogs = [
   );
 }
 
-// ─── Micro-helper ─────────────────────────────────────────────
 function SectionLabel({ children }) {
   return <p style={s.sectionLabel}>{children}</p>;
 }
 
-// ─── Styles ───────────────────────────────────────────────────
 const s = {
   page      : { position: "relative", minHeight: "100vh", color: "var(--text)", overflowX: "hidden", padding: "20px" },
   inner     : { position: "relative", zIndex: 1, maxWidth: "900px", margin: "0 auto" },
-
   header    : { marginBottom: "28px" },
   greeting  : { fontSize: "clamp(1.8rem,5vw,2.8rem)", fontWeight: 800, margin: 0, lineHeight: 1.1 },
   subtitle  : { color: "var(--text-muted)", marginTop: "6px", fontSize: "13px", letterSpacing: "0.04em" },
-
-  /* issues */
   issueStrip  : { display: "flex", flexDirection: "column", gap: "8px", marginBottom: "24px" },
   issueBadge  : { display: "flex", alignItems: "flex-start", gap: "10px", padding: "10px 14px",
                   background: "rgba(255,255,255,0.03)", borderRadius: "8px",
@@ -268,8 +243,6 @@ const s = {
   issueDot    : { width: "8px", height: "8px", borderRadius: "50%", flexShrink: 0, marginTop: "4px" },
   issueLabel  : { margin: 0, fontSize: "13px", fontWeight: 600 },
   issueDetail : { margin: "2px 0 0", fontSize: "11px", color: "var(--text-muted)" },
-
-  /* focus */
   focusCard   : { padding: "20px 22px", background: "rgba(255,255,255,0.04)",
                   borderRadius: "12px", border: "1px solid", borderLeft: "4px solid" },
   focusHeader : { display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" },
@@ -279,13 +252,9 @@ const s = {
                   background: "rgba(255,255,255,0.06)", borderRadius: "100px" },
   focusTitle  : { margin: "0 0 6px", fontSize: "1.05rem", fontWeight: 700 },
   focusDesc   : { margin: 0, fontSize: "13px", color: "var(--text-muted)", lineHeight: 1.6 },
-
-  /* section */
   section      : { marginBottom: "28px" },
   sectionLabel : { fontSize: "10px", textTransform: "uppercase", letterSpacing: "2px",
                    color: "var(--text-muted)", marginBottom: "10px", margin: "0 0 10px" },
-
-  /* metric cards */
   metricsGrid  : { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px" },
   metricCard   : { padding: "18px 16px", display: "flex", flexDirection: "column", gap: "8px", borderRadius: "12px" },
   metricLabel  : { margin: 0, fontSize: "11px", textTransform: "uppercase",
@@ -298,12 +267,9 @@ const s = {
   metricUnit   : { fontSize: "12px", color: "var(--text-muted)", fontWeight: 400, marginLeft: "3px" },
   metricHint   : { margin: 0, fontSize: "11px", color: "var(--text-muted)", fontStyle: "italic" },
   trend        : { fontSize: "1rem", marginLeft: "4px", color: "var(--accent-red,#ef4444)" },
-
-  /* weight trend */
   trendCard  : { padding: "20px 24px", borderRadius: "12px" },
   trendTop   : { display: "flex", justifyContent: "space-between", alignItems: "flex-start" },
   trendHint  : { fontSize: "11px", color: "var(--text-muted)", fontStyle: "italic",
                  maxWidth: "160px", textAlign: "right" },
-
   hint       : { fontSize: "11px", color: "var(--accent-orange,#f97316)", fontStyle: "italic", marginTop: "10px" },
 };

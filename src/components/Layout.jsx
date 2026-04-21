@@ -7,8 +7,6 @@ import {
   LogOut, Sun, Moon, CalendarDays, Target,
 } from "lucide-react";
 
-// ─── Nav config ───────────────────────────────────────────────
-
 const NAV_ITEMS = [
   { path: "/",             label: "Dashboard",    Icon: LayoutDashboard },
   { path: "/habits",       label: "Health",       Icon: CheckSquare     },
@@ -25,8 +23,6 @@ const isActive = (itemPath, pathname) => {
   if (itemPath === "/") return pathname === "/";
   return pathname === itemPath || pathname.startsWith(itemPath + "/");
 };
-
-// ─── Component ────────────────────────────────────────────────
 
 export default function Layout({
   user = {},
@@ -55,13 +51,13 @@ export default function Layout({
   }, []);
 
   const avatarUrl   = user?.photoURL || null;
-  const displayName = user?.displayName || user?.name || "User";
+  // .trim() ensures "" falls through to the next option, not just null/undefined
+  const displayName = user?.displayName?.trim() || user?.name?.trim() || "User";
   const initial     = displayName.charAt(0).toUpperCase();
 
   return (
     <div style={s.container}>
 
-      {/* ── SIDEBAR (desktop only) ── */}
       {!isMobile && (
         <motion.aside
           animate={{ width: collapsed ? 64 : 232 }}
@@ -70,7 +66,6 @@ export default function Layout({
           aria-label="Main navigation"
           overflow="hidden"
         >
-          {/* TOP */}
           <div>
             <div style={s.topRow}>
               <AnimatePresence>
@@ -114,7 +109,6 @@ export default function Layout({
               </div>
             </div>
 
-            {/* NAV LINKS */}
             <nav>
               {NAV_ITEMS.map(({ path, label, Icon }) => {
                 const active = isActive(path, location.pathname);
@@ -151,7 +145,6 @@ export default function Layout({
             </nav>
           </div>
 
-          {/* BOTTOM — user + logout */}
           <div style={s.bottom}>
             <AnimatePresence>
               {!collapsed && (
@@ -196,7 +189,6 @@ export default function Layout({
         </motion.aside>
       )}
 
-      {/* ── MAIN CONTENT ── */}
       <div style={s.contentWrapper}>
         <AnimatePresence mode="wait">
           <motion.main
@@ -212,7 +204,6 @@ export default function Layout({
         </AnimatePresence>
       </div>
 
-      {/* ── MOBILE BOTTOM NAV ── */}
       {isMobile && (
         <nav style={s.bottomNav} aria-label="Main navigation">
           {NAV_ITEMS.map(({ path, label, Icon }) => {
@@ -241,8 +232,6 @@ export default function Layout({
     </div>
   );
 }
-
-// ─── Avatar ───────────────────────────────────────────────────
 
 function Avatar({ url, initial, size = 32 }) {
   const [imgFailed, setImgFailed] = useState(false);
@@ -287,8 +276,6 @@ function Avatar({ url, initial, size = 32 }) {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────
-
 const s = {
   container: {
     display: "flex",
@@ -296,7 +283,6 @@ const s = {
     background: "var(--color-background-tertiary)",
     color: "var(--color-text-primary)",
   },
-
   sidebar: {
     padding: "16px 10px",
     display: "flex",
@@ -307,7 +293,6 @@ const s = {
     overflow: "hidden",
     flexShrink: 0,
   },
-
   topRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -315,20 +300,17 @@ const s = {
     marginBottom: 20,
     minHeight: 36,
   },
-
   logoWrapper: {
     display: "flex",
     alignItems: "center",
     gap: 8,
     overflow: "hidden",
   },
-
   logoImg: {
     width: 28,
     height: 28,
     flexShrink: 0,
   },
-
   logoText: {
     margin: 0,
     fontWeight: 700,
@@ -336,13 +318,11 @@ const s = {
     color: "var(--color-text-primary)",
     whiteSpace: "nowrap",
   },
-
   iconGroup: {
     display: "flex",
     gap: 6,
     flexShrink: 0,
   },
-
   iconBtn: {
     background: "var(--color-background-primary)",
     border: "1px solid var(--color-border-secondary)",
@@ -354,7 +334,6 @@ const s = {
     alignItems: "center",
     justifyContent: "center",
   },
-
   link: {
     position: "relative",
     display: "flex",
@@ -369,13 +348,11 @@ const s = {
     transition: "background 0.15s",
     overflow: "hidden",
   },
-
   linkActive: {
     background: "var(--color-background-primary)",
     color: "var(--color-text-info)",
     fontWeight: 500,
   },
-
   activeBar: {
     position: "absolute",
     left: 0,
@@ -385,13 +362,11 @@ const s = {
     borderRadius: 2,
     background: "var(--color-text-info)",
   },
-
   bottom: {
     display: "flex",
     flexDirection: "column",
     gap: 8,
   },
-
   userBox: {
     display: "flex",
     alignItems: "center",
@@ -402,7 +377,6 @@ const s = {
     border: "1px solid var(--color-border-tertiary)",
     overflow: "hidden",
   },
-
   userName: {
     margin: 0,
     fontSize: 13,
@@ -412,13 +386,11 @@ const s = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-
   userSub: {
     margin: 0,
     fontSize: 11,
     color: "var(--color-text-success)",
   },
-
   logoutBtn: {
     display: "flex",
     alignItems: "center",
@@ -434,20 +406,17 @@ const s = {
     overflow: "hidden",
     whiteSpace: "nowrap",
   },
-
   contentWrapper: {
     flex: 1,
     minWidth: 0,
     display: "flex",
     flexDirection: "column",
   },
-
   main: {
     flex: 1,
     padding: 24,
     overflowY: "auto",
   },
-
   bottomNav: {
     position: "fixed",
     bottom: 0,
@@ -460,7 +429,6 @@ const s = {
     zIndex: 100,
     paddingBottom: "env(safe-area-inset-bottom)",
   },
-
   bottomNavItem: {
     flex: 1,
     display: "flex",
@@ -471,7 +439,6 @@ const s = {
     gap: 2,
     transition: "color 0.15s",
   },
-
   bottomNavLabel: {
     fontSize: 9,
     fontWeight: 500,
