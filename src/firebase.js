@@ -1,10 +1,14 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithCredential,
+  signInWithRedirect,
+  getRedirectResult,
+} from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { Capacitor } from '@capacitor/core';
-import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
 
-// ─── Firebase project config ───────────────────────────────────────────────
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -14,28 +18,32 @@ const firebaseConfig = {
   appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// ─── Core exports ──────────────────────────────────────────────────────────
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db   = getFirestore(app);
 
 // ─── Google Sign-In ────────────────────────────────────────────────────────
-// Native path  → GoogleAuthPlugin registered in MainActivity.java (no npm plugin needed)
-// Web path     → standard Firebase popup (Vercel / browser)
+// Native → GoogleAuthPlugin in MainActivity.java
+// Web    → signInWithRedirect — avoids all COOP/popup/cross-origin issues
 export async function signInWithGoogle() {
   if (Capacitor.isNativePlatform()) {
-    try {
-      console.log('[GoogleAuth] calling native signIn...');
-      const result = await Capacitor.Plugins.GoogleAuth.signIn();
-      console.log('[GoogleAuth] result:', JSON.stringify(result));
-      const credential = GoogleAuthProvider.credential(result.idToken);
-      return signInWithCredential(auth, credential);
-    } catch (e) {
-      console.error('[GoogleAuth] FAILED:', e?.message, e?.code);
-      throw e;
-    }
+    const result = await Capacitor.Plugins.GoogleAuth.signIn();
+    const credential = GoogleAuthProvider.credential(result.idToken);
+    return signInWithCredential(auth, credential);
   } else {
     const provider = new GoogleAuthProvider();
-    return signInWithPopup(auth, provider);
+    await signInWithRedirect(auth, provider);
+    // Page navigates away — getRedirectResult() handles the return in useAuth
+  }
+}
+
+// Called once on app mount to capture the result after Google redirects back
+export async function consumeRedirectResult() {
+  try {
+    const result = await getRedirectResult(auth);
+    return result; // null if no pending redirect, UserCredential if returning
+  } catch (err) {
+    console.error('[firebase] getRedirectResult failed:', err);
+    return null;
   }
 }
