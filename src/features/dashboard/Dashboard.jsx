@@ -6,7 +6,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { useNotification } from "../../context/NotificationContext";
-import { useDashboardIntelligence } from "./useDashboardIntelligence";
+import { useDashboardIntelligence } from "../../hooks/useDashboardIntelligence";
 
 const SEVERITY_COLOR = {
   critical : "var(--accent-red,   #ef4444)",

@@ -1,67 +1,34 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signOut,
-} from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
 
-// ─── Detect Capacitor (native Android/iOS) ────────────────────
-const isNative = typeof window !== "undefined" &&
-  window.Capacitor?.isNativePlatform?.();
-
-// ─── Config ───────────────────────────────────────────────────
-// On native (Android/iOS), use the key from google-services.json.
-// On web, use the key from .env (injected by Vite at build time).
+// ─── Firebase project config ───────────────────────────────────────────────
 const firebaseConfig = {
-  apiKey: isNative
-    ? "AIzaSyBLmJ9tphCkpp_0oJhwBftWPMZ4YMi1bo4"
-    : import.meta.env.VITE_FIREBASE_API_KEY,
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId:             import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId:     import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// ─── Init (safe — prevents duplicate instances) ───────────────
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-
-// ─── Services ─────────────────────────────────────────────────
+// ─── Core exports ──────────────────────────────────────────────────────────
+const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db   = getFirestore(app);
 
-// ─── Auth helpers ─────────────────────────────────────────────
-const googleProvider = new GoogleAuthProvider();
-
-/**
- * Sign in with Google popup.
- * Returns { success, user } or { success: false, error }.
- * Callers should use useAuth().login() — not this directly.
- */
-export const signInWithGoogle = async () => {
-  try {
-    const result = await signInWithPopup(auth, googleProvider);
-    return { success: true, user: result.user };
-  } catch (error) {
-    console.error("[Firebase] Google sign-in failed:", error);
-    return { success: false, error: error.message };
+// ─── Google Sign-In ────────────────────────────────────────────────────────
+// Native path  → GoogleAuthPlugin registered in MainActivity.java (no npm plugin needed)
+// Web path     → standard Firebase popup (Vercel / browser)
+export async function signInWithGoogle() {
+  if (Capacitor.isNativePlatform()) {
+    const result = await Capacitor.Plugins.GoogleAuth.signIn();
+    const credential = GoogleAuthProvider.credential(result.idToken);
+    return signInWithCredential(auth, credential);
+  } else {
+    const provider = new GoogleAuthProvider();
+    return signInWithPopup(auth, provider);
   }
-};
-
-/**
- * Sign out.
- * Prefer useAuth().logout() which also clears localStorage + navigates.
- * This export exists for edge cases (e.g. forced logout from cloud.js).
- */
-export const logoutUser = async () => {
-  try {
-    await signOut(auth);
-    return { success: true };
-  } catch (error) {
-    console.error("[Firebase] Logout failed:", error);
-    return { success: false, error: error.message };
-  }
-};
+}

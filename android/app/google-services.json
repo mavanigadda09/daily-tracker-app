@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "287796839565",
+    "project_id": "ignira-os",
+    "storage_bucket": "ignira-os.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:287796839565:android:ad97117d0ec76c7ecb8ec4",
+        "android_client_info": {
+          "package_name": "com.phoenix.tracker"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "287796839565-roomcflpao4hif1qnospaevf42c35hsq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.phoenix.tracker",
+            "certificate_hash": "5a703a650db1183b0ff0b857047d6cd30c5f7923"
+          }
+        },
+        {
+          "client_id": "287796839565-ds6ag7l9io777n0limmnctq3i4c1sne6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBLmJ9tphCkpp_0oJhwBftWPMZ4YMi1bo4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "287796839565-ds6ag7l9io777n0limmnctq3i4c1sne6.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
