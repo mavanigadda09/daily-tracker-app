@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "287796839565-roomcflpao4hif1qnospaevf42c35hsq.apps.googleusercontent.com",
+          "client_id": "287796839565-bv7luvgpeil0ect0659juf93d7jvbheb.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.phoenix.tracker",
-            "certificate_hash": "5a703a650db1183b0ff0b857047d6cd30c5f7923"
+            "certificate_hash": "f042ff110890632001fc6ec81d78bd56bc04bb8e"
           }
         },
         {

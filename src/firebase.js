@@ -24,9 +24,16 @@ export const db   = getFirestore(app);
 // Web path     → standard Firebase popup (Vercel / browser)
 export async function signInWithGoogle() {
   if (Capacitor.isNativePlatform()) {
-    const result = await Capacitor.Plugins.GoogleAuth.signIn();
-    const credential = GoogleAuthProvider.credential(result.idToken);
-    return signInWithCredential(auth, credential);
+    try {
+      console.log('[GoogleAuth] calling native signIn...');
+      const result = await Capacitor.Plugins.GoogleAuth.signIn();
+      console.log('[GoogleAuth] result:', JSON.stringify(result));
+      const credential = GoogleAuthProvider.credential(result.idToken);
+      return signInWithCredential(auth, credential);
+    } catch (e) {
+      console.error('[GoogleAuth] FAILED:', e?.message, e?.code);
+      throw e;
+    }
   } else {
     const provider = new GoogleAuthProvider();
     return signInWithPopup(auth, provider);
