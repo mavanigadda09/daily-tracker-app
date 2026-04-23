@@ -282,22 +282,28 @@ export default function Login({ onLogin = () => {} }) {
   };
 
   // ── Google ─────────────────────────────────────────────────
+  // FIX: signInWithRedirect navigates the entire page to Google — it never
+  // returns a value. The previous code called result.success on undefined,
+  // which threw a TypeError that the catch block silently swallowed, keeping
+  // the user stuck on /login with no visible error.
+  //
+  // Correct behaviour:
+  //   • Web:    page navigates away → nothing after await runs → fine
+  //   • Native: signInWithCredential resolves immediately → onAuthStateChanged
+  //             in useAuth.js handles Firestore write + navigation
   const handleGoogle = async () => {
-    setGoogleLoading(true); clearErrors();
+    setGoogleLoading(true);
+    clearErrors();
     try {
-      const result = await signInWithGoogle();
-      if (!result.success) throw new Error(result.error);
-      const { user } = result;
-      await writeUserDoc(user.uid, { fullName: user.displayName, email: user.email }, true);
-      onLogin({ name: user.displayName, email: user.email });
-      showNotification("Signed in with Google 🎉", "success");
-      navigate("/", { replace: true });
+      await signInWithGoogle();
+      // Web path: page has already navigated away at this point — dead code.
+      // Native path: credential resolved; useAuth.js onAuthStateChanged takes over.
     } catch (err) {
+      // Only reached on actual errors (cancelled, network failure, etc.)
       const msg = friendlyError(err);
       setGlobalError(msg);
       showNotification(msg, "error");
-    } finally {
-      setGoogleLoading(false);
+      setGoogleLoading(false); // only reset spinner on error; redirect handles success
     }
   };
 
@@ -506,7 +512,7 @@ export default function Login({ onLogin = () => {} }) {
                 aria-label="Sign in with Google"
               >
                 {googleLoading ? <Spinner size={18} /> : <GoogleIcon />}
-                <span>Google</span>
+                <span>{googleLoading ? "Redirecting to Google…" : "Google"}</span>
               </button>
 
               <p className="lp-terms">
