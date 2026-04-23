@@ -7,6 +7,7 @@
  */
 
 import { useState, useId } from "react";
+import { useAuth } from "../hooks/useAuth";
 import { auth, db, signInWithGoogle } from "../firebase";
 import {
   signInWithEmailAndPassword,
@@ -224,7 +225,7 @@ function ForgotPasswordModal({ onClose }) {
 
 // ─── Main component ───────────────────────────────────────────
 export default function Login({ onLogin = () => {} }) {
-  const navigate             = useNavigate();
+  const { signInWithEmail, signInWithGoogleAuth } = useAuth();
   const { showNotification } = useNotification();
   const uid                  = useId();
 
@@ -266,7 +267,7 @@ export default function Login({ onLogin = () => {} }) {
         await writeUserDoc(credential.user.uid, { fullName: fullName.trim(), username: username.trim(), email });
         showNotification("Account created — welcome 🔥", "success");
       } else {
-        credential = await signInWithEmailAndPassword(auth, email, password);
+        credential = await signInWithEmail(email, password);
         showNotification("Welcome back 🚀", "success");
       }
       const { user } = credential;
@@ -295,10 +296,10 @@ export default function Login({ onLogin = () => {} }) {
     setGoogleLoading(true);
     clearErrors();
     try {
-      const result = await signInWithGoogle();
+      const result = await signInWithGoogleAuth();
       // Web: signInWithPopup resolves here with UserCredential
       // Native: signInWithCredential resolves here too
-      if (result?.user) {
+      if (result && result.user) {
         const u = result.user;
         onLogin({
           name: u.displayName || u.email?.split("@")[0] || "",

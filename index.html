@@ -3,11 +3,7 @@
   <head>
     <meta charset="UTF-8" />
 
-    <!--
-      FOUC PREVENTION — must be first script in <head>.
-      Runs synchronously before first paint.
-      Mirrors logic in utils/theme.js — keep in sync if themes change.
-    -->
+    <!-- FOUC PREVENTION (KEEP FIRST) -->
     <script>
       (function () {
         var VALID   = ["dark", "light", "system"];
@@ -23,24 +19,45 @@
       })();
     </script>
 
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 🔥 PERFORMANCE: Preconnect for fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-    <!-- FIX: was /manifest.json — file is named manifest.webmanifest -->
+    <!-- 🔥 GOOGLE FONTS (CSP-SAFE) -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Base -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- PWA -->
     <link rel="manifest" href="/manifest.webmanifest" />
 
+    <!-- Theme colors -->
     <meta name="theme-color" content="#040710" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#ffffff"  media="(prefers-color-scheme: light)" />
 
+    <!-- iOS PWA -->
     <link rel="apple-touch-icon" href="/pwa-192.png" />
     <meta name="apple-mobile-web-app-capable"          content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
+    <!-- App -->
     <meta name="description"      content="Track habits, tasks, goals, and finances — rise every day." />
     <meta name="application-name" content="Phoenix Tracker" />
     <meta name="mobile-web-app-capable" content="yes" />
 
     <title>Phoenix Tracker</title>
+
+    <!-- 🔥 OPTIONAL: Prevent font flash (small but noticeable polish) -->
+    <style>
+      html {
+        font-family: 'Rajdhani', system-ui, -apple-system, sans-serif;
+      }
+    </style>
   </head>
 
   <body>
