@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { auth, db } from "../firebase";  // ← removed consumeRedirectResult
+import { auth, db } from "../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
@@ -37,9 +37,6 @@ export function useAuth() {
   const [isResolvingAuth, setIsResolvingAuth] = useState(true);
   const [user,            setUser]            = useState(getCachedUser);
 
-  // ── Auth listener + Firestore user doc bootstrap ───────────
-  // onAuthStateChanged fires automatically after signInWithPopup resolves,
-  // so no redirect result consumption needed here anymore.
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser ?? null);
@@ -52,14 +49,11 @@ export function useAuth() {
           if (snap.exists()) {
             const data = snap.data();
 
+            // Patch missing name
             if (!data.name?.trim()) {
               const patchedName = deriveName(fbUser);
               try {
-                await setDoc(
-                  ref,
-                  { name: patchedName, updatedAt: serverTimestamp() },
-                  { merge: true }
-                );
+                await setDoc(ref, { name: patchedName, updatedAt: serverTimestamp() }, { merge: true });
               } catch (patchErr) {
                 console.error("[useAuth] name patch failed:", patchErr);
               }
@@ -70,18 +64,30 @@ export function useAuth() {
             setUser(firestoreProfile);
             cacheUser(firestoreProfile);
 
+            // Returning user — check onboarding status
+            if (!data.onboardingComplete) {
+              navigate("/onboarding", { replace: true });
+            }
+
           } else {
+            // Brand new user — create doc, send to onboarding
             const newProfile = {
-              uid:       fbUser.uid,
-              email:     fbUser.email,
-              name:      deriveName(fbUser),
-              goal:      "",
-              focus:     "productivity",
-              createdAt: serverTimestamp(),
+              uid:                fbUser.uid,
+              email:              fbUser.email,
+              name:               deriveName(fbUser),
+              goal:               "",
+              focus:              "productivity",
+              onboardingComplete: false,
+              emberPoints:        0,
+              level:              1,
+              identityTier:       "Ash",
+              primaryDomain:      null,
+              createdAt:          serverTimestamp(),
             };
             await setDoc(ref, newProfile);
             setUser(newProfile);
             cacheUser(newProfile);
+            navigate("/onboarding", { replace: true });
           }
 
         } catch (err) {
@@ -97,7 +103,7 @@ export function useAuth() {
     });
 
     return () => unsub();
-  }, []);
+  }, [navigate]);
 
   const login = useCallback((_userData) => {}, []);
 
@@ -113,11 +119,7 @@ export function useAuth() {
     });
 
     try {
-      await setDoc(
-        ref,
-        { ...patch, updatedAt: serverTimestamp() },
-        { merge: true }
-      );
+      await setDoc(ref, { ...patch, updatedAt: serverTimestamp() }, { merge: true });
     } catch (err) {
       console.error("[useAuth] updateUser failed:", err);
       const snap = await getDoc(ref);
@@ -132,14 +134,11 @@ export function useAuth() {
 
   const logout = useCallback(async () => {
     await signOut(auth);
-
     const theme = localStorage.getItem("theme");
     localStorage.clear();
     if (theme) localStorage.setItem("theme", theme);
-
     setUser(null);
     setFirebaseUser(null);
-
     navigate("/login", { replace: true });
   }, [navigate]);
 

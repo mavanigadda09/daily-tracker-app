@@ -1,291 +1,377 @@
 /**
  * Onboarding.jsx
  * ─────────────────────────────────────────────────────────────
- * Multi-step onboarding flow: Name → Goal → Focus → Done
+ * 3-screen transformation ritual for new Phoenix Tracker users.
+ * Screen 1 — The Awakening (cinematic intro)
+ * Screen 2 — Identity Claim (primary domain selection)
+ * Screen 3 — The Naming (confirm name, enter the forge)
  *
- * Improvements over original:
- *
- * UX
- *  • 3 focused steps instead of one dense form — reduces cognitive load
- *  • Step indicator with animated progress bar
- *  • Each step animates in (slide + fade) and out smoothly
- *  • Focus card selection with icons and descriptions
- *  • "Done" celebration step before handing off
- *
- * Code
- *  • CSS-in-JS string (lp-* namespace) — no inline style objects
- *  • Validation extracted to pure validate() per step
- *  • localStorage write isolated to saveUser() helper
- *  • Consistent with Login.jsx patterns (same font, same CSS approach)
- *
- * Accessibility
- *  • aria-label on every input and button group
- *  • aria-current="step" on active step indicator
- *  • role="alert" on error messages
- *  • aria-pressed on focus selection buttons
- *  • Enter key advances steps
- *  • Focus auto-set on mount of each step
+ * On complete: writes { primaryDomain, onboardingComplete: true }
+ * to Firestore via updateUser, then navigates to /.
  */
 
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import { useNotification } from "../context/NotificationContext";
 
-// ─── Config ───────────────────────────────────────────────────
-
-const FOCUS_OPTIONS = [
+// ─── Domain options ───────────────────────────────────────────
+const DOMAINS = [
   {
-    id:    "productivity",
-    icon:  "◈",
-    label: "Productivity",
-    desc:  "Tasks, deep work, habits",
+    id:       "body",
+    label:    "More disciplined physically",
+    sub:      "Workouts, movement, health",
+    tag:      "BODY",
+    color:    "#ef4444",
+    ep:       "+50 EP per mission",
   },
   {
-    id:    "fitness",
-    icon:  "◉",
-    label: "Fitness",
-    desc:  "Steps, weight, workouts",
+    id:       "mind",
+    label:    "Mentally sharper",
+    sub:      "Focus, learning, reading",
+    tag:      "MIND",
+    color:    "#facc15",
+    ep:       "+30 EP per mission",
   },
   {
-    id:    "finance",
-    icon:  "◫",
-    label: "Finance",
-    desc:  "Budget, goals, savings",
+    id:       "discipline",
+    label:    "More consistent",
+    sub:      "Habits, routines, streaks",
+    tag:      "DISCIPLINE",
+    color:    "#f97316",
+    ep:       "+20 EP per mission",
+  },
+  {
+    id:       "all",
+    label:    "Complete transformation",
+    sub:      "All domains — full evolution",
+    tag:      "ALL",
+    color:    "#a78bfa",
+    ep:       "Balanced EP across all",
   },
 ];
 
-const TOTAL_STEPS = 3; // name, goal+focus, done
+// ─── Animated ember particles ─────────────────────────────────
+function EmberParticles({ count = 18 }) {
+  const particles = useRef(
+    Array.from({ length: count }, (_, i) => ({
+      id:       i,
+      left:     `${5 + Math.random() * 90}%`,
+      delay:    `${Math.random() * 6}s`,
+      duration: `${4 + Math.random() * 5}s`,
+      size:     `${2 + Math.random() * 3}px`,
+      opacity:  0.3 + Math.random() * 0.5,
+    }))
+  ).current;
 
-// ─── Helpers ──────────────────────────────────────────────────
-
-function validate(step, { name, goal }) {
-  if (step === 0 && !name.trim()) return "Enter your name to continue.";
-  // goal is optional — no validation needed
-  return null;
+  return (
+    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          style={{
+            position:        "absolute",
+            bottom:          "-10px",
+            left:            p.left,
+            width:           p.size,
+            height:          p.size,
+            borderRadius:    "50%",
+            background:      `radial-gradient(circle, #facc15, #f97316)`,
+            opacity:         p.opacity,
+            animation:       `ob-rise ${p.duration} ${p.delay} ease-in infinite`,
+          }}
+        />
+      ))}
+    </div>
+  );
 }
 
-function saveUser(userData) {
-  try {
-    localStorage.setItem("user", JSON.stringify(userData));
-  } catch {
-    /* private-browsing or quota — carry on */
-  }
-}
+// ─── Screen 1 — The Awakening ─────────────────────────────────
+function ScreenAwakening({ onNext }) {
+  const [phase, setPhase] = useState(0);
+  // 0 = dark, 1 = line1, 2 = line2, 3 = line3, 4 = cta
 
-// ─── Component ────────────────────────────────────────────────
-
-export default function Onboarding({ onComplete }) {
-  const [step,    setStep]    = useState(0);
-  const [name,    setName]    = useState("");
-  const [goal,    setGoal]    = useState("");
-  const [focus,   setFocus]   = useState("productivity");
-  const [error,   setError]   = useState("");
-  const [leaving, setLeaving] = useState(false);
-
-  const primaryInputRef = useRef(null);
-
-  // Auto-focus the primary input on each step
   useEffect(() => {
-    const t = setTimeout(() => primaryInputRef.current?.focus(), 320);
-    return () => clearTimeout(t);
-  }, [step]);
+    const timings = [600, 1800, 3000, 4200];
+    const timers  = timings.map((t, i) =>
+      setTimeout(() => setPhase(i + 1), t)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, []);
 
-  // ── Navigation ─────────────────────────────────────────────
-
-  const advance = () => {
-    const err = validate(step, { name, goal });
-    if (err) { setError(err); return; }
-    setError("");
-
-    if (step < TOTAL_STEPS - 1) {
-      setLeaving(true);
-      setTimeout(() => { setStep((s) => s + 1); setLeaving(false); }, 260);
-    } else {
-      // Final step — persist and hand off
-      const user = { name: name.trim(), goal: goal.trim(), focus };
-      saveUser(user);
-      onComplete(user);
-    }
-  };
-
-  const back = () => {
-    if (step === 0) return;
-    setError("");
-    setLeaving(true);
-    setTimeout(() => { setStep((s) => s - 1); setLeaving(false); }, 260);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") advance();
-  };
-
-  // ── Step content ───────────────────────────────────────────
-
-  const steps = [
-    // Step 0 — Name
-    <div key="name" className="ob-step">
-      <div className="ob-step-icon" aria-hidden="true">🔥</div>
-      <h2 className="ob-step-title">What should we call you?</h2>
-      <p className="ob-step-sub">This is how Phoenix Tracker will greet you.</p>
-      <input
-        ref={primaryInputRef}
-        id="ob-name"
-        className={`ob-input${error ? " ob-input--error" : ""}`}
-        type="text"
-        value={name}
-        placeholder="Your name"
-        autoComplete="given-name"
-        aria-label="Your name"
-        aria-invalid={!!error}
-        aria-describedby={error ? "ob-name-err" : undefined}
-        onChange={(e) => { setName(e.target.value); setError(""); }}
-        onKeyDown={handleKeyDown}
-      />
-      {error && (
-        <p id="ob-name-err" className="ob-error" role="alert">{error}</p>
-      )}
-    </div>,
-
-    // Step 1 — Goal + Focus
-    <div key="goal" className="ob-step">
-      <div className="ob-step-icon" aria-hidden="true">🎯</div>
-      <h2 className="ob-step-title">What are you working towards?</h2>
-      <p className="ob-step-sub">Optional — you can update this any time.</p>
-
-      <input
-        ref={primaryInputRef}
-        className="ob-input"
-        type="text"
-        value={goal}
-        placeholder="e.g. Study 2h daily, lose 5 kg…"
-        aria-label="Your goal"
-        onChange={(e) => setGoal(e.target.value)}
-        onKeyDown={handleKeyDown}
-      />
-
-      <p className="ob-focus-label">Primary focus area</p>
-      <div
-        className="ob-focus-grid"
-        role="group"
-        aria-label="Choose your primary focus"
-      >
-        {FOCUS_OPTIONS.map((opt) => (
-          <button
-            key={opt.id}
-            type="button"
-            className={`ob-focus-btn${focus === opt.id ? " ob-focus-btn--active" : ""}`}
-            aria-pressed={focus === opt.id}
-            onClick={() => setFocus(opt.id)}
-          >
-            <span className="ob-focus-icon" aria-hidden="true">{opt.icon}</span>
-            <span className="ob-focus-name">{opt.label}</span>
-            <span className="ob-focus-desc">{opt.desc}</span>
-          </button>
-        ))}
-      </div>
-    </div>,
-
-    // Step 2 — Done
-    <div key="done" className="ob-step ob-step--center">
-      <div className="ob-done-ring" aria-hidden="true">
-        <span className="ob-done-emoji">✦</span>
-      </div>
-      <h2 className="ob-step-title">You're all set, {name.split(" ")[0]}.</h2>
-      <p className="ob-step-sub">
-        Your Phoenix profile is ready. Time to rise.
-      </p>
-      <div className="ob-summary">
-        {goal && (
-          <div className="ob-summary-row">
-            <span className="ob-summary-key">Goal</span>
-            <span className="ob-summary-val">{goal}</span>
-          </div>
-        )}
-        <div className="ob-summary-row">
-          <span className="ob-summary-key">Focus</span>
-          <span className="ob-summary-val">
-            {FOCUS_OPTIONS.find((o) => o.id === focus)?.label}
-          </span>
-        </div>
-      </div>
-    </div>,
+  const lines = [
+    "Every Phoenix begins as ash.",
+    "You are not here to track habits.",
+    "You are here to transform.",
   ];
 
-  // ── Render ─────────────────────────────────────────────────
+  return (
+    <div className="ob-screen ob-awakening">
+      <EmberParticles count={20} />
+
+      <div className="ob-awakening-content">
+        <div className="ob-phoenix-mark" aria-hidden="true">
+          <div className="ob-phoenix-ring ob-ring-1" />
+          <div className="ob-phoenix-ring ob-ring-2" />
+          <img src="/phoenix.png" alt="" className="ob-phoenix-img" />
+        </div>
+
+        <div className="ob-lines" role="region" aria-label="Introduction">
+          {lines.map((line, i) => (
+            <p
+              key={i}
+              className="ob-line"
+              style={{ opacity: phase >= i + 1 ? 1 : 0, transform: phase >= i + 1 ? "translateY(0)" : "translateY(16px)" }}
+            >
+              {line}
+            </p>
+          ))}
+        </div>
+
+        <button
+          className="ob-cta"
+          onClick={onNext}
+          style={{ opacity: phase >= 4 ? 1 : 0, transform: phase >= 4 ? "translateY(0)" : "translateY(20px)", pointerEvents: phase >= 4 ? "auto" : "none" }}
+          aria-label="Begin transformation"
+        >
+          Begin My Transformation
+        </button>
+
+        <p
+          className="ob-skip"
+          onClick={onNext}
+          style={{ opacity: phase >= 2 ? 1 : 0 }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === "Enter" && onNext()}
+        >
+          skip
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Screen 2 — Identity Claim ────────────────────────────────
+function ScreenIdentity({ onNext, selected, onSelect }) {
+  return (
+    <div className="ob-screen ob-identity">
+      <EmberParticles count={10} />
+
+      <div className="ob-identity-content">
+        <div className="ob-step-tag">STEP 1 OF 2</div>
+
+        <h2 className="ob-title">What do you want<br />to become?</h2>
+        <p className="ob-subtitle">
+          This shapes your mission types and EP rewards.<br />
+          You can change this later.
+        </p>
+
+        <div className="ob-domain-grid" role="radiogroup" aria-label="Primary transformation domain">
+          {DOMAINS.map((d) => (
+            <button
+              key={d.id}
+              className={`ob-domain-card${selected === d.id ? " ob-domain-card--selected" : ""}`}
+              style={selected === d.id ? { borderColor: d.color, boxShadow: `0 0 0 1px ${d.color}22, 0 8px 32px ${d.color}18` } : {}}
+              onClick={() => onSelect(d.id)}
+              role="radio"
+              aria-checked={selected === d.id}
+            >
+              <div className="ob-domain-top">
+                <span className="ob-domain-tag" style={{ color: d.color, borderColor: `${d.color}40`, background: `${d.color}10` }}>
+                  {d.tag}
+                </span>
+                {selected === d.id && (
+                  <span className="ob-domain-check" style={{ color: d.color }}>✓</span>
+                )}
+              </div>
+              <p className="ob-domain-label">{d.label}</p>
+              <p className="ob-domain-sub">{d.sub}</p>
+              <p className="ob-domain-ep" style={{ color: d.color }}>{d.ep}</p>
+            </button>
+          ))}
+        </div>
+
+        <button
+          className="ob-cta"
+          onClick={onNext}
+          disabled={!selected}
+          aria-label="Continue to next step"
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Screen 3 — The Naming ────────────────────────────────────
+function ScreenNaming({ onComplete, loading, userName, onNameChange }) {
+  return (
+    <div className="ob-screen ob-naming">
+      <EmberParticles count={12} />
+
+      <div className="ob-naming-content">
+        <div className="ob-step-tag">STEP 2 OF 2</div>
+
+        <div className="ob-ash-badge" aria-hidden="true">
+          <span className="ob-tier-label">ASH</span>
+          <span className="ob-tier-sub">Your starting form</span>
+        </div>
+
+        <h2 className="ob-title">Every Phoenix<br />needs a name.</h2>
+        <p className="ob-subtitle">
+          The forge remembers everyone who enters.
+        </p>
+
+        <div className="ob-name-field">
+          <label className="ob-field-label" htmlFor="ob-name">Your name</label>
+          <input
+            id="ob-name"
+            className="ob-input"
+            type="text"
+            value={userName}
+            onChange={(e) => onNameChange(e.target.value)}
+            placeholder="What shall the forge call you?"
+            autoComplete="given-name"
+            autoFocus
+            onKeyDown={(e) => e.key === "Enter" && !loading && userName.trim() && onComplete()}
+          />
+        </div>
+
+        <div className="ob-identity-preview">
+          <div className="ob-preview-row">
+            <span className="ob-preview-label">Starting tier</span>
+            <span className="ob-preview-val ob-val-ash">Ash</span>
+          </div>
+          <div className="ob-preview-row">
+            <span className="ob-preview-label">First evolution</span>
+            <span className="ob-preview-val">500 EP → Spark</span>
+          </div>
+          <div className="ob-preview-row">
+            <span className="ob-preview-label">Ultimate form</span>
+            <span className="ob-preview-val ob-val-phoenix">Phoenix</span>
+          </div>
+        </div>
+
+        <button
+          className="ob-cta"
+          onClick={onComplete}
+          disabled={!userName.trim() || loading}
+          aria-busy={loading}
+        >
+          {loading ? "Igniting the forge…" : "Enter the Forge"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Onboarding component ────────────────────────────────
+export default function Onboarding() {
+  const navigate              = useNavigate();
+  const { user, updateUser }  = useAuth();
+  const { showNotification }  = useNotification();
+
+  const [screen,   setScreen]   = useState(0); // 0,1,2
+  const [domain,   setDomain]   = useState(null);
+  const [name,     setName]     = useState(user?.name || "");
+  const [loading,  setLoading]  = useState(false);
+
+  // If already onboarded, don't show this screen
+  useEffect(() => {
+    if (user?.onboardingComplete) {
+      navigate("/", { replace: true });
+    }
+  }, [user, navigate]);
+
+  const handleComplete = async () => {
+    if (!name.trim()) return;
+    setLoading(true);
+    try {
+      await updateUser({
+        name:               name.trim(),
+        primaryDomain:      domain,
+        onboardingComplete: true,
+        emberPoints:        0,
+        level:              1,
+        identityTier:       "Ash",
+      });
+      showNotification("The forge remembers you. Rise. 🔥", "success");
+      navigate("/", { replace: true });
+    } catch (err) {
+      console.error("[Onboarding] complete failed:", err);
+      showNotification("Something went wrong. Try again.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
       <style>{CSS}</style>
-
-      <div className="ob-root" role="main">
+      <div className="ob-root">
         <div className="ob-orb ob-orb-1" aria-hidden="true" />
         <div className="ob-orb ob-orb-2" aria-hidden="true" />
 
-        <div className="ob-card" role="region" aria-label="Onboarding">
-
-          {/* Progress bar */}
-          <div className="ob-progress" aria-label="Setup progress">
-            <div
-              className="ob-progress-fill"
-              style={{ width: `${((step + 1) / TOTAL_STEPS) * 100}%` }}
-            />
-          </div>
-
-          {/* Step dots */}
-          <div className="ob-dots" role="list" aria-label="Steps">
-            {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-              <div
-                key={i}
-                role="listitem"
-                aria-current={i === step ? "step" : undefined}
-                className={`ob-dot${i === step ? " ob-dot--active" : i < step ? " ob-dot--done" : ""}`}
-              />
+        {/* Progress dots */}
+        {screen > 0 && (
+          <div className="ob-progress" role="progressbar" aria-valuenow={screen} aria-valuemin={0} aria-valuemax={2}>
+            {[1, 2].map((s) => (
+              <div key={s} className={`ob-dot${screen >= s ? " ob-dot--active" : ""}`} />
             ))}
           </div>
+        )}
 
-          {/* Step content */}
-          <div className={`ob-content${leaving ? " ob-content--leaving" : ""}`}>
-            {steps[step]}
-          </div>
-
-          {/* Actions */}
-          <div className="ob-actions">
-            {step > 0 && step < TOTAL_STEPS - 1 && (
-              <button
-                type="button"
-                className="ob-back-btn"
-                onClick={back}
-                aria-label="Go back"
-              >
-                ← Back
-              </button>
-            )}
-            <button
-              type="button"
-              className="ob-primary-btn"
-              onClick={advance}
-              aria-label={step === TOTAL_STEPS - 1 ? "Launch Phoenix Tracker" : "Continue to next step"}
-            >
-              {step === TOTAL_STEPS - 1 ? "Launch Phoenix →" : "Continue →"}
-            </button>
-          </div>
-
+        <div className="ob-stage">
+          {screen === 0 && (
+            <ScreenAwakening onNext={() => setScreen(1)} />
+          )}
+          {screen === 1 && (
+            <ScreenIdentity
+              onNext={() => setScreen(2)}
+              selected={domain}
+              onSelect={setDomain}
+            />
+          )}
+          {screen === 2 && (
+            <ScreenNaming
+              onComplete={handleComplete}
+              loading={loading}
+              userName={name}
+              onNameChange={setName}
+            />
+          )}
         </div>
       </div>
     </>
   );
 }
 
-// ─── CSS ─────────────────────────────────────────────────────
+// ─── CSS ──────────────────────────────────────────────────────
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Syne:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Syne:wght@300;400;500;600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; }
 
 .ob-root {
+  --ember:   #f97316;
+  --gold:    #facc15;
+  --ink:     #040710;
+  --panel:   #0b1120;
+  --glass:   rgba(255,255,255,0.04);
+  --border:  rgba(255,255,255,0.08);
+  --muted:   rgba(255,255,255,0.38);
+
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--bg, #040710);
+  background: var(--ink);
   font-family: 'Syne', sans-serif;
-  padding: 20px;
+  color: #fff;
   position: relative;
   overflow: hidden;
 }
@@ -294,323 +380,383 @@ const CSS = `
 .ob-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
+  filter: blur(100px);
   pointer-events: none;
   z-index: 0;
 }
 .ob-orb-1 {
-  width: 400px; height: 400px;
+  width: 600px; height: 600px;
   background: radial-gradient(circle, rgba(249,115,22,0.13) 0%, transparent 70%);
-  top: -160px; left: -120px;
-  animation: obOrb 14s ease-in-out infinite alternate;
+  top: -250px; left: -200px;
+  animation: obOrb 16s ease-in-out infinite alternate;
 }
 .ob-orb-2 {
-  width: 320px; height: 320px;
+  width: 400px; height: 400px;
   background: radial-gradient(circle, rgba(250,204,21,0.08) 0%, transparent 70%);
-  bottom: -120px; right: -80px;
-  animation: obOrb 18s ease-in-out infinite alternate-reverse;
+  bottom: -180px; right: -120px;
+  animation: obOrb 20s ease-in-out infinite alternate-reverse;
 }
 @keyframes obOrb {
   from { transform: translate(0,0); }
-  to   { transform: translate(24px, 16px); }
+  to   { transform: translate(30px, 20px); }
 }
 
-/* Card */
-.ob-card {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  max-width: 460px;
-  background: var(--card, #0b1120);
-  border: 1px solid rgba(249,115,22,0.15);
-  border-radius: 24px;
-  overflow: hidden;
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.025),
-    0 32px 100px rgba(0,0,0,0.8);
-  animation: obRise 0.6s cubic-bezier(0.16,1,0.3,1) both;
-}
-@keyframes obRise {
-  from { opacity:0; transform: translateY(28px) scale(0.97); }
-  to   { opacity:1; transform: translateY(0) scale(1); }
+/* Ember particle rise */
+@keyframes ob-rise {
+  0%   { transform: translateY(0) scale(1);    opacity: var(--op, 0.5); }
+  80%  { opacity: var(--op, 0.5); }
+  100% { transform: translateY(-100vh) scale(0.3); opacity: 0; }
 }
 
-/* Progress bar */
+/* Progress dots */
 .ob-progress {
-  height: 3px;
-  background: rgba(255,255,255,0.06);
-  width: 100%;
-}
-.ob-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #f97316, #facc15);
-  border-radius: 0 2px 2px 0;
-  transition: width 0.45s cubic-bezier(0.4,0,0.2,1);
-}
-
-/* Step dots */
-.ob-dots {
+  position: fixed;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  justify-content: center;
   gap: 8px;
-  padding: 20px 0 0;
+  z-index: 10;
 }
 .ob-dot {
   width: 6px; height: 6px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.15);
-  transition: all 0.3s ease;
+  background: rgba(255,255,255,0.18);
+  transition: background 0.3s, width 0.3s;
 }
 .ob-dot--active {
-  background: #f97316;
   width: 20px;
   border-radius: 3px;
-}
-.ob-dot--done {
-  background: rgba(250,204,21,0.5);
+  background: linear-gradient(90deg, var(--ember), var(--gold));
 }
 
-/* Content area */
-.ob-content {
-  padding: 28px 32px 8px;
-  transition: opacity 0.22s ease, transform 0.22s ease;
-}
-.ob-content--leaving {
-  opacity: 0;
-  transform: translateX(-12px);
+/* Stage container */
+.ob-stage {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 480px;
+  padding: 0 24px;
 }
 
-/* Step */
-.ob-step {
+/* ── Screen base ── */
+.ob-screen {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  animation: obStepIn 0.35s 0.1s cubic-bezier(0.16,1,0.3,1) both;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+  animation: obFadeUp 0.55s cubic-bezier(0.16,1,0.3,1) both;
 }
-@keyframes obStepIn {
-  from { opacity:0; transform: translateX(16px); }
-  to   { opacity:1; transform: translateX(0); }
+@keyframes obFadeUp {
+  from { opacity:0; transform:translateY(24px); }
+  to   { opacity:1; transform:translateY(0); }
 }
-.ob-step--center {
+
+/* ── Screen 1: Awakening ── */
+.ob-awakening-content {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   text-align: center;
+  gap: 0;
 }
 
-.ob-step-icon {
-  font-size: 28px;
-  line-height: 1;
-  margin-bottom: 2px;
+.ob-phoenix-mark {
+  position: relative;
+  width: 100px; height: 100px;
+  margin-bottom: 52px;
 }
-.ob-step-title {
+.ob-phoenix-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(249,115,22,0.35);
+  animation: obRingPulse 3s ease-in-out infinite;
+}
+.ob-phoenix-ring.ob-ring-2 {
+  inset: -14px;
+  border-color: rgba(249,115,22,0.15);
+  animation-delay: 0.5s;
+}
+@keyframes obRingPulse {
+  0%,100% { opacity:0.4; transform:scale(1); }
+  50%     { opacity:1;   transform:scale(1.06); }
+}
+.ob-phoenix-img {
+  width: 100px; height: 100px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 24px rgba(249,115,22,0.6));
+}
+
+.ob-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 56px;
+}
+.ob-line {
   font-family: 'DM Serif Display', serif;
-  font-size: 1.55rem;
+  font-size: clamp(1.2rem, 4vw, 1.55rem);
   font-weight: 400;
-  color: var(--text, #fff);
+  color: rgba(255,255,255,0.88);
   margin: 0;
-  line-height: 1.2;
+  line-height: 1.3;
+  transition: opacity 0.7s ease, transform 0.7s ease;
 }
-.ob-step-sub {
-  font-size: 13px;
-  color: var(--text-muted, rgba(255,255,255,0.4));
-  margin: 0 0 6px;
-  line-height: 1.5;
+.ob-line:first-child { color: rgba(255,255,255,0.45); font-style: italic; }
+.ob-line:last-child {
+  background: linear-gradient(135deg, #facc15, #f97316);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
-/* Input */
+.ob-skip {
+  margin-top: 24px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.18);
+  cursor: pointer;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 0.2s, opacity 0.7s ease;
+  user-select: none;
+}
+.ob-skip:hover { color: rgba(255,255,255,0.4); }
+
+/* ── Screen 2: Identity ── */
+.ob-identity-content,
+.ob-naming-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80px 0 40px;
+}
+
+.ob-step-tag {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: var(--ember);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  opacity: 0.8;
+}
+
+.ob-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(1.6rem, 5vw, 2.2rem);
+  font-weight: 400;
+  line-height: 1.1;
+  text-align: center;
+  margin: 0 0 12px;
+  color: #fff;
+}
+
+.ob-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.6;
+  margin: 0 0 32px;
+}
+
+.ob-domain-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 28px;
+}
+
+.ob-domain-card {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  position: relative;
+  font-family: 'Syne', sans-serif;
+}
+.ob-domain-card:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.15);
+}
+.ob-domain-card--selected {
+  background: rgba(255,255,255,0.05);
+}
+
+.ob-domain-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.ob-domain-tag {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid;
+}
+.ob-domain-check {
+  font-size: 14px;
+  font-weight: 600;
+}
+.ob-domain-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  margin: 0 0 4px;
+  line-height: 1.3;
+}
+.ob-domain-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+.ob-domain-ep {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+/* ── Screen 3: Naming ── */
+.ob-ash-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 24px;
+  border-radius: 10px;
+  border: 1px solid rgba(249,115,22,0.2);
+  background: rgba(249,115,22,0.06);
+  margin-bottom: 28px;
+}
+.ob-tier-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: var(--ember);
+  text-transform: uppercase;
+}
+.ob-tier-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.ob-name-field {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.ob-field-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 .ob-input {
   width: 100%;
-  padding: 13px 16px;
-  border-radius: 10px;
-  border: 1px solid var(--border, rgba(255,255,255,0.1));
-  background: rgba(255,255,255,0.04);
-  color: var(--text, #fff);
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--glass);
+  color: #fff;
   font-family: 'Syne', sans-serif;
-  font-size: 14px;
+  font-size: 15px;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
-  box-sizing: border-box;
 }
-.ob-input::placeholder { color: rgba(255,255,255,0.2); }
+.ob-input::placeholder { color: rgba(255,255,255,0.15); }
 .ob-input:focus {
   border-color: rgba(249,115,22,0.5);
   box-shadow: 0 0 0 3px rgba(249,115,22,0.1);
 }
-.ob-input--error {
-  border-color: rgba(239,68,68,0.5);
-}
-.ob-input:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; }
 
-/* Error */
-.ob-error {
-  font-size: 12px;
-  color: #f87171;
-  margin: 0;
-}
-
-/* Focus label */
-.ob-focus-label {
-  font-size: 11px;
-  font-weight: 500;
-  color: rgba(255,255,255,0.35);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin: 4px 0 0;
-}
-
-/* Focus grid */
-.ob-focus-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-.ob-focus-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  padding: 14px 8px;
-  border-radius: 12px;
-  border: 1px solid var(--border, rgba(255,255,255,0.1));
-  background: rgba(255,255,255,0.03);
-  color: var(--text, #fff);
-  cursor: pointer;
-  transition: border-color 0.2s, background 0.2s, transform 0.15s;
-  text-align: center;
-}
-.ob-focus-btn:hover:not(.ob-focus-btn--active) {
-  border-color: rgba(249,115,22,0.3);
-  background: rgba(249,115,22,0.05);
-}
-.ob-focus-btn:active { transform: scale(0.97); }
-.ob-focus-btn--active {
-  border-color: rgba(249,115,22,0.6);
-  background: rgba(249,115,22,0.12);
-}
-.ob-focus-btn:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; }
-.ob-focus-icon {
-  font-size: 18px;
-  line-height: 1;
-  color: var(--accent, #f97316);
-}
-.ob-focus-btn--active .ob-focus-icon { color: #facc15; }
-.ob-focus-name {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-.ob-focus-desc {
-  font-size: 10px;
-  color: rgba(255,255,255,0.4);
-  line-height: 1.3;
-}
-.ob-focus-btn--active .ob-focus-desc { color: rgba(255,255,255,0.6); }
-
-/* Done step */
-.ob-done-ring {
-  width: 72px; height: 72px;
-  border-radius: 50%;
-  border: 2px solid rgba(249,115,22,0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 4px;
-  animation: obRingPulse 2.5s ease-in-out infinite;
-}
-@keyframes obRingPulse {
-  0%,100% { box-shadow: 0 0 0 0 rgba(249,115,22,0); }
-  50%     { box-shadow: 0 0 0 8px rgba(249,115,22,0.1); }
-}
-.ob-done-emoji {
-  font-size: 26px;
-  color: #f97316;
-  animation: obSpin 6s linear infinite;
-}
-@keyframes obSpin { to { transform: rotate(360deg); } }
-
-/* Summary card */
-.ob-summary {
+.ob-identity-preview {
   width: 100%;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.03);
-  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 4px;
-  text-align: left;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 28px;
 }
-.ob-summary-row {
+.ob-preview-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-.ob-summary-key {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: rgba(255,255,255,0.35);
-}
-.ob-summary-val {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text, #fff);
-  text-align: right;
-}
-
-/* Actions */
-.ob-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 20px 32px 28px;
-}
-.ob-back-btn {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.45);
-  font-family: 'Syne', sans-serif;
-  font-size: 13px;
   padding: 12px 16px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: border-color 0.2s, color 0.2s;
-  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
 }
-.ob-back-btn:hover { border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.75); }
-.ob-back-btn:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; }
+.ob-preview-row:last-child { border-bottom: none; }
+.ob-preview-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.ob-preview-val {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.7);
+}
+.ob-val-ash { color: rgba(255,255,255,0.4); }
+.ob-val-phoenix {
+  background: linear-gradient(135deg, #facc15, #f97316);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 600;
+}
 
-.ob-primary-btn {
-  flex: 1;
-  padding: 13px;
-  border-radius: 10px;
+/* ── Shared CTA button ── */
+.ob-cta {
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
   border: none;
   background: linear-gradient(135deg, #f97316, #facc15);
   color: #050810;
   font-family: 'Syne', sans-serif;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.03em;
   cursor: pointer;
-  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
   transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
-  box-shadow: 0 4px 20px rgba(249,115,22,0.25);
+  box-shadow: 0 4px 28px rgba(249,115,22,0.3);
 }
-.ob-primary-btn:hover {
+.ob-cta:hover:not(:disabled) {
   opacity: 0.9;
   transform: translateY(-1px);
-  box-shadow: 0 8px 28px rgba(249,115,22,0.35);
+  box-shadow: 0 8px 36px rgba(249,115,22,0.4);
 }
-.ob-primary-btn:active { transform: translateY(0); }
-.ob-primary-btn:focus-visible { outline: 2px solid #facc15; outline-offset: 3px; }
+.ob-cta:active:not(:disabled) { transform: translateY(0); }
+.ob-cta:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.ob-cta:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 
-/* Mobile */
-@media (max-width: 480px) {
-  .ob-content { padding: 22px 22px 8px; }
-  .ob-actions  { padding: 18px 22px 24px; }
-  .ob-focus-grid { grid-template-columns: 1fr 1fr 1fr; }
-  .ob-focus-btn { padding: 12px 4px; }
-  .ob-step-title { font-size: 1.35rem; }
+@media (max-width: 400px) {
+  .ob-domain-grid { grid-template-columns: 1fr; }
+  .ob-stage { padding: 0 16px; }
 }
 `;
