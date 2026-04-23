@@ -13,11 +13,5 @@
         }
       ]
     }
-  ],
-  "rewrites": [
-    {
-      "source": "/((?!assets|favicon\\.ico|phoenix\\.png|sw\\.js|manifest\\.json).*)",
-      "destination": "/index.html"
-    }
   ]
 }
