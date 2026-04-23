@@ -54,11 +54,18 @@ export function useAuth() {
   // signInWithRedirect navigates away and back — we must call
   // getRedirectResult() once on return to complete the sign-in.
   // onAuthStateChanged fires automatically after this resolves.
-  useEffect(() => {
-    consumeRedirectResult().catch((err) => {
-      console.error("[useAuth] redirect result error:", err);
-    });
-  }, []);
+  // ── Consume Google redirect result on mount ─────────────────
+useEffect(() => {
+  consumeRedirectResult().then((result) => {
+    if (result?.user) {
+      console.log('[useAuth] redirect sign-in success:', result.user.email);
+      // onAuthStateChanged will fire automatically and handle Firestore
+    }
+  }).catch((err) => {
+    console.error("[useAuth] redirect result error:", err);
+  });
+}, []);
+
 
   // ── Auth listener + Firestore user doc bootstrap ───────────
   useEffect(() => {
