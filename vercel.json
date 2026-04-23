@@ -1,7 +1,4 @@
 {
-  "rewrites": [
-    { "source": "/((?!api/.*).*)", "destination": "/index.html" }
-  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -15,6 +12,12 @@
           "value": "unsafe-none"
         }
       ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/((?!assets|favicon\\.ico|phoenix\\.png|sw\\.js|manifest\\.json).*)",
+      "destination": "/index.html"
     }
   ]
 }
