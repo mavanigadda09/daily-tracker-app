@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    base: "./",
+    base: "/",
 
     plugins: [react({ fastRefresh: true })],
 
