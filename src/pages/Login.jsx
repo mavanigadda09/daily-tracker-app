@@ -295,15 +295,24 @@ export default function Login({ onLogin = () => {} }) {
     setGoogleLoading(true);
     clearErrors();
     try {
-      await signInWithGoogle();
-      // Web path: page has already navigated away at this point — dead code.
-      // Native path: credential resolved; useAuth.js onAuthStateChanged takes over.
+      const result = await signInWithGoogle();
+      // Web: signInWithPopup resolves here with UserCredential
+      // Native: signInWithCredential resolves here too
+      if (result?.user) {
+        const u = result.user;
+        onLogin({
+          name: u.displayName || u.email?.split("@")[0] || "",
+          email: u.email,
+        });
+        navigate("/", { replace: true });
+      }
     } catch (err) {
-      // Only reached on actual errors (cancelled, network failure, etc.)
       const msg = friendlyError(err);
       setGlobalError(msg);
       showNotification(msg, "error");
-      setGoogleLoading(false); // only reset spinner on error; redirect handles success
+    } finally {
+      // Always reset spinner — popup either succeeded, failed, or was cancelled
+      setGoogleLoading(false);
     }
   };
 
@@ -1015,6 +1024,17 @@ const CSS = `
   align-items: center; text-align: center; gap: 10px;
 }
 .lp-sent-icon { font-size: 42px; }
+
+<button
+                className="lp-google-btn"
+                onClick={handleGoogle}
+                disabled={anyLoading}
+                aria-busy={googleLoading}
+                aria-label="Sign in with Google"
+              >
+                {googleLoading ? <Spinner size={18} /> : <GoogleIcon />}
+                <span>{googleLoading ? "Opening Google…" : "Google"}</span>
+              </button>
 
 /* Responsive */
 @media (max-width: 700px) {

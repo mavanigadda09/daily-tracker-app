@@ -1,19 +1,6 @@
-/**
- * useAuth.js
- * ─────────────────────────────────────────────────────────────
- * Manages Firebase auth state and the app-level "user" profile.
- *
- * Changes:
- *   • consumeRedirectResult() called on mount to handle Google redirect flow
- *   • deriveName() resolves name from email prefix if displayName absent
- *   • getCachedUser() evicts stale cache entries where name is blank/missing
- *   • existing Firestore docs with name:"" are silently patched on login
- *   • silent patch now uses setDoc+merge
- */
-
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { auth, db, consumeRedirectResult } from "../firebase";
+import { auth, db } from "../firebase";  // ← removed consumeRedirectResult
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
@@ -50,24 +37,9 @@ export function useAuth() {
   const [isResolvingAuth, setIsResolvingAuth] = useState(true);
   const [user,            setUser]            = useState(getCachedUser);
 
-  // ── Consume Google redirect result on mount ─────────────────
-  // signInWithRedirect navigates away and back — we must call
-  // getRedirectResult() once on return to complete the sign-in.
-  // onAuthStateChanged fires automatically after this resolves.
-  // ── Consume Google redirect result on mount ─────────────────
-useEffect(() => {
-  consumeRedirectResult().then((result) => {
-    if (result?.user) {
-      console.log('[useAuth] redirect sign-in success:', result.user.email);
-      // onAuthStateChanged will fire automatically and handle Firestore
-    }
-  }).catch((err) => {
-    console.error("[useAuth] redirect result error:", err);
-  });
-}, []);
-
-
   // ── Auth listener + Firestore user doc bootstrap ───────────
+  // onAuthStateChanged fires automatically after signInWithPopup resolves,
+  // so no redirect result consumption needed here anymore.
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser ?? null);

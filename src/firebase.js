@@ -3,8 +3,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithCredential,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { Capacitor } from '@capacitor/core';
@@ -18,13 +17,17 @@ const firebaseConfig = {
   appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
+// Diagnostic — confirm env vars are reaching runtime on Vercel
+// Remove after auth is confirmed working
+console.log('[firebase] authDomain =', firebaseConfig.authDomain);
+
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db   = getFirestore(app);
 
 // ─── Google Sign-In ────────────────────────────────────────────────────────
-// Native → GoogleAuthPlugin in MainActivity.java
-// Web    → signInWithRedirect — avoids all COOP/popup/cross-origin issues
+// Native → custom GoogleAuthPlugin in MainActivity.java (signInWithCredential)
+// Web    → signInWithPopup (COOP header in vercel.json enables window.opener)
 export async function signInWithGoogle() {
   if (Capacitor.isNativePlatform()) {
     const result = await Capacitor.Plugins.GoogleAuth.signIn();
@@ -32,18 +35,13 @@ export async function signInWithGoogle() {
     return signInWithCredential(auth, credential);
   } else {
     const provider = new GoogleAuthProvider();
-    await signInWithRedirect(auth, provider);
-    // Page navigates away — getRedirectResult() handles the return in useAuth
+    return signInWithPopup(auth, provider);
+    // Returns UserCredential directly — no redirect, no IndexedDB dependency
   }
 }
 
-// Called once on app mount to capture the result after Google redirects back
+// No-op stub — kept so any existing call sites don't crash during migration.
+// Safe to delete once you've confirmed no component calls consumeRedirectResult().
 export async function consumeRedirectResult() {
-  try {
-    const result = await getRedirectResult(auth);
-    return result; // null if no pending redirect, UserCredential if returning
-  } catch (err) {
-    console.error('[firebase] getRedirectResult failed:', err);
-    return null;
-  }
+  return null;
 }
