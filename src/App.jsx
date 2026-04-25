@@ -1,6 +1,5 @@
 import { useMemo } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DataProvider }         from "./context/DataContext";
 import { NotificationProvider } from "./context/NotificationContext";
 
@@ -42,7 +41,10 @@ function PhoenixWatermark() {
 
 function AppInner() {
   const [theme, toggleTheme] = useTheme();
-  const { firebaseUser, isResolvingAuth, user, login, logout, updateUser } = useAuth();
+
+  // ✅ FIX: removed non-existent "login" and "updateUser"
+  const { firebaseUser, isResolvingAuth, user, logout } = useAuth();
+
   const appData = useAppData(firebaseUser);
 
   useReminderSystems({
@@ -60,16 +62,12 @@ function AppInner() {
     [appData.tasks, appData.items, appData.weightLogs]
   );
 
-  // ── CRITICAL: useMemo must be called before any early return ──
-  // Putting this after `if (isResolvingAuth || appData.loading) return`
-  // violates rules of hooks — hook count changes between renders.
   const contextValue = useMemo(() => ({
     ...appData,
     user,
-    updateUser,
-  }), [appData, user, updateUser]);
+  }), [appData, user]);
 
-  // Early return AFTER all hooks
+  // ⏳ Wait until auth + data resolved
   if (isResolvingAuth || appData.loading) {
     return <AppLoader />;
   }
@@ -77,7 +75,10 @@ function AppInner() {
   return (
     <DataProvider value={contextValue}>
       <Routes>
-        <Route path="/login"      element={<Login onLogin={login} />} />
+
+        {/* ✅ FIX: removed onLogin prop (was undefined → crash) */}
+        <Route path="/login" element={<Login />} />
+
         <Route path="/onboarding" element={<Onboarding />} />
 
         <Route
@@ -111,12 +112,12 @@ function AppInner() {
 export default function App() {
   return (
     <NotificationProvider>
-      <BrowserRouter>
+      <HashRouter>
         <PhoenixWatermark />
         <ErrorBoundary>
           <AppInner />
         </ErrorBoundary>
-      </BrowserRouter>
+      </HashRouter>
     </NotificationProvider>
   );
 }

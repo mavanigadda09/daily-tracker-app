@@ -5,7 +5,8 @@ import {
   onAuthStateChanged,
   signOut,
   signInWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider
 } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -44,14 +45,30 @@ export function useAuth() {
   const [isResolvingAuth, setIsResolvingAuth] = useState(true);
   const [user, setUser] = useState(getCachedUser);
 
-  // 🔥 EMAIL LOGIN (FIX)
+  // 🔥 EMAIL LOGIN (unchanged)
   const signInWithEmail = useCallback(async (email, password) => {
     return await signInWithEmailAndPassword(auth, email, password);
   }, []);
 
-  // 🔥 GOOGLE LOGIN (FIX)
+  // 🔥 GOOGLE LOGIN (UPDATED FOR CAPACITOR)
   const signInWithGoogleAuth = useCallback(async () => {
-    return await signInWithPopup(auth, provider);
+    await signInWithRedirect(auth, provider);
+  }, []);
+
+  // 🔥 HANDLE REDIRECT RESULT (CRITICAL FIX)
+  useEffect(() => {
+    const handleRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          console.log("[Google Redirect Success]", result.user);
+        }
+      } catch (err) {
+        console.error("[Google Redirect Error]", err);
+      }
+    };
+
+    handleRedirect();
   }, []);
 
   useEffect(() => {
@@ -124,7 +141,7 @@ export function useAuth() {
     setUser,
     logout,
 
-    // ✅ EXPORT THESE (CRITICAL)
+    // ✅ EXPORTS (unchanged API)
     signInWithEmail,
     signInWithGoogleAuth,
   };
