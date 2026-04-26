@@ -24,9 +24,37 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    base: "/",
+    base: "./",
 
-    plugins: [react({ fastRefresh: true })],
+    plugins: [
+      react({ fastRefresh: true }),
+
+      // ✅ CAPACITOR FIX: Strip crossorigin from all script/link tags.
+      // Vite injects crossorigin on module scripts and stylesheets.
+      // Inside Capacitor WebView this causes a CORS origin mismatch:
+      //   frame origin: chrome-error://chromewebdata/
+      //   request origin: https://localhost/
+      // Result: "Unsafe attempt to load URL" → blank screen.
+      // Removing crossorigin forces the browser to load files locally.
+      {
+        name: "remove-crossorigin",
+        transformIndexHtml(html) {
+          return html
+            .replace(
+              /<script type="module" crossorigin/g,
+              '<script type="module"'
+            )
+            .replace(
+              /<link rel="modulepreload" crossorigin/g,
+              '<link rel="modulepreload"'
+            )
+            .replace(
+              /<link rel="stylesheet" crossorigin/g,
+              '<link rel="stylesheet"'
+            );
+        },
+      },
+    ],
 
     resolve: {
       alias: {
@@ -60,9 +88,9 @@ export default defineConfig(({ mode }) => {
             if (id.includes("react-dom"))          return "vendor-react";
             if (id.includes("node_modules/react")) return "vendor-react";
           },
-          chunkFileNames: "assets/js/[name]-[hash].js",
-          entryFileNames: "assets/js/[name]-[hash].js",
-          assetFileNames: "assets/[ext]/[name]-[hash].[ext]",
+          chunkFileNames:  "assets/js/[name]-[hash].js",
+          entryFileNames:  "assets/js/[name]-[hash].js",
+          assetFileNames:  "assets/[ext]/[name]-[hash].[ext]",
         },
       },
     },

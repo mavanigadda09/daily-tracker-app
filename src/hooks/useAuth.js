@@ -7,9 +7,15 @@ import {
   signInWithEmailAndPassword,
   signInWithRedirect,
   getRedirectResult,
-  GoogleAuthProvider
+  GoogleAuthProvider,
 } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 
 const USER_CACHE_KEY = "user";
 const provider = new GoogleAuthProvider();
@@ -34,8 +40,9 @@ function getCachedUser() {
 }
 
 function cacheUser(userData) {
-  try { localStorage.setItem(USER_CACHE_KEY, JSON.stringify(userData)); }
-  catch {}
+  try {
+    localStorage.setItem(USER_CACHE_KEY, JSON.stringify(userData));
+  } catch {}
 }
 
 export function useAuth() {
@@ -45,17 +52,17 @@ export function useAuth() {
   const [isResolvingAuth, setIsResolvingAuth] = useState(true);
   const [user, setUser] = useState(getCachedUser);
 
-  // 🔥 EMAIL LOGIN (unchanged)
+  // ── Email login ───────────────────────────────────────────
   const signInWithEmail = useCallback(async (email, password) => {
     return await signInWithEmailAndPassword(auth, email, password);
   }, []);
 
-  // 🔥 GOOGLE LOGIN (UPDATED FOR CAPACITOR)
+  // ── Google login ──────────────────────────────────────────
   const signInWithGoogleAuth = useCallback(async () => {
     await signInWithRedirect(auth, provider);
   }, []);
 
-  // 🔥 HANDLE REDIRECT RESULT (CRITICAL FIX)
+  // ── Handle Google redirect result ─────────────────────────
   useEffect(() => {
     const handleRedirect = async () => {
       try {
@@ -67,17 +74,17 @@ export function useAuth() {
         console.error("[Google Redirect Error]", err);
       }
     };
-
     handleRedirect();
   }, []);
 
+  // ── Auth state listener ───────────────────────────────────
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser ?? null);
 
       if (fbUser) {
         try {
-          const ref = doc(db, "users", fbUser.uid);
+          const ref  = doc(db, "users", fbUser.uid);
           const snap = await getDoc(ref);
 
           if (snap.exists()) {
@@ -93,22 +100,22 @@ export function useAuth() {
             setUser(profile);
             cacheUser(profile);
 
+            // ✅ Only redirect to onboarding if not complete
             if (!data.onboardingComplete) {
               navigate("/onboarding", { replace: true });
             }
 
           } else {
             const newProfile = {
-              uid: fbUser.uid,
-              email: fbUser.email,
-              name: deriveName(fbUser),
+              uid:                fbUser.uid,
+              email:              fbUser.email,
+              name:               deriveName(fbUser),
               onboardingComplete: false,
-              emberPoints: 0,
-              level: 1,
-              identityTier: "Ash",
-              createdAt: serverTimestamp(),
+              emberPoints:        0,
+              level:              1,
+              identityTier:       "Ash",
+              createdAt:          serverTimestamp(),
             };
-
             await setDoc(ref, newProfile);
             setUser(newProfile);
             cacheUser(newProfile);
@@ -116,7 +123,7 @@ export function useAuth() {
           }
 
         } catch (err) {
-          console.error("[useAuth]", err);
+          console.error("[useAuth] Firestore error:", err);
         }
       } else {
         setUser(null);
@@ -128,11 +135,35 @@ export function useAuth() {
     return () => unsub();
   }, [navigate]);
 
+  // ── Logout ────────────────────────────────────────────────
   const logout = useCallback(async () => {
     await signOut(auth);
     localStorage.clear();
     navigate("/login", { replace: true });
   }, [navigate]);
+
+  // ── Update user profile ───────────────────────────────────
+  // Called by Onboarding.jsx after setup is complete.
+  // Merges the payload into Firestore and updates local state + cache.
+  const updateUser = useCallback(async (payload) => {
+    const fbUser = auth.currentUser;
+    if (!fbUser) throw new Error("No authenticated user");
+
+    const ref = doc(db, "users", fbUser.uid);
+
+    // Remove serverTimestamp fields from payload before merge
+    // (they can't be set from client update calls safely)
+    const cleanPayload = { ...payload };
+
+    await updateDoc(ref, cleanPayload);
+
+    // Merge into local state and cache
+    setUser(prev => {
+      const updated = { ...prev, ...cleanPayload };
+      cacheUser(updated);
+      return updated;
+    });
+  }, []);
 
   return {
     firebaseUser,
@@ -140,8 +171,7 @@ export function useAuth() {
     user,
     setUser,
     logout,
-
-    // ✅ EXPORTS (unchanged API)
+    updateUser,
     signInWithEmail,
     signInWithGoogleAuth,
   };

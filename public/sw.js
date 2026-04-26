@@ -1,75 +1,62 @@
-const CACHE_NAME = "tracker-cache-v3";
+// public/sw.js — Phoenix Tracker Service Worker
+//
+// ⚠️  DO NOT cache "/" or "/index.html" here.
+//     In Capacitor WebView, localhost has no HTTP server.
+//     Fetching those URLs → ERR_CONNECTION_REFUSED → SW install fails
+//     → WebView shows the error page instead of your app.
+
+const CACHE_NAME = "tracker-cache-v4";
+
+// Only cache files that physically exist as static files in /public
 const STATIC_CACHE = [
-  "/",
-  "/index.html",
-  "/manifest.json",
   "/pwa-192.png",
-  "/pwa-512.png"
+  "/pwa-512.png",
+  "/favicon.svg",
+  "/phoenix.png",
 ];
 
-/* ================= INSTALL ================= */
+// ─── Install ──────────────────────────────────────────────────
 self.addEventListener("install", (event) => {
-  console.log("✅ Service Worker Installing...");
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_CACHE);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_CACHE))
   );
   self.skipWaiting();
 });
 
-/* ================= ACTIVATE ================= */
+// ─── Activate ─────────────────────────────────────────────────
 self.addEventListener("activate", (event) => {
-  console.log("✅ Service Worker Activated");
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            console.log("🧹 Removing old cache:", key);
-            return caches.delete(key);
-          }
-        })
+        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
       )
     )
   );
   self.clients.claim();
 });
 
-/* ================= FETCH ================= */
+// ─── Fetch ────────────────────────────────────────────────────
 self.addEventListener("fetch", (event) => {
   const req = event.request;
-
-  // ✅ Fix 1: Skip non-GET requests (POST, PUT, DELETE etc.)
-  // Cache API only supports GET — this was causing the TypeError
   if (req.method !== "GET") return;
-
-  // ✅ Fix 2: Skip chrome-extension:// and non-http(s) URLs
-  // These cannot be cached and were causing the Request scheme error
   if (!req.url.startsWith("http")) return;
 
-  // ✅ Fix 3: Skip cross-origin requests (e.g. Firebase, Google APIs)
-  // Caching these can cause stale cloud / COOP issues
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // 🔥 Strategy: Network First (for dynamic content)
   event.respondWith(
     fetch(req)
       .then((res) => {
-        // Only cache valid responses
-        if (!res || res.status !== 200 || res.type !== "basic") {
-          return res;
-        }
+        if (!res || res.status !== 200 || res.type !== "basic") return res;
         const clone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(req, clone);
-        });
+        caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
         return res;
       })
-      .catch(() => {
-        // Fallback to cache
-        return caches.match(req);
-      })
+      .catch(() => caches.match(req))
   );
+});
+
+// ─── Message ──────────────────────────────────────────────────
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
