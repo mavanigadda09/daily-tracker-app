@@ -4,6 +4,12 @@
  * UI/UX: Premium dark SaaS — volcanic obsidian + ember fire palette
  * Typography: DM Serif Display (display) + Syne (body)
  * All goals from the brief are addressed below.
+ *
+ * FIXES APPLIED:
+ *   1. const navigate = useNavigate() now called inside component body
+ *      (was imported but never instantiated — caused "navigate is not defined" crash)
+ *   2. Removed stray JSX <button> block that was embedded inside the CSS string
+ *      (caused a parse error / broken render)
  */
 
 import { useState, useId } from "react";
@@ -227,7 +233,8 @@ function ForgotPasswordModal({ onClose }) {
 export default function Login({ onLogin = () => {} }) {
   const { signInWithEmail, signInWithGoogleAuth } = useAuth();
   const { showNotification } = useNotification();
-  const uid                  = useId();
+  const navigate = useNavigate(); // ← FIX 1: hook now called inside component body
+  const uid      = useId();
 
   const [isRegister,    setIsRegister]    = useState(false);
   const [showForgot,    setShowForgot]    = useState(false);
@@ -283,22 +290,11 @@ export default function Login({ onLogin = () => {} }) {
   };
 
   // ── Google ─────────────────────────────────────────────────
-  // FIX: signInWithRedirect navigates the entire page to Google — it never
-  // returns a value. The previous code called result.success on undefined,
-  // which threw a TypeError that the catch block silently swallowed, keeping
-  // the user stuck on /login with no visible error.
-  //
-  // Correct behaviour:
-  //   • Web:    page navigates away → nothing after await runs → fine
-  //   • Native: signInWithCredential resolves immediately → onAuthStateChanged
-  //             in useAuth.js handles Firestore write + navigation
   const handleGoogle = async () => {
     setGoogleLoading(true);
     clearErrors();
     try {
       const result = await signInWithGoogleAuth();
-      // Web: signInWithPopup resolves here with UserCredential
-      // Native: signInWithCredential resolves here too
       if (result && result.user) {
         const u = result.user;
         onLogin({
@@ -312,7 +308,6 @@ export default function Login({ onLogin = () => {} }) {
       setGlobalError(msg);
       showNotification(msg, "error");
     } finally {
-      // Always reset spinner — popup either succeeded, failed, or was cancelled
       setGoogleLoading(false);
     }
   };
@@ -522,7 +517,7 @@ export default function Login({ onLogin = () => {} }) {
                 aria-label="Sign in with Google"
               >
                 {googleLoading ? <Spinner size={18} /> : <GoogleIcon />}
-                <span>{googleLoading ? "Redirecting to Google…" : "Google"}</span>
+                <span>{googleLoading ? "Opening Google…" : "Google"}</span>
               </button>
 
               <p className="lp-terms">
@@ -539,6 +534,7 @@ export default function Login({ onLogin = () => {} }) {
 }
 
 // ─── CSS ─────────────────────────────────────────────────────
+// FIX 2: removed stray JSX <button> block that was embedded inside this string
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Syne:wght@300;400;500;600&display=swap');
 
@@ -567,7 +563,6 @@ const CSS = `
   overflow: hidden;
 }
 
-/* Ambient orbs */
 .lp-orb {
   position: absolute;
   border-radius: 50%;
@@ -599,7 +594,6 @@ const CSS = `
 }
 @keyframes lp-spin { to { transform: rotate(360deg); } }
 
-/* Card */
 .lp-card {
   position: relative;
   z-index: 1;
@@ -621,7 +615,6 @@ const CSS = `
   to   { opacity:1; transform: translateY(0) scale(1); }
 }
 
-/* Left panel */
 .lp-left {
   flex: 0 0 360px;
   position: relative;
@@ -734,7 +727,6 @@ const CSS = `
   padding-left: 14px;
 }
 
-/* Right panel */
 .lp-right {
   flex: 1;
   display: flex;
@@ -752,7 +744,6 @@ const CSS = `
   to   { opacity:1; transform:translateX(0); }
 }
 
-/* Tabs */
 .lp-tabs {
   display: flex;
   background: rgba(255,255,255,0.035);
@@ -791,7 +782,6 @@ const CSS = `
   line-height: 1.5;
 }
 
-/* Global error */
 .lp-global-error {
   display: flex;
   align-items: flex-start;
@@ -807,7 +797,6 @@ const CSS = `
 }
 .lp-error-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
 
-/* Fields */
 .lp-fields {
   display: flex;
   flex-direction: column;
@@ -876,7 +865,6 @@ const CSS = `
   margin: 0;
 }
 
-/* Strength meter */
 .lp-strength {
   display: flex;
   align-items: center;
@@ -894,7 +882,6 @@ const CSS = `
   transition: color 0.3s;
 }
 
-/* Forgot */
 .lp-forgot-wrap {
   display: flex;
   justify-content: flex-end;
@@ -910,7 +897,6 @@ const CSS = `
 .lp-forgot:hover { opacity: 1; }
 .lp-forgot:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; border-radius: 3px; }
 
-/* Primary button */
 .lp-primary-btn {
   width: 100%; padding: 14px;
   border-radius: 10px; border: none;
@@ -933,7 +919,6 @@ const CSS = `
 .lp-primary-btn:disabled { opacity: 0.48; cursor: not-allowed; box-shadow: none; }
 .lp-primary-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 
-/* Separator */
 .lp-sep {
   display: flex; align-items: center; gap: 10px;
   margin: 18px 0;
@@ -944,7 +929,6 @@ const CSS = `
   content: ''; flex: 1; height: 1px; background: var(--border);
 }
 
-/* Google button */
 .lp-google-btn {
   width: 100%; padding: 13px;
   border-radius: 10px;
@@ -967,7 +951,6 @@ const CSS = `
 .lp-google-btn:disabled { opacity:0.48; cursor:not-allowed; }
 .lp-google-btn:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
 
-/* Terms */
 .lp-terms {
   font-size: 11px;
   color: rgba(255,255,255,0.2);
@@ -977,7 +960,6 @@ const CSS = `
 .lp-link { color: rgba(249,115,22,0.6); text-decoration: none; transition: color 0.2s; }
 .lp-link:hover { color: var(--ember); }
 
-/* Modal */
 .lp-modal-backdrop {
   position: fixed; inset: 0;
   background: rgba(4,7,16,0.85);
@@ -1026,18 +1008,6 @@ const CSS = `
 }
 .lp-sent-icon { font-size: 42px; }
 
-<button
-                className="lp-google-btn"
-                onClick={handleGoogle}
-                disabled={anyLoading}
-                aria-busy={googleLoading}
-                aria-label="Sign in with Google"
-              >
-                {googleLoading ? <Spinner size={18} /> : <GoogleIcon />}
-                <span>{googleLoading ? "Opening Google…" : "Google"}</span>
-              </button>
-
-/* Responsive */
 @media (max-width: 700px) {
   .lp-left { display: none; }
   .lp-card { border-radius: 20px; }

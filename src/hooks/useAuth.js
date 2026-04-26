@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { auth, db } from "../firebase";
+import { auth, db, signInWithGoogle } from "../firebase";
 import {
   onAuthStateChanged,
   signOut,
   signInWithEmailAndPassword,
-  signInWithRedirect,
-  getRedirectResult,
-  GoogleAuthProvider,
 } from "firebase/auth";
 import {
   doc,
@@ -18,7 +15,6 @@ import {
 } from "firebase/firestore";
 
 const USER_CACHE_KEY = "user";
-const provider = new GoogleAuthProvider();
 
 function deriveName(fbUser) {
   if (fbUser.displayName?.trim()) return fbUser.displayName.trim();
@@ -58,23 +54,11 @@ export function useAuth() {
   }, []);
 
   // ── Google login ──────────────────────────────────────────
+  // On native Android: uses @codetrix-studio/capacitor-google-auth plugin
+  // On web: uses signInWithPopup
+  // NO redirect flow — redirect causes localhost ERR_CONNECTION_REFUSED on Android WebView
   const signInWithGoogleAuth = useCallback(async () => {
-    await signInWithRedirect(auth, provider);
-  }, []);
-
-  // ── Handle Google redirect result ─────────────────────────
-  useEffect(() => {
-    const handleRedirect = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
-          console.log("[Google Redirect Success]", result.user);
-        }
-      } catch (err) {
-        console.error("[Google Redirect Error]", err);
-      }
-    };
-    handleRedirect();
+    return await signInWithGoogle();
   }, []);
 
   // ── Auth state listener ───────────────────────────────────
@@ -100,7 +84,6 @@ export function useAuth() {
             setUser(profile);
             cacheUser(profile);
 
-            // ✅ Only redirect to onboarding if not complete
             if (!data.onboardingComplete) {
               navigate("/onboarding", { replace: true });
             }
@@ -143,21 +126,14 @@ export function useAuth() {
   }, [navigate]);
 
   // ── Update user profile ───────────────────────────────────
-  // Called by Onboarding.jsx after setup is complete.
-  // Merges the payload into Firestore and updates local state + cache.
   const updateUser = useCallback(async (payload) => {
     const fbUser = auth.currentUser;
     if (!fbUser) throw new Error("No authenticated user");
 
     const ref = doc(db, "users", fbUser.uid);
-
-    // Remove serverTimestamp fields from payload before merge
-    // (they can't be set from client update calls safely)
     const cleanPayload = { ...payload };
-
     await updateDoc(ref, cleanPayload);
 
-    // Merge into local state and cache
     setUser(prev => {
       const updated = { ...prev, ...cleanPayload };
       cacheUser(updated);

@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from "react";
 import Dashboard from "./Dashboard";
 
+const Health = lazy(() => import("../health/HealthPage.jsx"));
 const Productivity = lazy(() => import("../../productivity/Productivity.jsx"));
 const Habits       = lazy(() => import("../../habits/Habits.jsx"));
 const Analytics    = lazy(() => import("../../pages/Analytics.jsx"));
@@ -28,6 +29,7 @@ const wrap = (element) => (
 );
 
 export const PROTECTED_ROUTES = [
+
   {
     path: "productivity",
     element: (appData) => wrap(
@@ -39,6 +41,20 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
+  {
+  path: "health",
+  element: (appData) => wrap(
+    <Health
+      items={appData.items}
+      setItems={appData.setItems}
+      weightLogs={appData.weightLogs}
+      setWeightLogs={appData.setWeightLogs}
+      addWeight={appData.addWeight}
+      weightGoal={appData.weightGoal}
+      setWeightGoal={appData.setWeightGoal}
+    />
+  ),
+},
   {
     path: "habits",
     element: (appData) => wrap(

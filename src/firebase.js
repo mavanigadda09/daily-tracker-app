@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import {
   getAuth,
   GoogleAuthProvider,
@@ -17,31 +18,44 @@ const firebaseConfig = {
   appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Diagnostic — confirm env vars are reaching runtime on Vercel
-// Remove after auth is confirmed working
-console.log('[firebase] authDomain =', firebaseConfig.authDomain);
-
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db   = getFirestore(app);
 
 // ─── Google Sign-In ────────────────────────────────────────────────────────
-// Native → custom GoogleAuthPlugin in MainActivity.java (signInWithCredential)
-// Web    → signInWithPopup (COOP header in vercel.json enables window.opener)
 export async function signInWithGoogle() {
   if (Capacitor.isNativePlatform()) {
-    const result = await Capacitor.Plugins.GoogleAuth.signIn();
-    const credential = GoogleAuthProvider.credential(result.idToken);
-    return signInWithCredential(auth, credential);
+    try {
+      console.log('[GoogleAuth] Initializing plugin...');
+
+      // FIX: initialize() must be called before signIn() on every invocation.
+      // The plugin's load() lifecycle does NOT reliably run before signIn()
+      // on Capacitor 8 with 3.4.0-rc.4, leaving GoogleSignInClient null → crash.
+      await GoogleAuth.initialize({
+        clientId: '287796839565-ds6ag7l9io777n0limmnctq3i4c1sne6.apps.googleusercontent.com',
+        scopes: ['profile', 'email'],
+        grantOfflineAccess: true,
+      });
+
+      console.log('[GoogleAuth] Calling signIn...');
+      const googleUser = await GoogleAuth.signIn();
+      console.log('[GoogleAuth] signIn result:', JSON.stringify(googleUser));
+
+      const idToken = googleUser?.authentication?.idToken;
+      if (!idToken) throw new Error('No idToken returned from GoogleAuth.signIn()');
+
+      const credential = GoogleAuthProvider.credential(idToken);
+      return signInWithCredential(auth, credential);
+    } catch (err) {
+      console.error('[GoogleAuth] Native sign-in failed:', err?.message || err);
+      throw err;
+    }
   } else {
     const provider = new GoogleAuthProvider();
     return signInWithPopup(auth, provider);
-    // Returns UserCredential directly — no redirect, no IndexedDB dependency
   }
 }
 
-// No-op stub — kept so any existing call sites don't crash during migration.
-// Safe to delete once you've confirmed no component calls consumeRedirectResult().
 export async function consumeRedirectResult() {
   return null;
 }
