@@ -1,33 +1,16 @@
-/**
- * dashboardAdapter.js
- * Transforms raw app data → dashboard-friendly structure
- */
-
-export default function mapToDashboardData({ tasks = [], items = [], weightLogs = [] }) {
-  // 🔹 Basic safety
-  const safeTasks = tasks || [];
-  const safeItems = items || [];
-  const safeLogs  = weightLogs || [];
-
-  // 🔹 Example transformations (you can expand later)
-  const completedTasks = safeTasks.filter((t) => t.completed);
-  const pendingTasks   = safeTasks.filter((t) => !t.completed);
-
-  const latestWeight =
-    safeLogs.length > 0 ? safeLogs[safeLogs.length - 1].value || null : null;
-
-  // 🔹 Return structured dashboard data
+export function mapToDashboardData({ tasks, items, weightLogs }) {
   return {
-    tasks: safeTasks,
-    items: safeItems,
-    weightLogs: safeLogs,
+    tasks: tasks || [],
 
-    stats: {
-      totalTasks: safeTasks.length,
-      completedTasks: completedTasks.length,
-      pendingTasks: pendingTasks.length,
-      totalItems: safeItems.length,
-      latestWeight,
-    },
+    // items = habits in your system
+    items: (items || []).map((item) => ({
+      ...item,
+      type: "habit",
+      lastCompleted: item.lastCompleted || item.completedAt || null,
+    })),
+
+    weightLogs: weightLogs || [],
   };
 }
+
+export default mapToDashboardData;

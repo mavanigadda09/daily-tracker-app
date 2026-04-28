@@ -1,7 +1,7 @@
 import React, { lazy, Suspense } from "react";
 import Dashboard from "./Dashboard";
 
-const Health = lazy(() => import("../health/HealthPage.jsx"));
+const Health       = lazy(() => import("../health/HealthPage.jsx"));
 const Productivity = lazy(() => import("../../productivity/Productivity.jsx"));
 const Habits       = lazy(() => import("../../habits/Habits.jsx"));
 const Analytics    = lazy(() => import("../../pages/Analytics.jsx"));
@@ -30,6 +30,42 @@ const wrap = (element) => (
 
 export const PROTECTED_ROUTES = [
 
+  // ── Index / Dashboard ────────────────────────────────────────────────────
+  // The empty path renders the Dashboard when the user lands on "/" inside
+  // the authenticated shell. Without this entry the shell renders nothing
+  // on first load.
+  {
+    path: "",
+    element: (appData, user) => wrap(
+      <Dashboard
+        user={user}
+        tasks={appData.tasks}
+        items={appData.items}
+        weightLogs={appData.weightLogs}
+      />
+    ),
+  },
+
+  // ── Health (step counter + habits merged) ────────────────────────────────
+  // useStepCounter is self-contained inside HealthPage — no extra props needed.
+  {
+    path: "health",
+    element: (appData) => wrap(
+      <Health
+        items={appData.items}
+        setItems={appData.setItems}
+        weightLogs={appData.weightLogs}
+        setWeightLogs={appData.setWeightLogs}
+        addWeight={appData.addWeight}
+        weightGoal={appData.weightGoal}
+        setWeightGoal={appData.setWeightGoal}
+      />
+    ),
+  },
+
+  // ── Productivity ─────────────────────────────────────────────────────────
+  // NOTE: items/setItems here are habit items forwarded to Productivity.
+  // Remove those two props if Productivity doesn't actually use habit data.
   {
     path: "productivity",
     element: (appData) => wrap(
@@ -41,20 +77,8 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
-  {
-  path: "health",
-  element: (appData) => wrap(
-    <Health
-      items={appData.items}
-      setItems={appData.setItems}
-      weightLogs={appData.weightLogs}
-      setWeightLogs={appData.setWeightLogs}
-      addWeight={appData.addWeight}
-      weightGoal={appData.weightGoal}
-      setWeightGoal={appData.setWeightGoal}
-    />
-  ),
-},
+
+  // ── Habits (standalone — also embedded inside Health) ────────────────────
   {
     path: "habits",
     element: (appData) => wrap(
@@ -69,6 +93,7 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
+
   {
     path: "analytics",
     element: (appData, user) => wrap(
@@ -79,6 +104,7 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
+
   {
     path: "finance",
     element: (appData) => wrap(
@@ -88,6 +114,7 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
+
   {
     path: "chat",
     element: (appData) => wrap(
@@ -100,6 +127,7 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
+
   {
     path: "goals",
     element: (appData) => wrap(
@@ -111,6 +139,7 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
+
   {
     path: "routines",
     element: (appData) => wrap(
@@ -120,12 +149,14 @@ export const PROTECTED_ROUTES = [
       />
     ),
   },
+
   {
     path: "profile",
     element: () => wrap(<Profile />),
   },
 ];
 
+// ── Kept for any call-sites that use this helper directly ────────────────────
 export function dashboardElement(dashboardData, user) {
   return (
     <Dashboard

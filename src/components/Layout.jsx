@@ -22,12 +22,9 @@ const ALL_NAV = [
   { path: "/analytics",    label: "Analytics",     Icon: BarChart3       },
 ];
 
-// First 4 shown in bottom bar; slot 5 = "More" button
 const PRIMARY_TABS = ALL_NAV.slice(0, 4);
 const MORE_ITEMS   = ALL_NAV.slice(4); // includes Profile + overflow
-
-// Sidebar shows everything
-const SIDEBAR_NAV = ALL_NAV;
+const SIDEBAR_NAV  = ALL_NAV;
 
 const isActive = (itemPath, pathname) => {
   if (itemPath === "/") return pathname === "/";
@@ -49,26 +46,24 @@ export default function Layout({ user = {}, onLogout, theme = "dark", onThemeTog
   }, [collapsed]);
 
   const isCapacitorNative = !!(window.Capacitor?.isNativePlatform?.());
-const [isMobile, setIsMobile] = useState(
-  () => isCapacitorNative || window.innerWidth < 768
-);
-useEffect(() => {
-  if (isCapacitorNative) return; // always mobile on native
-  const handler = () => setIsMobile(window.innerWidth < 768);
-  window.addEventListener("resize", handler);
-  return () => window.removeEventListener("resize", handler);
-}, [isCapacitorNative]);
+  const [isMobile, setIsMobile] = useState(
+    () => isCapacitorNative || window.innerWidth < 768
+  );
+  useEffect(() => {
+    if (isCapacitorNative) return;
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, [isCapacitorNative]);
 
   const [moreOpen, setMoreOpen] = useState(false);
 
-  // Close "More" drawer on navigation
   useEffect(() => { setMoreOpen(false); }, [location.pathname]);
 
   const avatarUrl   = user?.photoURL || null;
   const displayName = user?.displayName?.trim() || user?.name?.trim() || "User";
   const initial     = displayName.charAt(0).toUpperCase();
 
-  // Is any "more" item currently active?
   const moreActive = MORE_ITEMS.some(({ path }) => isActive(path, location.pathname));
 
   return (
@@ -169,11 +164,21 @@ useEffect(() => {
       )}
 
       {/* ── Page content ── */}
+      {/*
+        FIX: contentWrapper needs explicit height so <main> can be the scroll root.
+        Without height: 0 + flex: 1, the flex child expands to content height and
+        the *outer* container scrolls — which fights the position:fixed bottom nav.
+        On desktop, height: 0 + flex: 1 + overflow: hidden on the column wrapper
+        forces <main> to fill exactly the remaining viewport height.
+        On mobile, same trick but paddingBottom provides nav clearance.
+      */}
       <div style={{
         ...s.contentWrapper,
-        paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom))" : 0,
+        paddingBottom: isMobile ? "calc(60px + env(safe-area-inset-bottom))" : 0,
       }}>
-        {/* Mobile top bar */}
+        {/* Mobile top bar
+            FIX: paddingTop now includes env(safe-area-inset-top) for Android
+                 status bar on devices with notches/cutouts. */}
         {isMobile && (
           <div style={s.mobileTopBar}>
             <div style={s.mobileLogoRow}>
@@ -356,7 +361,10 @@ function Avatar({ url, initial, size = 32 }) {
 const s = {
   container: {
     display: "flex",
-    minHeight: "100dvh",
+    // FIX: 100dvh instead of 100vh — on Android Chrome, 100vh includes the
+    // browser UI chrome and causes a scroll bleed. 100dvh is the visible height.
+    height: "100dvh",
+    overflow: "hidden",           // ← clip at container level
     background: "var(--color-background-tertiary)",
     color: "var(--color-text-primary)",
   },
@@ -412,19 +420,46 @@ const s = {
     color: "var(--color-text-danger)", cursor: "pointer", fontSize: 13,
     overflow: "hidden", whiteSpace: "nowrap",
   },
-  contentWrapper: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column" },
-  main: { flex: 1, overflowY: "auto" },
+  // FIX: height: "100%" + overflow: "hidden" on contentWrapper makes it fill
+  // exactly the remaining flex space. The <main> child then gets flex:1 + overflowY:auto
+  // and becomes the sole scroll root — the fixed bottom nav never gets buried.
+  contentWrapper: {
+    flex: 1,
+    minWidth: 0,
+    height: "100%",           // ← fills container height exactly
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",       // ← clips, lets <main> own the scroll
+  },
+  // FIX: flex: 1 + overflowY: "auto" + minHeight: 0
+  // minHeight: 0 is the crucial piece — without it, a flex child's min-height
+  // defaults to "auto" (content height), defeating the overflow clipping.
+  main: {
+    flex: 1,
+    minHeight: 0,             // ← allows flex child to shrink below content height
+    overflowY: "auto",
+    overflowX: "hidden",
+    WebkitOverflowScrolling: "touch", // smooth momentum scroll on iOS/Android WebView
+  },
 
   // Mobile top bar
+  // FIX: paddingTop now includes env(safe-area-inset-top) so content doesn't
+  // render under the Android status bar on devices with display cutouts.
   mobileTopBar: {
     display: "flex", justifyContent: "space-between", alignItems: "center",
-    padding: "12px 16px 8px",
+    paddingTop: "calc(12px + env(safe-area-inset-top))",
+    paddingBottom: "8px",
+    paddingLeft: "16px",
+    paddingRight: "16px",
     borderBottom: "1px solid var(--color-border-tertiary)",
     background: "var(--color-background-secondary)",
+    flexShrink: 0,  // ← don't let top bar shrink when content is tall
   },
   mobileLogoRow: { display: "flex", alignItems: "center", gap: 8 },
 
   // Bottom tab bar
+  // height uses calc with env() so the bar extends into the gesture nav area
+  // but the interactive content stays above it (via paddingBottom on contentWrapper).
   bottomNav: {
     position: "fixed", bottom: 0, left: 0, right: 0,
     height: "calc(60px + env(safe-area-inset-bottom))",
@@ -439,6 +474,8 @@ const s = {
     alignItems: "center", justifyContent: "center",
     textDecoration: "none", gap: 2, padding: "6px 0",
     transition: "color 0.15s",
+    // Minimum 44px touch target height (iOS HIG / Material guidelines)
+    minHeight: 44,
   },
   tabIconWrap: {
     width: 40, height: 32, borderRadius: 10,

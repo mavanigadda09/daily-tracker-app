@@ -1,2 +1,2 @@
-/build/*
-!/build/.npmkeep
+android/phoenix-release.keystore
+android/key.properties

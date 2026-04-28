@@ -151,4 +151,4 @@ export function useAuth() {
     signInWithEmail,
     signInWithGoogleAuth,
   };
-}
+} 

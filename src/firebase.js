@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+// DELETE THIS LINE → import { db } from "../firebase";
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import {
   getAuth,
@@ -27,10 +28,6 @@ export async function signInWithGoogle() {
   if (Capacitor.isNativePlatform()) {
     try {
       console.log('[GoogleAuth] Initializing plugin...');
-
-      // FIX: initialize() must be called before signIn() on every invocation.
-      // The plugin's load() lifecycle does NOT reliably run before signIn()
-      // on Capacitor 8 with 3.4.0-rc.4, leaving GoogleSignInClient null → crash.
       await GoogleAuth.initialize({
         clientId: '287796839565-ds6ag7l9io777n0limmnctq3i4c1sne6.apps.googleusercontent.com',
         scopes: ['profile', 'email'],

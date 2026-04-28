@@ -8,6 +8,8 @@
  *   We store a "baseline" (the sensor value at the start of today) in
  *   localStorage. Today's steps = sensorTotal - baseline.
  *   At midnight the baseline resets automatically.
+ *   On reboot, TYPE_STEP_COUNTER resets to 0, so we also reset the
+ *   baseline whenever sensorTotal < baseline (reboot detected).
  *
  * Firestore sync:
  *   Steps are persisted to users/{uid}/stepLogs/{YYYY-MM-DD} so data
@@ -19,21 +21,22 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { registerPlugin }                            from "@capacitor/core";
+import { Capacitor, registerPlugin }                 from "@capacitor/core";
 import { auth, db }                                  from "../firebase";
 import { doc, setDoc, getDoc, serverTimestamp }      from "firebase/firestore";
 
 // ─── Register the native plugin ──────────────────────────────
-// This is a thin JS stub — the real implementation is in
-// StepCounterPlugin.java. Capacitor wires them together at runtime.
+// addListener in the web stub must return a Promise<{ remove }> to
+// match the signature the native path awaits.
 const StepCounter = registerPlugin("StepCounter", {
   web: {
-    // Web stub — falls back to DeviceMotion on non-Capacitor environments
-    isAvailable: async () => ({ available: false }),
-    start:       async () => ({ started: false }),
-    stop:        async () => ({ stopped: true }),
-    getSteps:    async () => ({ steps: -1, available: false }),
-    addListener: () => ({ remove: () => {} }),
+    checkPermission: async () => ({ state: "granted" }),
+    requestPermission: async () => ({ state: "granted" }),
+    isAvailable:     async () => ({ available: false }),
+    startCounting:   async () => {},
+    stopCounting:    async () => {},
+    getSteps:        async () => ({ steps: -1, available: false }),
+    addListener:     async () => ({ remove: () => {} }),
   },
 });
 
@@ -85,26 +88,26 @@ function cacheSteps(steps) {
   } catch {}
 }
 
-// ─── Firestore sync (debounced — max 1 write per 30s) ────────
-let firestoreWriteTimer = null;
-
-async function syncToFirestore(steps) {
+// ─── Firestore sync ───────────────────────────────────────────
+// Timer ref is passed in (owned by the hook instance, not module scope)
+// to avoid leaks across hot reloads and multiple hook instances.
+async function syncToFirestore(steps, timerRef) {
   const uid = auth.currentUser?.uid;
   if (!uid || steps <= 0) return;
 
-  clearTimeout(firestoreWriteTimer);
-  firestoreWriteTimer = setTimeout(async () => {
+  clearTimeout(timerRef.current);
+  timerRef.current = setTimeout(async () => {
     try {
       const ref = doc(db, "users", uid, "stepLogs", todayKey());
-      await setDoc(ref, {
-        date:      todayKey(),
-        steps,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
+      await setDoc(
+        ref,
+        { date: todayKey(), steps, updatedAt: serverTimestamp() },
+        { merge: true }
+      );
     } catch (err) {
       console.warn("[useStepCounter] Firestore sync failed:", err);
     }
-  }, 30_000); // debounce 30 seconds
+  }, 30_000);
 }
 
 async function loadTodayFromFirestore() {
@@ -121,7 +124,7 @@ async function loadTodayFromFirestore() {
 
 // ─── DeviceMotion fallback (web / dev only) ──────────────────
 function useMotionFallback(setSteps, active) {
-  const lastMag  = useRef(null);
+  const lastMag   = useRef(null);
   const stepCount = useRef(0);
   const THRESHOLD = 12;
 
@@ -150,48 +153,98 @@ function useMotionFallback(setSteps, active) {
   }, [active, setSteps]);
 }
 
+// ─── Permission state constants ───────────────────────────────
+export const PermissionState = {
+  PROMPT:  "prompt",
+  GRANTED: "granted",
+  DENIED:  "denied",
+};
+
 // ─── Main hook ────────────────────────────────────────────────
 
 /**
  * useStepCounter({ goal = 10000 })
  *
  * Returns:
- *   steps        {number}   — today's step count
- *   goal         {number}   — daily goal (configurable)
- *   setGoal      {function} — update the goal
- *   percent      {number}   — 0–100 progress toward goal
- *   available    {boolean}  — native sensor found
- *   isWeb        {boolean}  — running in browser (fallback mode)
- *   weeklySteps  {number[]} — last 7 days [oldest → today]
- *   resetToday   {function} — force reset today's count (debug)
+ *   steps            {number}   — today's step count
+ *   goal             {number}   — daily goal (configurable)
+ *   setGoal          {function} — update the goal
+ *   percent          {number}   — 0–100 progress toward goal
+ *   available        {boolean}  — native sensor found
+ *   isWeb            {boolean}  — running in browser (fallback mode)
+ *   permissionState  {string}   — "prompt" | "granted" | "denied"
+ *   requestPermission {function} — call to trigger the system dialog
+ *   weeklySteps      {number[]} — last 7 days [oldest → today]
+ *   resetToday       {function} — force reset today's count (debug)
  */
 export function useStepCounter({ goal: initialGoal = 10_000 } = {}) {
-  const [steps,       setSteps]      = useState(getCachedSteps);
-  const [goal,        setGoalState]  = useState(() => {
+  const [steps,           setSteps]         = useState(getCachedSteps);
+  const [goal,            setGoalState]     = useState(() => {
     try { return parseInt(localStorage.getItem("stepGoal") ?? "10000", 10); }
     catch { return initialGoal; }
   });
-  const [available,   setAvailable]  = useState(false);
-  const [isWeb,       setIsWeb]      = useState(false);
-  const [weeklySteps, setWeekly]     = useState([]);
+  const [available,       setAvailable]     = useState(false);
+  const [isWeb,           setIsWeb]         = useState(false);
+  const [permissionState, setPermission]    = useState(PermissionState.PROMPT);
+  const [weeklySteps,     setWeekly]        = useState(() => new Array(7).fill(0));
 
-  const listenerRef = useRef(null);
+  const listenerRef      = useRef(null);
+  const firestoreTimer   = useRef(null);   // ← instance-scoped, not module-scoped
+  const isNative         = Capacitor.isNativePlatform();
 
-  // ── Start native sensor ────────────────────────────────────
+  // ── DeviceMotion fallback active only when no native sensor ──
+  useMotionFallback(setSteps, isWeb);
+
+  // ── Permission check + sensor init ────────────────────────
   useEffect(() => {
     let mounted = true;
 
-    const initNative = async () => {
+    const init = async () => {
+      // ── 1. Non-native (web / dev server) ──────────────────
+      if (!isNative) {
+        setIsWeb(true);
+        setAvailable(false);
+        setPermission(PermissionState.GRANTED);
+
+        const saved = await loadTodayFromFirestore();
+        if (mounted && saved > 0) {
+          setSteps(saved);
+          cacheSteps(saved);
+        }
+        return;
+      }
+
+      // ── 2. Check current permission state ─────────────────
+      try {
+        const { state } = await StepCounter.checkPermission();
+        if (!mounted) return;
+        setPermission(state ?? PermissionState.PROMPT);
+
+        // If denied, stop here — show badge, don't start sensor
+        if (state === PermissionState.DENIED) return;
+
+        // If not yet granted, request now (first launch)
+        if (state !== PermissionState.GRANTED) {
+          const { state: newState } = await StepCounter.requestPermission();
+          if (!mounted) return;
+          setPermission(newState);
+          if (newState !== PermissionState.GRANTED) return;
+        }
+      } catch (err) {
+        console.warn("[useStepCounter] Permission check failed:", err);
+        if (mounted) setPermission(PermissionState.DENIED);
+        return;
+      }
+
+      // ── 3. Permission granted — check hardware ─────────────
       try {
         const { available: hw } = await StepCounter.isAvailable();
         if (!mounted) return;
 
         if (!hw) {
-          // No native sensor — use DeviceMotion fallback
-          setIsWeb(true);
           setAvailable(false);
+          setIsWeb(true);
 
-          // Load any steps saved from Firestore as starting point
           const saved = await loadTodayFromFirestore();
           if (mounted && saved > 0) {
             setSteps(saved);
@@ -203,18 +256,18 @@ export function useStepCounter({ goal: initialGoal = 10_000 } = {}) {
         setAvailable(true);
         setIsWeb(false);
 
-        await StepCounter.start();
+        // ── 4. Start sensor + attach listener ─────────────────
+        await StepCounter.startCounting();   // ← correct method name
 
-        // Listen for live sensor events
         listenerRef.current = await StepCounter.addListener(
           "stepUpdate",
           ({ steps: sensorTotal }) => {
             if (!mounted) return;
 
-            // Calculate today's steps using baseline
             let baseline = getBaseline();
-            if (baseline === null) {
-              // First reading of the day — set baseline
+
+            // Reboot detection: sensor reset to 0 or below saved baseline
+            if (baseline === null || sensorTotal < baseline) {
               baseline = sensorTotal;
               saveBaseline(baseline);
             }
@@ -222,35 +275,53 @@ export function useStepCounter({ goal: initialGoal = 10_000 } = {}) {
             const todaySteps = Math.max(0, sensorTotal - baseline);
             setSteps(todaySteps);
             cacheSteps(todaySteps);
-            syncToFirestore(todaySteps);
+            syncToFirestore(todaySteps, firestoreTimer);
           }
         );
 
       } catch (err) {
-        console.warn("[useStepCounter] Native init failed, using fallback:", err);
-        if (mounted) setIsWeb(true);
+        console.warn("[useStepCounter] Sensor init failed, using fallback:", err);
+        if (mounted) {
+          setAvailable(false);
+          setIsWeb(true);
+        }
       }
     };
 
-    initNative();
+    init();
 
     return () => {
       mounted = false;
       listenerRef.current?.remove?.();
-      StepCounter.stop().catch(() => {});
+      clearTimeout(firestoreTimer.current);
+      if (isNative) {
+        StepCounter.stopCounting().catch(() => {});   // ← correct method name
+      }
     };
-  }, []);
+  }, [isNative]);
+
+  // ── Manual permission request (for "try again" badge button) ─
+  const requestPermission = useCallback(async () => {
+    if (!isNative) return PermissionState.GRANTED;
+    try {
+      const { state } = await StepCounter.requestPermission();
+      setPermission(state);
+      return state;
+    } catch {
+      setPermission(PermissionState.DENIED);
+      return PermissionState.DENIED;
+    }
+  }, [isNative]);
 
   // ── Midnight reset ─────────────────────────────────────────
   useEffect(() => {
-    const now         = new Date();
-    const tomorrow    = new Date(now);
+    const now             = new Date();
+    const tomorrow        = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
     const msUntilMidnight = tomorrow - now;
 
     const timer = setTimeout(() => {
-      // New day — clear baseline so native sensor resets today's count
       localStorage.removeItem("stepBaseline");
       localStorage.removeItem("stepCache");
       setSteps(0);
@@ -275,19 +346,19 @@ export function useStepCounter({ goal: initialGoal = 10_000 } = {}) {
       try {
         const counts = await Promise.all(
           days.map(async (date) => {
-            // Today's count comes from live state, not Firestore
-            if (date === todayKey()) return null;
+            // Today's live count is filled in below from state — skip Firestore
+            if (date === todayKey()) return 0;
             try {
               const ref  = doc(db, "users", uid, "stepLogs", date);
               const snap = await getDoc(ref);
-              return snap.exists() ? snap.data().steps : 0;
+              return snap.exists() ? (snap.data().steps ?? 0) : 0;
             } catch {
               return 0;
             }
           })
         );
-        // Replace today's null placeholder with live steps
-        counts[6] = null; // will be filled by steps state
+        // Index 6 = today; always use live state, never the placeholder
+        // We set it to 0 here; the derived fullWeekly below fills it from steps.
         setWeekly(counts);
       } catch {
         setWeekly(new Array(7).fill(0));
@@ -311,18 +382,21 @@ export function useStepCounter({ goal: initialGoal = 10_000 } = {}) {
     setSteps(0);
   }, []);
 
-  // ── Fill today into weekly array ──────────────────────────
-  const fullWeekly = [...weeklySteps];
-  if (fullWeekly.length === 7) fullWeekly[6] = steps;
+  // ── Fill today into weekly array (no null placeholder) ────
+  // weeklySteps[6] is always 0 from Firestore load above;
+  // we derive fullWeekly fresh each render so it's always current.
+  const fullWeekly = weeklySteps.map((v, i) => (i === 6 ? steps : v));
 
   return {
     steps,
     goal,
     setGoal,
-    percent:     Math.min(100, Math.round((steps / goal) * 100)),
+    percent:          Math.min(100, Math.round((steps / goal) * 100)),
     available,
     isWeb,
-    weeklySteps: fullWeekly,
+    permissionState,
+    requestPermission,
+    weeklySteps:      fullWeekly,
     resetToday,
   };
 }

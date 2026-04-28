@@ -4,4 +4,5 @@
     <string name="title_activity_main">Phoenix Tracker</string>
     <string name="package_name">com.phoenix.tracker</string>
     <string name="custom_url_scheme">com.phoenix.tracker</string>
+    <string name="server_client_id">287796839565-ds6ag7l9io777n0limmnctq3i4c1sne6.apps.googleusercontent.com</string>
 </resources>
